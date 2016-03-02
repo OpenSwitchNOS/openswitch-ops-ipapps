@@ -42,6 +42,8 @@ include_directories (${INCL_DIR}
 
 # CLI libraries source files
 set (SOURCES_CLI ${PROJECT_SOURCE_DIR}/udpfwd_vty.c
+                 ${PROJECT_SOURCE_DIR}/udpfwd_vty_utils.c
+                 ${PROJECT_SOURCE_DIR}/vtysh_ovsdb_udpfwd_context.c
     )
 
 
