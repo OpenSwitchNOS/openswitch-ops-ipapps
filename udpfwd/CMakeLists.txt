@@ -41,7 +41,7 @@ target_link_libraries (${UDPFWD} ${OVSCOMMON_LIBRARIES}
                        -lpthread -lrt)
 
 # Build ops-udpfwd cli shared libraries.
-#add_subdirectory(src/cli)
+add_subdirectory(src/cli)
 
 # Rules to install ops-udpfwd binary in rootfs
 install(TARGETS ${UDPFWD}
