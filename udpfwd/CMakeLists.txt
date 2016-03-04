@@ -32,7 +32,9 @@ include_directories (${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/${INCL_DIR}
 set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror")
 
 # Source files to build ops-udpfwd
-set (SOURCES ${SRC_DIR}/udpfwd.c)
+set (SOURCES ${SRC_DIR}/udpfwd_recv.c
+             ${SRC_DIR}/udpfwd_util.c
+             ${SRC_DIR}/udpfwd_xmit.c)
 
 # Rules to build ops-udpfwd
 add_executable (${UDPFWD} ${SOURCES})
@@ -41,7 +43,7 @@ target_link_libraries (${UDPFWD} ${OVSCOMMON_LIBRARIES}
                        -lpthread -lrt)
 
 # Build ops-udpfwd cli shared libraries.
-#add_subdirectory(src/cli)
+add_subdirectory(src/cli)
 
 # Rules to install ops-udpfwd binary in rootfs
 install(TARGETS ${UDPFWD}
