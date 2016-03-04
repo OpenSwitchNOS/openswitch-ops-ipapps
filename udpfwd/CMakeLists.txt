@@ -33,7 +33,10 @@ set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror")
 
 # Source files to build ops-udpfwd
 set (SOURCES ${SRC_DIR}/udpfwd.c
-             ${SRC_DIR}/udpfwd_config.c)
+             ${SRC_DIR}/udpfwd_config.c
+             ${SRC_DIR}/udpfwd_util.c
+             ${SRC_DIR}/udpfwd_xmit.c
+             ${SRC_DIR}/udpfwd_recv.c)
 
 # Rules to build ops-udpfwd
 add_executable (${UDPFWD} ${SOURCES})

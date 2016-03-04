@@ -53,7 +53,7 @@ typedef uint32_t IP_ADDRESS;     /* IP Address. */
 
 #define IFNAME_LEN 16  /* Maximum length of an interface name */
 
-#define RECV_BUFFER_SIZE 1024
+#define RECV_BUFFER_SIZE 1514 /* Maximum packet size */
 #define IDL_POLL_INTERVAL 5
 
 #define IP_ADDRESS_NULL   ((IP_ADDRESS)0L)
@@ -108,6 +108,7 @@ typedef struct UDPF_CTRL_CB
     struct shash intfHashTable; /* interface hash table handle */
     struct cmap serverHashMap;  /* server hash map handle */
     bool dhcp_relay_enable;     /* Flag to store DHCP_Relay global status */
+    char *buff; /* Buffer which is used to store udp packet */
 } UDPFWD_CTRL_CB;
 
 /* Server Address structure. */

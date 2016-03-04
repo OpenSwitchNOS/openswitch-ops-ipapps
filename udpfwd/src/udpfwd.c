@@ -41,6 +41,9 @@
 #include <pthread.h>
 #include <semaphore.h>
 
+/* Dynamic string */
+#include <dynamic-string.h>
+
 /* OVSDB Includes */
 #include "config.h"
 #include "command-line.h"
@@ -70,9 +73,22 @@ struct ovsdb_idl *idl;
 /* udp socket receiver thread handle */
 pthread_t udpBcastRecv_thread;
 
+/* Structure to store value of unixctl arguments */
+struct dump_params {
+    char *ifName; /* Name of the Interface */
+    uint16_t port; /* udp destination port */
+};
+
 /* UDP forwarder global configuration context */
 UDPFWD_CTRL_CB udpfwd_ctrl_cb;
 UDPFWD_CTRL_CB *udpfwd_ctrl_cb_p = &udpfwd_ctrl_cb;
+
+/* Unixctl function declarations */
+void decode_unixctl_param (struct dump_params *params, int argc,
+                           const char *argv[]);
+static void udpfwd_for_each_interface_dump(struct shash_node *node,
+                                           struct ds *ds, uint16_t udp_port);
+static void udpfwd_interfaces_dump(struct ds *ds, struct dump_params *params);
 
 VLOG_DEFINE_THIS_MODULE(udpfwd);
 
@@ -137,7 +153,6 @@ bool udpfwd_module_init(void)
         return false;
     }
 
-#if 0 /* Shall be enabled thorugh another  review request */
     /* Create UDP broadcast receiver thread */
     /* FIXME: Add logic to create recv thread only when there is a valid config */
     retVal = pthread_create(&udpBcastRecv_thread, (pthread_attr_t *)NULL,
@@ -148,7 +163,6 @@ bool udpfwd_module_init(void)
                  retVal);
         return false;
     }
-#endif
 
     return true;
 }
@@ -264,6 +278,26 @@ void udpfwd_reconfigure(void)
 }
 
 /*
+ * Function      : decode_unixctl_param
+ * Responsiblity : Function to decode unixctl arguments.
+ * Parameters    : params - structure in which value of
+ *                 unixctl arguments is stored.
+ *                 argc, argv - arguments.
+ * Return        : none
+ */
+
+void decode_unixctl_param(struct dump_params *params, int argc,
+                            const char *argv[])
+{
+    if (argc > 3) {
+        params->ifName = (char*)argv[2];
+        params->port = atoi(argv[4]);
+    }
+    else if (argc > 1)
+        params->ifName = (char*)argv[2];
+}
+
+/*
  * Function      : udpfwd_unixctl_dump
  * Responsiblity : UDP fowarder module core dump callback
  * Parameters    : conn - unixctl socket connection
@@ -271,14 +305,105 @@ void udpfwd_reconfigure(void)
  *                 aux - aux connection data
  * Return        : none
  */
-
 static void udpfwd_unixctl_dump(struct unixctl_conn *conn, int argc OVS_UNUSED,
                    const char *argv[] OVS_UNUSED, void *aux OVS_UNUSED)
 {
-    unixctl_command_reply_error(conn, "NA");
+    struct ds ds = DS_EMPTY_INITIALIZER;
+    struct dump_params params;
+    memset(&params, 0, sizeof(struct dump_params));
+    decode_unixctl_param(&params, argc, argv);
+    udpfwd_interfaces_dump(&ds, &params);
+    unixctl_command_reply(conn, ds_cstr(&ds));
+    ds_destroy(&ds);
 }
 
 /*
+ * Function      : udpfwd_interfaces_dump
+ * Responsiblity : Function dumps information about interfaces
+ *                 into dynamic string ds.
+ * Parameters    : ds - output buffer
+ *                 params - structure which has interface name
+ *                 and udp destination port number
+ * Return        : none
+ */
+
+static void udpfwd_interfaces_dump(struct ds *ds, struct dump_params *params)
+{
+    struct shash_node *node, *temp;
+
+    if (udpfwd_ctrl_cb_p->dhcp_relay_enable)
+        ds_put_cstr(ds, "DHCP Relay is enabled\n");
+    else
+        ds_put_cstr(ds, "DHCP Relay is disabled\n");
+
+    if (!params->ifName) {
+        /* dump all interfaces */
+        SHASH_FOR_EACH(temp, &udpfwd_ctrl_cb_p->intfHashTable)
+            udpfwd_for_each_interface_dump(temp, ds, params->port);
+    }
+    else {
+        node = shash_find(&udpfwd_ctrl_cb_p->intfHashTable, params->ifName);
+        if (NULL == node) {
+            ds_put_format(ds, "No helper address configured on"
+            " this interface :%s\n", params->ifName);
+            return;
+        }
+        udpfwd_for_each_interface_dump(node, ds, params->port);
+    }
+}
+
+/*
+ * Function      : udpfwd_interfaces_dump
+ * Responsiblity : Function dumps information about server IP address,
+ *                 udp destination port Number , ref count for each
+ *                 interface into dynamic string ds.
+ * Parameters    : ds - output buffer
+ *                 params - structure which has interface name
+ *                 and port number.
+ * Return        : none
+ */
+
+static void udpfwd_for_each_interface_dump(struct shash_node *node,
+                                           struct ds *ds, uint16_t udp_port)
+{
+    UDPFWD_SERVER_T *server = NULL;
+    UDPFWD_SERVER_T **serverArray = NULL;
+    UDPFWD_INTERFACE_NODE_T *intfNode = NULL;
+    int32_t iter = 0;
+    bool found = false;
+    struct in_addr ip_addr;
+
+    intfNode = (UDPFWD_INTERFACE_NODE_T *)node->data;
+    serverArray = intfNode->serverArray;
+
+    /* Print all configured server IP addresses along with port number */
+    ds_put_format(ds, "Interface : %s\n", intfNode->portName);
+
+    for(iter = 0; iter < intfNode->addrCount; iter++)
+    {
+        server = serverArray[iter];
+        if(udp_port) {
+            if (server->udp_port == udp_port) {
+                found = true;
+                ds_put_format(ds, "Port no :%d\n", server->udp_port);
+                ip_addr.s_addr = server->ip_address;
+                ds_put_format(ds, "Server IP Address: %s\n", inet_ntoa(ip_addr));
+                ds_put_format(ds, "Server Ip ref count :%d\n", server->ref_count);
+            }
+        }
+        else {
+            ds_put_format(ds, "Port no : %d\n", server->udp_port);
+            ip_addr.s_addr = server->ip_address;
+            ds_put_format(ds, "Server IP Address : %s\n", inet_ntoa(ip_addr));
+            ds_put_format(ds, "Server Ip ref count :%d\n", server->ref_count);
+        }
+    }
+    if(!found && udp_port)
+        ds_put_format(ds, "No IP address associated with this port: %d\n",
+                      udp_port);
+}
+
+/**
  * Function      : usage
  * Responsiblity : Daemon usage help display
  * Parameters    : none
@@ -447,7 +572,7 @@ void udpfwd_init(const char *remote)
     /* Initialize module data structures */
     udpfwd_module_init();
 
-    unixctl_command_register("udpfwd/dump", "", 0, 0,
+    unixctl_command_register("udpfwd/dump", "", 0, 4,
                              udpfwd_unixctl_dump, NULL);
 }
 
