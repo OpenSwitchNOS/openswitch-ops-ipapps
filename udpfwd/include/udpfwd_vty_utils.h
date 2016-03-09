@@ -27,6 +27,15 @@
 #define SET     1
 #define UNSET   0
 
+/* Maximum UDP protocols supported */
+#define MAX_UDP_PROTOCOL 11
+
+/* Struct to hold the UDP protocol name and number. */
+typedef struct {
+    char *name; /* UDP protocol name */
+    int number; /* UDP protocol port number */
+} udpProtocols;
+
 /* Store the UDP Forwarder details. */
 typedef struct
 udpfwd_server_t {
@@ -43,20 +52,30 @@ udpfwd_feature_t {
 
 /* Handler functions. */
 
-extern bool decode_server_param (udpfwd_server *, const char **,
-                                 udpfwd_feature);
+extern bool
+decode_server_param (udpfwd_server *, const char **,
+                     udpfwd_feature);
 extern bool
 find_udpfwd_server_ip (char **, int8_t,
                        udpfwd_server *);
 extern bool
-helper_address_maxcount_reached(const char * );
-extern const struct
-ovsrec_dhcp_relay *dhcp_relay_row_lookup(const char *, const char *);
-extern int8_t udpfwd_globalconfig (const char *, udpfwd_feature );
-extern void udpfwd_serverupdate (const struct
-                                 ovsrec_dhcp_relay *,
-                                 bool, udpfwd_server *);
-extern int8_t udpfwd_serverconfig (udpfwd_server *, bool );
-extern int8_t show_ip_helper_address_config (const char *, udpfwd_feature );
-
+server_address_maxcount_reached (const char *, udpfwd_feature );
+extern const struct ovsrec_udp_bcast_forwarder_server *
+udp_bcast_server_row_lookup (const char *, const char *, udpfwd_server *);
+extern const struct ovsrec_dhcp_relay *
+dhcp_relay_row_lookup(const char *, const char *);
+extern int8_t
+udpfwd_globalconfig (const char *, udpfwd_feature );
+extern void
+udpfwd_serverupdate (void *, bool , udpfwd_server *, udpfwd_feature );
+extern bool
+udpfwd_setcommoncolumn (void *, udpfwd_feature );
+extern int8_t
+udpfwd_helperaddressconfig (udpfwd_server *, bool);
+extern int8_t
+udpfwd_serverconfig (udpfwd_server *, bool);
+extern int8_t
+show_ip_helper_address_config (const char *);
+extern int8_t
+show_udp_forwarder_configuration (const char *);
 #endif /* udpfwd_vty_utils.h */

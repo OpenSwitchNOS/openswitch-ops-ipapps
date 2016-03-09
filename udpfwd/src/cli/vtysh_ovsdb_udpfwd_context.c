@@ -1,7 +1,7 @@
-/* dhcp-relay functionality client callback resigitration
+/* UDP Broadcast Forwarder functionality client callback resigitration
  * source files.
  *
- * Copyright (C) 2016 Hewlett Packard Enterprise Development LP
+ * Copyright (C) 2016 Hewlett Packard Enterprise Development LP.
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2, or (at your option) any
@@ -17,53 +17,53 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
  * MA 02110-1301, USA.
  *
- * File: vtysh_ovsdb_dhcp_relay_context.c
+ * File: vtysh_ovsdb_udpfwd_context.c
  *
- * Purpose: Source for registering client callback with dhcp-relay
+ * Purpose: Source for registering client callback with UDP Forwarder
  *          context.
  */
 /****************************************************************************
  * @ingroup ops-ipapps
  *
- * @file vtysh_ovsdb_dhcp_relay_context.c
- * Source for registering dhcp-relay functionality client callback with
- * openvswitch table.
+ * @file vtysh_ovsdb_udpfwd_context.c
+ * Source for registering UDP Bcast Forwarder functionality client
+ * callback with openvswitch table.
  *
  ***************************************************************************/
 
-#include "vtysh/zebra.h"
 #include "vtysh/vty.h"
 #include "vtysh/vector.h"
 #include "vswitch-idl.h"
 #include "openswitch-idl.h"
-#include "vtysh/command.h"
-#include "vtysh/vtysh_ovsdb_if.h"
 #include "vtysh/vtysh_ovsdb_config.h"
-#include "vtysh_ovsdb_dhcp_relay_context.h"
+#include "vtysh_ovsdb_udpfwd_context.h"
+
+char udp_forwarder_context_client_name[] = "vtysh_udp_forwarder_context_\
+                                                        clientcallback";
 
 /*-----------------------------------------------------------------------------
-| Function : vtysh_dhcp_relay_context_clientcallback
-| Responsibility : client callback routine for dhcp-relay
+| Function : vtysh_udp_forwarder_context_clientcallback
+| Responsibility : client callback routine
 | Parameters :
 |     void *p_private: void type object typecast to required
 | Return : On success, returns e_vtysh_ok. On failure, returns e_vtysh_error.
 -----------------------------------------------------------------------------*/
 vtysh_ret_val
-vtysh_dhcp_relay_context_clientcallback (void *p_private)
+vtysh_udp_forwarder_context_clientcallback (void *p_private)
 {
     vtysh_ovsdb_cbmsg_ptr p_msg = (vtysh_ovsdb_cbmsg *)p_private;
     const struct ovsrec_system *ovs_row = NULL;
-    char *dhcp_relay_status = NULL;
+    char *udp_status = NULL;
 
     ovs_row = ovsrec_system_first (p_msg->idl);
     if (!ovs_row) {
         return e_vtysh_ok;
     }
 
-    dhcp_relay_status = (char *)smap_get(&ovs_row->other_config,
-                                  SYSTEM_OTHER_CONFIG_MAP_DHCP_RELAY_DISABLED);
-    if (dhcp_relay_status && !strcmp(dhcp_relay_status, "true")) {
-        vtysh_ovsdb_cli_print(p_msg, "%s", "no dhcp-relay");
+    udp_status = (char *)smap_get(&ovs_row->other_config,
+                              SYSTEM_OTHER_CONFIG_MAP_UDP_BCAST_FWD_ENABLED);
+    if (udp_status && !strcmp(udp_status, "true")) {
+        vtysh_ovsdb_cli_print(p_msg, "%s", "ip udp-bcast-forward");
     }
 
     return e_vtysh_ok;

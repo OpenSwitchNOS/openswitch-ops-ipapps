@@ -41,9 +41,12 @@ include_directories (${INCL_DIR}
                     )
 
 # CLI libraries source files
-set (SOURCES_CLI ${PROJECT_SOURCE_DIR}/dhcp_relay_vty.c
+set (SOURCES_CLI ${PROJECT_SOURCE_DIR}/udpfwd_vty_main.c
+                 ${PROJECT_SOURCE_DIR}/dhcp_relay_vty.c
+                 ${PROJECT_SOURCE_DIR}/udpfwd_vty.c
                  ${PROJECT_SOURCE_DIR}/udpfwd_vty_utils.c
                  ${PROJECT_SOURCE_DIR}/vtysh_ovsdb_dhcp_relay_context.c
+                 ${PROJECT_SOURCE_DIR}/vtysh_ovsdb_udpfwd_context.c
     )
 
 
