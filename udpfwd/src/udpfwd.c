@@ -41,6 +41,9 @@
 #include <pthread.h>
 #include <semaphore.h>
 
+/* Dynamic string */
+#include <dynamic-string.h>
+
 /* OVSDB Includes */
 #include "config.h"
 #include "command-line.h"
@@ -62,13 +65,19 @@
 /*
  * Global variable declarations.
  */
-
+static int system_configured = false;
 /* Cached idl sequence number */
 uint32_t idl_seqno;
 /* idl pointer */
 struct ovsdb_idl *idl;
 /* udp socket receiver thread handle */
 pthread_t udpBcastRecv_thread;
+
+/* Structure to store value of unixctl arguments */
+struct dump_params {
+    char *ifName; /* Name of the Interface */
+    uint16_t port; /* udp destination port */
+};
 
 /* UDP forwarder global configuration context */
 UDPFWD_CTRL_CB udpfwd_ctrl_cb;
@@ -114,6 +123,7 @@ bool udpfwd_module_init(void)
                        (char *)&val, sizeof (val));
     if (0 != retVal) {
         VLOG_ERR("Failed to set broadcast socket option : %d", retVal);
+        close(udpfwd_ctrl_cb_p->send_sockFd);
         return false;
     }
 
@@ -137,7 +147,15 @@ bool udpfwd_module_init(void)
         return false;
     }
 
-#if 0 /* Shall be enabled thorugh another  review request */
+    /* Allocate memory for packet recieve buffer */
+    udpfwd_ctrl_cb_p->rcvbuff = (char *) calloc(RECV_BUFFER_SIZE, sizeof(char));
+
+    if (NULL == udpfwd_ctrl_cb_p->rcvbuff)
+    {
+        VLOG_ERR(" Memory allocation for receive buffer failed\n");
+        return false;
+    }
+
     /* Create UDP broadcast receiver thread */
     /* FIXME: Add logic to create recv thread only when there is a valid config */
     retVal = pthread_create(&udpBcastRecv_thread, (pthread_attr_t *)NULL,
@@ -148,7 +166,6 @@ bool udpfwd_module_init(void)
                  retVal);
         return false;
     }
-#endif
 
     return true;
 }
@@ -264,6 +281,82 @@ void udpfwd_reconfigure(void)
 }
 
 /*
+ * Function      : udpfwd_interface_dump
+ * Responsiblity : Function dumps information about server IP address,
+ *                 udp destination port Number , ref count for each
+ *                 interface into dynamic string ds.
+ * Parameters    : ds - output buffer
+ *                 params - structure which has interface name
+ *                 and port number.
+ * Return        : none
+ */
+static void udpfwd_interface_dump(struct shash_node *node,
+                                  struct ds *ds, uint16_t udp_port)
+{
+    UDPFWD_SERVER_T *server = NULL;
+    UDPFWD_SERVER_T **serverArray = NULL;
+    UDPFWD_INTERFACE_NODE_T *intfNode = NULL;
+    int32_t iter = 0;
+    bool found = false;
+    struct in_addr ip_addr;
+
+    intfNode = (UDPFWD_INTERFACE_NODE_T *)node->data;
+    serverArray = intfNode->serverArray;
+
+    /* Print all configured server IP addresses along with port number */
+    ds_put_format(ds, "Interface : %s\n", intfNode->portName);
+
+    for(iter = 0; iter < intfNode->addrCount; iter++)
+    {
+        server = serverArray[iter];
+        if(udp_port && (udp_port != server->udp_port))
+            continue;
+        found = true;
+        ds_put_format(ds, "Port no : %d\n", server->udp_port);
+        ip_addr.s_addr = server->ip_address;
+        ds_put_format(ds, "Server IP Address : %s\n", inet_ntoa(ip_addr));
+        ds_put_format(ds, "Server Ip ref count :%d\n", server->ref_count);
+    }
+    if(!found && udp_port)
+        ds_put_format(ds, "No IP address associated with this port: %d\n",
+                      udp_port);
+}
+
+/*
+ * Function      : udpfwd_interfaces_dump
+ * Responsiblity : Function dumps information about interfaces
+ *                 into dynamic string ds.
+ * Parameters    : ds - output buffer
+ *                 params - structure which has interface name
+ *                 and udp destination port number
+ * Return        : none
+ */
+static void udpfwd_interfaces_dump(struct ds *ds, struct dump_params *params)
+{
+    struct shash_node *node, *temp;
+
+    if (udpfwd_ctrl_cb_p->dhcp_relay_enable)
+        ds_put_cstr(ds, "DHCP Relay is enabled\n");
+    else
+        ds_put_cstr(ds, "DHCP Relay is disabled\n");
+
+    if (!params->ifName) {
+        /* dump all interfaces */
+        SHASH_FOR_EACH(temp, &udpfwd_ctrl_cb_p->intfHashTable)
+            udpfwd_interface_dump(temp, ds, params->port);
+    }
+    else {
+        node = shash_find(&udpfwd_ctrl_cb_p->intfHashTable, params->ifName);
+        if (NULL == node) {
+            ds_put_format(ds, "No helper address configured on"
+            " this interface :%s\n", params->ifName);
+            return;
+        }
+        udpfwd_interface_dump(node, ds, params->port);
+    }
+}
+
+/*
  * Function      : udpfwd_unixctl_dump
  * Responsiblity : UDP fowarder module core dump callback
  * Parameters    : conn - unixctl socket connection
@@ -271,11 +364,28 @@ void udpfwd_reconfigure(void)
  *                 aux - aux connection data
  * Return        : none
  */
-
 static void udpfwd_unixctl_dump(struct unixctl_conn *conn, int argc OVS_UNUSED,
                    const char *argv[] OVS_UNUSED, void *aux OVS_UNUSED)
 {
-    unixctl_command_reply_error(conn, "NA");
+    struct ds ds = DS_EMPTY_INITIALIZER;
+    struct dump_params params;
+    memset(&params, 0, sizeof(struct dump_params));
+    /*
+     * Parse unxictl arguments.
+     * second argument is always interface name.
+     * fourth argument is udp destination port number.
+     * ex : ovs-appctl -t ops-udpfwd udpfwd/dump int 1 port 67.
+     */
+    if (argc > 3) {
+        params.ifName = (char*)argv[2];
+        params.port = atoi(argv[4]);
+    }
+    else if (argc > 1)
+        params.ifName = (char*)argv[2];
+
+    udpfwd_interfaces_dump(&ds, &params);
+    unixctl_command_reply(conn, ds_cstr(&ds));
+    ds_destroy(&ds);
 }
 
 /*
@@ -410,6 +520,8 @@ static void udpfwd_exit_cb(struct unixctl_conn *conn, int argc OVS_UNUSED,
  */
 static void udpfwd_exit(void)
 {
+    /* free memory for packet receive buffer */
+    free(udpfwd_ctrl_cb_p->rcvbuff);
     ovsdb_idl_destroy(idl);
 }
 
@@ -447,8 +559,33 @@ void udpfwd_init(const char *remote)
     /* Initialize module data structures */
     udpfwd_module_init();
 
-    unixctl_command_register("udpfwd/dump", "", 0, 0,
+    unixctl_command_register("udpfwd/dump", "", 0, 4,
                              udpfwd_unixctl_dump, NULL);
+}
+
+/**
+ * Function      : udpfwd_chk_for_system_configured
+ * Responsiblity : Check if system is fully configured by looking into
+ *                 system table
+ * Parameters    : none
+ * Return        : none
+ */
+static inline void udpfwd_chk_for_system_configured(void)
+{
+    const struct ovsrec_system *ovs_vsw = NULL;
+
+    if (system_configured) {
+        /* Nothing to do if we're already configured. */
+        return;
+    }
+
+    ovs_vsw = ovsrec_system_first(idl);
+
+    if (ovs_vsw && (ovs_vsw->cur_cfg > (int64_t) 0)) {
+        system_configured = true;
+        VLOG_INFO("System is now configured (cur_cfg=%d).",
+                  (int)ovs_vsw->cur_cfg);
+    }
 }
 
 /*
@@ -471,6 +608,11 @@ void udpfwd_run(void)
         return;
     }
 
+    udpfwd_chk_for_system_configured();
+    if (!system_configured) {
+        return;
+    }
+
     udpfwd_reconfigure();
 }
 
@@ -482,7 +624,6 @@ void udpfwd_run(void)
  */
 int main(int argc, char *argv[])
 {
-    const struct ovsrec_system *ovs_vsw = NULL;
     char *unixctl_path = NULL;
     struct unixctl_server *unixctl;
     char *remote;
@@ -506,18 +647,6 @@ int main(int argc, char *argv[])
     free(remote);
     daemonize_complete();
     vlog_enable_async();
-
-    /* Wait for system ready state */
-    while (!exiting) {
-        ovs_vsw = ovsrec_system_first(idl);
-
-        if (ovs_vsw && (ovs_vsw->cur_cfg > (int64_t) 0)) {
-            VLOG_INFO("System is now configured (cur_cfg=%d).",
-                      (int)ovs_vsw->cur_cfg);
-            break;
-        }
-        udpfwd_wait();
-    }
 
     /* Daemon Task loop */
     while (!exiting)
