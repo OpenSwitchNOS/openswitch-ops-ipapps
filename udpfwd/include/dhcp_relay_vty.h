@@ -37,12 +37,12 @@
 #define HELPER_ADDRESS_INPUT_STR \
 "Enter helper address\n"
 
-#define SUBIFNAME_STR \
-"Subinterface name\n"
-
-void
-cli_pri_init(void);
-void
-cli_post_init(void);
+/* Defuns for dhcp-relay */
+extern struct cmd_element dhcp_relay_configuration_cmd;
+extern struct cmd_element no_dhcp_relay_configuration_cmd;
+extern struct cmd_element show_dhcp_relay_configuration_cmd;
+extern struct cmd_element ip_helper_address_configuration_cmd;
+extern struct cmd_element no_ip_helper_address_configuration_cmd;
+extern struct cmd_element show_ip_helper_address_configuration_cmd;
 
 #endif /* dhcp_relay_vty.h */
