@@ -53,18 +53,34 @@ static const struct ovsrec_vrf* udp_bcast_config_vrf_lookup(const char *);
 extern struct ovsdb_idl *idl;
 VLOG_DEFINE_THIS_MODULE(udpfwd_vty_utils);
 
+/* Supported UDP protocols. */
+udpProtocols
+udp_protocol[MAX_UDP_PROTOCOL] = {
+                                     { "dns", 53},
+                                     { "ntp", 123},
+                                     { "netbios-ns", 137},
+                                     { "netbios-dgm", 138},
+                                     { "radius", 1812},
+                                     { "radius-old", 1645},
+                                     { "rip", 520},
+                                     { "snmp", 161},
+                                     { "snmp-trap", 162},
+                                     { "tftp", 69},
+                                     { "timep", 37}
+                                 };
+
 /*-----------------------------------------------------------------------------
 | Function       : udpfwd_globalconfig
 | Responsibility : To enable/disable udp broadcast forwarding and dhcp-relay
 | Parameters     :
-|        enable  : If true, enable UDP Broadcast Forwarder and if false
-|                  disable the UDP Broadcast Forwarder
-|        type    : Determines the forwarder protocol
+|        status  : If true, enable UDP broadcast forwarding/dhcp-relay and
+|                  if false disable the UDP broadcast forwarding/dhcp-relay
+|        type    : Determines thhe udpfwd feature type
 | Return         : On success returns CMD_SUCCESS,
 |                  On failure returns CMD_OVSDB_FAILURE
 -----------------------------------------------------------------------------*/
 int8_t
-udpfwd_globalconfig (const char *disable, udpfwd_feature type)
+udpfwd_globalconfig (const char *status, udpfwd_feature type)
 {
     const struct ovsrec_system *ovs_row = NULL;
     struct ovsdb_idl_txn *status_txn = cli_do_config_start();
@@ -89,6 +105,8 @@ udpfwd_globalconfig (const char *disable, udpfwd_feature type)
     /* Identify if the operation is for dhcp-relay. */
     if (type == DHCP_RELAY)
         key = SYSTEM_OTHER_CONFIG_MAP_DHCP_RELAY_DISABLED;
+    else if (type == UDP_BCAST_FWD)
+        key = SYSTEM_OTHER_CONFIG_MAP_UDP_BCAST_FWD_ENABLED;
 
     smap_clone(&smap_status_value, &ovs_row->other_config);
     state_value = (char*)smap_get(&ovs_row->other_config,
@@ -96,11 +114,12 @@ udpfwd_globalconfig (const char *disable, udpfwd_feature type)
 
     if(state_value == NULL)
     {
-        smap_add(&smap_status_value, key, disable);
+        if (!strcmp(status, "true"))
+            smap_add(&smap_status_value, key, status);
     }
     else
     {
-        smap_replace(&smap_status_value, key, disable);
+        smap_replace(&smap_status_value, key, status);
     }
 
     ovsrec_system_set_other_config(ovs_row, &smap_status_value);
@@ -149,9 +168,9 @@ ovsrec_vrf* udp_bcast_config_vrf_lookup (const char *vrf_name)
 | Responsibility   : Validates the user input parameters
 |                    for the  UDP forward-protocol and helper-address CLI
 | Parameters       :
-|        *udpfServ : Pointer containing user input details
+|        *udpfwdServ : Pointer containing user input details
 |        *argv     : argv from the CLI
-|        type      : Determines the forwarder protocol
+|        type      : Determines thhe udpfwd feature type
 | Return           : On success returns true,
 |                    On failure returns false
 -----------------------------------------------------------------------------*/
@@ -159,6 +178,8 @@ bool
 decode_server_param (udpfwd_server *udpfwdServer, const char *argv[],
                      udpfwd_feature type)
 {
+    int pNum, i;
+    char *pName;
     struct in_addr addr;
     bool validParams = false;
 
@@ -173,13 +194,76 @@ decode_server_param (udpfwd_server *udpfwdServer, const char *argv[],
 
     if (!IS_VALID_IPV4(htonl(addr.s_addr)))
     {
-        vty_out(vty, "Broadcast, multicast and loopback addresses "
-                     "are not allowed.%s", VTY_NEWLINE);
-        return validParams;
+        if (type == UDP_BCAST_FWD)
+        {
+            if (IS_BROADCAST_IPV4(htonl(addr.s_addr)))
+            {
+                vty_out(vty,
+                    "Broadcast, multicast and loopback addresses "
+                    "are not allowed.%s",
+                    VTY_NEWLINE);
+                return validParams;
+            }
+            else if (!IS_SUBNET_BROADCAST(htonl(addr.s_addr)))
+            {
+                vty_out(vty,
+                    "Broadcast, multicast and loopback addresses "
+                    "are not allowed.%s",
+                    VTY_NEWLINE);
+                return validParams;
+            }
+        }
+        else if (type == DHCP_RELAY)
+        {
+            vty_out(vty,
+                "Broadcast, multicast and loopback addresses "
+                "are not allowed.%s",
+                VTY_NEWLINE);
+                return validParams;
+        }
     }
 
     udpfwdServer->ipAddr = (char *)argv[0];
-    return true;
+
+    if (type == DHCP_RELAY)
+        return true;
+
+    /* Validate UDP port info. */
+    if (isalpha((int) *argv[1]))
+    {
+        pName = (char*)argv[1];
+        for (i = 0; i < MAX_UDP_PROTOCOL; i++)
+        {
+            if(!strcmp(pName, udp_protocol[i].name))
+            {
+                udpfwdServer->udpPort = udp_protocol[i].number;
+                validParams = true;
+                break;
+            }
+        }
+    }
+    else
+    {
+        pNum = atoi(argv[1]);
+        for (i = 0; i < MAX_UDP_PROTOCOL; i++)
+        {
+            if(pNum == udp_protocol[i].number)
+            {
+                udpfwdServer->udpPort = pNum;
+                validParams = true;
+                break;
+            }
+        }
+    }
+
+    if (!validParams)
+    {
+        vty_out(vty, "Invalid UDP portname/portnumber entered. %s",
+                        VTY_NEWLINE);
+        VLOG_ERR("Invalid UDP portname/portnumber entered.");
+    }
+
+    return validParams;
 }
 
 /*-----------------------------------------------------------------------------
@@ -190,7 +274,6 @@ decode_server_param (udpfwd_server *udpfwdServer, const char *argv[],
 |      servers     : Array of server IP
 |      count       : Number of server IPs
 |      *udpfwdServ : Pointer containing user input details
-|      type        : Determines the forwarder protocol
 | Return           : On success returns true,
 |                    On failure returns false
 -----------------------------------------------------------------------------*/
@@ -237,7 +320,40 @@ ovsrec_dhcp_relay *dhcp_relay_row_lookup(const char *portname,
 }
 
 /*-----------------------------------------------------------------------------
-| Function         : is_helper_address_count_max
+| Function         : udp_bcast_server_row_lookup
+| Responsibility   : To lookup for the record with port and
+|                    default VRF in the UDP broadcast server table
+| Parameters       :
+|        portname  : Name of the port
+|        vrf_name  : Name of the VRF
+| Return           : On success returns the UDP broadcast server row,
+|                    On failure returns NULL
+-----------------------------------------------------------------------------*/
+const struct
+ovsrec_udp_bcast_forwarder_server *udp_bcast_server_row_lookup
+        (const char *portname, const char *vrf_name, udpfwd_server *udpfwdServ)
+{
+    const struct ovsrec_udp_bcast_forwarder_server *row_serv = NULL;
+
+    OVSREC_UDP_BCAST_FORWARDER_SERVER_FOR_EACH (row_serv, idl)
+    {
+        if (strcmp(row_serv->src_port->name, portname) == 0)
+        {
+            if (strcmp(row_serv->dest_vrf->name, vrf_name) == 0)
+            {
+                if (row_serv->udp_dport == udpfwdServ->udpPort)
+                {
+                    return row_serv;
+                }
+            }
+        }
+    }
+
+    return row_serv;
+}
+
+/*-----------------------------------------------------------------------------
+| Function         : helper_address_maxcount_reached
 | Responsibility   : To check the helper-address count on an interface
 |                    of dhcp-relay table
 | Parameters       :
@@ -271,17 +387,50 @@ helper_address_maxcount_reached(const char *portname)
 }
 
 /*-----------------------------------------------------------------------------
-| Function         : udpfwd_serverupdate
+| Function         : server_address_maxcount_reached
+| Responsibility   : To check the UDP server IP count on an interface
+|                    of UDP broadcast server table
+| Parameters       :
+|      portname    : Name of the port
+| Return           : On success returns true,
+|                    On failure returns false
+-----------------------------------------------------------------------------*/
+bool
+server_address_maxcount_reached (const char *portname)
+{
+    const struct ovsrec_udp_bcast_forwarder_server *row_serv = NULL;
+    size_t entries = 1;
+
+    OVSREC_UDP_BCAST_FORWARDER_SERVER_FOR_EACH (row_serv, idl)
+    {
+        if (strcmp(row_serv->src_port->name, portname) == 0)
+        {
+            entries += row_serv->n_ipv4_ucast_server;
+
+            /*
+             * Verify if the entries on an interface has
+             * exceeded the limit.
+             */
+            if (entries > MAX_SERVER_ADDRESS_PER_INTERFACE)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/*-----------------------------------------------------------------------------
+| Function         : udpfwd_dhcpserverupdate
 | Responsibility   : To update the server IP information to dhcp-relay table
 | Parameters       :
-|      row_serv    : dhcp-relay row
+|      row         : udpfwd feature row
 |      action      : Operation to be performed add/delete the server IP
 |      *udpfwdServ : Pointer containing user input details
 -----------------------------------------------------------------------------*/
 void
-udpfwd_serverupdate (const struct
-                     ovsrec_dhcp_relay *row_serv,
-                     bool action, udpfwd_server *udpfwdServ)
+udpfwd_dhcpserverupdate (const struct ovsrec_dhcp_relay *row_serv, bool action,
+                         udpfwd_server *udpfwdServ, udpfwd_feature type)
 {
     char **servers;
     size_t i, n, server_length = 0;
@@ -297,7 +446,7 @@ udpfwd_serverupdate (const struct
 
         servers[row_serv->n_ipv4_ucast_server] = udpfwdServ->ipAddr;
         ovsrec_dhcp_relay_set_ipv4_ucast_server(row_serv,
-                                servers, row_serv->n_ipv4_ucast_server+1);
+                                servers, server_length);
     }
     else
     {
@@ -313,13 +462,63 @@ udpfwd_serverupdate (const struct
         }
         ovsrec_dhcp_relay_set_ipv4_ucast_server (row_serv, servers, n);
     }
+
     free(servers);
     return;
 }
 
 /*-----------------------------------------------------------------------------
-| Function         : udpfwd_serverconfig
-| Responsibility   : Set/unset UDP forward-protocol and dhcp-relay
+| Function         : udpfwd_udpserverupdate
+| Responsibility   : To update the server IP information to UDP Bcast table
+| Parameters       :
+|      row         : udpfwd feature row
+|      action      : Operation to be performed add/delete the server IP
+|      *udpfwdServ : Pointer containing user input details
+-----------------------------------------------------------------------------*/
+void
+udpfwd_udpserverupdate (const struct ovsrec_udp_bcast_forwarder_server *row_serv,
+                        bool action, udpfwd_server *udpfwdServ,
+                        udpfwd_feature type)
+{
+    char **servers;
+    size_t i, n, server_length = 0;
+
+    if (action)
+    {
+        server_length = row_serv->n_ipv4_ucast_server + 1;
+        servers = xmalloc(IPADDRESS_STRING_MAX_LENGTH * server_length);
+
+        /* Add a server IP to dhcp-relay table */
+        for (i = 0; i < row_serv->n_ipv4_ucast_server; i++)
+            servers[i] = row_serv->ipv4_ucast_server[i];
+
+        servers[row_serv->n_ipv4_ucast_server] = udpfwdServ->ipAddr;
+        ovsrec_udp_bcast_forwarder_server_set_ipv4_ucast_server
+                        (row_serv, servers, server_length);
+    }
+    else
+    {
+        server_length = row_serv->n_ipv4_ucast_server - 1;
+        servers = xmalloc(IPADDRESS_STRING_MAX_LENGTH * server_length);
+
+        /* Delete the server IP from dhcp-relay table */
+        for (i = n = 0; i < row_serv->n_ipv4_ucast_server; i++)
+        {
+            if (strcmp (udpfwdServ->ipAddr,
+                        row_serv->ipv4_ucast_server[i]) != 0)
+                servers[n++] = row_serv->ipv4_ucast_server[i];
+        }
+        ovsrec_udp_bcast_forwarder_server_set_ipv4_ucast_server
+                                (row_serv, servers, n);
+    }
+
+    free(servers);
+    return;
+}
+
+/*-----------------------------------------------------------------------------
+| Function         : udpfwd_helperaddressconfig
+| Responsibility   : Set/unset dhcp-relay
 |                    helper-address.
 | Parameters       :
 |      *udpfwdServ : Pointer containing user input details
@@ -328,7 +527,7 @@ udpfwd_serverupdate (const struct
 |                    On failure returns CMD_OVSDB_FAILURE
 -----------------------------------------------------------------------------*/
 int8_t
-udpfwd_serverconfig (udpfwd_server *udpfwdServ, bool set)
+udpfwd_helperaddressconfig (udpfwd_server *udpfwdServ, bool set)
 {
     const struct ovsrec_dhcp_relay *row_serv = NULL;
     const struct ovsrec_port *port_row = NULL;
@@ -337,6 +536,7 @@ udpfwd_serverconfig (udpfwd_server *udpfwdServ, bool set)
     enum ovsdb_idl_txn_status txn_status;
     bool isAddrMatch = false;
     bool isMaxEntries;
+    udpfwd_feature type = DHCP_RELAY;
 
     if (status_txn == NULL)
     {
@@ -406,14 +606,14 @@ udpfwd_serverconfig (udpfwd_server *udpfwdServ, bool set)
             }
 
             /* Update the protocol server IP. */
-            udpfwd_serverupdate(row_serv, true, udpfwdServ);
+            udpfwd_dhcpserverupdate(row_serv, true, udpfwdServ, type);
         }
         else
         {
             if (!isAddrMatch)
             {
                 /* Update the protocol server IP. */
-                udpfwd_serverupdate(row_serv, true, udpfwdServ);
+                udpfwd_dhcpserverupdate(row_serv, true, udpfwdServ, type);
             }
             else
             {
@@ -428,7 +628,7 @@ udpfwd_serverconfig (udpfwd_server *udpfwdServ, bool set)
     {
         if (NULL == row_serv || (!isAddrMatch))
         {
-            vty_out(vty, "No such entries are present.%s", VTY_NEWLINE);
+            vty_out(vty, "Helper-address is not present.%s", VTY_NEWLINE);
             cli_do_config_abort(status_txn);
             return CMD_SUCCESS;
         }
@@ -446,7 +646,7 @@ udpfwd_serverconfig (udpfwd_server *udpfwdServ, bool set)
             else
             {
                 /* Update the protocol server IP. */
-                udpfwd_serverupdate(row_serv, false, udpfwdServ);
+                udpfwd_dhcpserverupdate(row_serv, false, udpfwdServ, type);
             }
         }
     }
@@ -465,30 +665,191 @@ udpfwd_serverconfig (udpfwd_server *udpfwdServ, bool set)
 }
 
 /*-----------------------------------------------------------------------------
-| Responsibility : To show the UDP Broadcast Forwarder and dhcp-relay
-|                  helper-address configurations.
+| Function         : udpfwd_serverconfig
+| Responsibility   : set/unset UDP forward-protocol
+| Parameters       :
+|      *udpfwdServ : Pointer containing user input details
+|      set         : Flag to set or unset
+| Return           : On success returns CMD_SUCCESS,
+|                    On failure returns CMD_OVSDB_FAILURE
+-----------------------------------------------------------------------------*/
+int8_t
+udpfwd_serverconfig (udpfwd_server *udpfwdServ, bool set)
+{
+    const struct ovsrec_udp_bcast_forwarder_server *row_serv = NULL;
+    const struct ovsrec_vrf *vrf_row = NULL;
+    const struct ovsrec_port *port_row = NULL;
+    struct ovsdb_idl_txn *status_txn = cli_do_config_start();
+    enum ovsdb_idl_txn_status txn_status;
+    bool isAddrMatch = false, isMaxEntries = false;
+    udpfwd_feature type = UDP_BCAST_FWD;
+
+    if (status_txn == NULL)
+    {
+        VLOG_ERR(OVSDB_TXN_CREATE_ERROR);
+        cli_do_config_abort(status_txn);
+        return CMD_OVSDB_FAILURE;
+    }
+
+    /* lookup for the record in the UDP broadcast server table */
+    row_serv = udp_bcast_server_row_lookup((char*)vty->index,
+                                           DEFAULT_VRF_NAME, udpfwdServ);
+
+    if (row_serv)
+    {
+        isAddrMatch = find_udpfwd_server_ip(row_serv->ipv4_ucast_server,
+                                            row_serv->n_ipv4_ucast_server,
+                                            udpfwdServ);
+    }
+
+    if (set)
+    {
+        isMaxEntries = server_address_maxcount_reached((char*)vty->index);
+        if (isMaxEntries)
+        {
+            vty_out(vty, "%s: Entry not allowed as maximum "
+                         "entries per interface exceeded.%s",
+                         udpfwdServ->ipAddr, VTY_NEWLINE);
+            cli_do_config_abort(status_txn);
+            return CMD_SUCCESS;
+        }
+
+        if (NULL == row_serv)
+        {
+            /*
+             * First set of UDP forward-protocol
+             */
+
+            row_serv = ovsrec_udp_bcast_forwarder_server_insert(status_txn);
+
+            if (!row_serv)
+            {
+                VLOG_ERR(OVSDB_ROW_FETCH_ERROR);
+                cli_do_config_abort(status_txn);
+                return CMD_OVSDB_FAILURE;
+            }
+
+            /* Update the interface name */
+            OVSREC_PORT_FOR_EACH(port_row, idl)
+            {
+                if (strcmp(port_row->name, (char*)vty->index) == 0)
+                {
+                    ovsrec_udp_bcast_forwarder_server_set_src_port
+                                (row_serv, port_row);
+                    break;
+                }
+            }
+
+            /* Update the vrf name of the port */
+            vrf_row = udp_bcast_config_vrf_lookup(DEFAULT_VRF_NAME);
+            if (!vrf_row)
+            {
+                vty_out(vty, "Error: Could not fetch "
+                             "default VRF data.%s", VTY_NEWLINE);
+                VLOG_ERR("%s VRF table did not have any rows. "
+                         "Ideally it should have just one entry.", __func__);
+                cli_do_config_abort(status_txn);
+                return CMD_OVSDB_FAILURE;
+            }
+
+            if (strcmp(vrf_row->name, DEFAULT_VRF_NAME) == 0)
+            {
+                ovsrec_udp_bcast_forwarder_server_set_dest_vrf
+                                (row_serv, vrf_row);
+            }
+
+            /* Update the dst udp port */
+            ovsrec_udp_bcast_forwarder_server_set_udp_dport
+                        (row_serv, udpfwdServ->udpPort);
+
+            /* Update the protocol server IP */
+            udpfwd_udpserverupdate(row_serv, true, udpfwdServ, type);
+        }
+        else
+        {
+            if (!isAddrMatch)
+            {
+                /* set action */
+                udpfwd_udpserverupdate(row_serv, true, udpfwdServ, type);
+            }
+            else
+            {
+                /* Existing entry */
+                vty_out(vty, "This entry already exists.%s", VTY_NEWLINE);
+                cli_do_config_abort(status_txn);
+                return CMD_SUCCESS;
+            }
+        }
+    }
+    else
+    {
+        if (NULL == row_serv)
+        {
+            vty_out(vty, "UDP forward-protocol is not present. %s", VTY_NEWLINE);
+            cli_do_config_abort(status_txn);
+            return CMD_SUCCESS;
+        }
+        else
+        {
+            if (!isAddrMatch)
+            {
+                vty_out(vty, "No such entries are present. %s", VTY_NEWLINE);
+                cli_do_config_abort(status_txn);
+                return CMD_SUCCESS;
+            }
+            else
+            {
+                /*
+                 * If this is the last entry then after unset remove
+                 * the complete row.
+                 */
+                if (row_serv->n_ipv4_ucast_server == 1)
+                {
+                    ovsrec_udp_bcast_forwarder_server_delete(row_serv);
+                }
+                else
+                {
+                     /* No set action */
+                    udpfwd_udpserverupdate(row_serv, false, udpfwdServ, type);
+                }
+            }
+        }
+    }
+
+    txn_status = cli_do_config_finish(status_txn);
+
+    if (txn_status == TXN_SUCCESS || txn_status == TXN_UNCHANGED)
+    {
+        return CMD_SUCCESS;
+    }
+    else
+    {
+        VLOG_ERR(OVSDB_TXN_COMMIT_ERROR);
+        return CMD_OVSDB_FAILURE;
+    }
+}
+
+/*-----------------------------------------------------------------------------
+| Responsibility : To show the dhcp-relay helper-address configurations.
 | Parameters     :
 |      *portname : Name of the Port
-|       type     : Determines the forwarder protocol
 | Return         : On success returns CMD_SUCCESS,
 |                  On failure returns CMD_OVSDB_FAILURE
 -----------------------------------------------------------------------------*/
 int8_t
-show_ip_helper_address_config (const char *portname, udpfwd_feature type)
+show_ip_helper_address_config (const char *portname)
 {
     const struct ovsrec_dhcp_relay *row_serv = NULL;
     char *fwd_server_ip = NULL;
     size_t i = 0;
 
-    if (type == DHCP_RELAY)
+    vty_out(vty, " IP Helper Addresses%s", VTY_NEWLINE);
+    if (portname)
     {
-        vty_out(vty, " IP Helper Addresses%s", VTY_NEWLINE);
-        if (portname)
-        {
-            vty_out(vty, "  Interface: %s%s", portname, VTY_NEWLINE);
-            vty_out(vty, "%2sIP Helper Address%s", "", VTY_NEWLINE);
-            vty_out(vty, "%2s-----------------%s", "", VTY_NEWLINE);
-        }
+        vty_out(vty, "%s Interface: %s%s", VTY_NEWLINE,
+                     portname, VTY_NEWLINE);
+        vty_out(vty, "%2sIP Helper Address%s", "", VTY_NEWLINE);
+        vty_out(vty, "%2s-----------------%s", "", VTY_NEWLINE);
     }
 
     row_serv = ovsrec_dhcp_relay_first(idl);
@@ -512,7 +873,7 @@ show_ip_helper_address_config (const char *portname, udpfwd_feature type)
                         {
                             /* Get the configured server IP.*/
                             fwd_server_ip = row_serv->ipv4_ucast_server[i];
-                            vty_out(vty, "%s%2s%s%s", VTY_NEWLINE, "",
+                            vty_out(vty, "%2s%s%s", "",
                                     fwd_server_ip, VTY_NEWLINE);
                         }
                     }
@@ -538,5 +899,140 @@ show_ip_helper_address_config (const char *portname, udpfwd_feature type)
             }
         }
     }
+    return CMD_SUCCESS;
+}
+
+/*-----------------------------------------------------------------------------
+| Responsibility : To show the UDP Broadcast Forwarder and dhcp-relay
+|                  helper-address configurations.
+| Parameters     :
+|       *ifname  : Interface name
+| Return         : On success returns CMD_SUCCESS,
+|                  On failure returns CMD_OVSDB_FAILURE
+-----------------------------------------------------------------------------*/
+int8_t
+show_udp_forwarder_configuration (const char *ifname)
+{
+    const struct ovsrec_udp_bcast_forwarder_server *row_serv = NULL;
+    const struct ovsrec_system *ovs_row = NULL;
+    const struct ovsdb_datum *datum = NULL;
+    char *udp_status = NULL, *fwd_server_ip = NULL;
+    int index = 0;
+    size_t i = 0;
+
+    ovs_row = ovsrec_system_first(idl);
+    if (ovs_row == NULL)
+    {
+        VLOG_ERR("%s SYSTEM table did not have any rows. Ideally it "
+                 "should have just one entry.", __func__);
+        return CMD_SUCCESS;
+    }
+
+    udp_status = (char *)smap_get(&ovs_row->other_config,
+                         SYSTEM_OTHER_CONFIG_MAP_UDP_BCAST_FWD_ENABLED);
+    if (!udp_status)
+    {
+        udp_status = "disabled";
+    }
+    else
+    {
+        if (!strcmp(udp_status, "true"))
+            udp_status = "enabled";
+        else
+            udp_status = "disabled";
+    }
+
+    vty_out(vty, "%sIP Forwarder Addresses%s",
+                 VTY_NEWLINE, VTY_NEWLINE);
+    vty_out(vty, "%sUDP Broadcast Forwarder%s",
+                 VTY_NEWLINE, VTY_NEWLINE);
+    vty_out(vty, "-------------------------%s",
+                 VTY_NEWLINE);
+    vty_out(vty, "UDP Bcast Forwarder : %s%s", udp_status, VTY_NEWLINE);
+    vty_out(vty, "%s", VTY_NEWLINE);
+
+    if (ifname)
+    {
+        vty_out(vty, "Interface: %s%s", ifname, VTY_NEWLINE);
+        vty_out(vty, "%2sIP Forward Addresses%4sUDP Port %s", "", "",
+                     VTY_NEWLINE);
+        vty_out(vty, "%2s------------------------------- %s", "",
+                     VTY_NEWLINE);
+    }
+
+    row_serv = ovsrec_udp_bcast_forwarder_server_first(idl);
+    if (!row_serv)
+    {
+        return CMD_SUCCESS;
+    }
+
+    OVSREC_UDP_BCAST_FORWARDER_SERVER_FOR_EACH (row_serv, idl)
+    {
+        /* get the interface details. */
+        if(row_serv->src_port)
+        {
+            if (ifname)
+            {
+                if(!strcmp(row_serv->src_port->name, ifname))
+                {
+                    if(row_serv->n_ipv4_ucast_server)
+                    {
+                        for (i = 0; i < row_serv->n_ipv4_ucast_server; i++)
+                        {
+                            /* get the configured server IP.*/
+                            fwd_server_ip = row_serv->ipv4_ucast_server[i];
+                            /* get the UDP port number. */
+                            datum =
+                            ovsrec_udp_bcast_forwarder_server_get_udp_dport
+                                    (row_serv, OVSDB_TYPE_INTEGER);
+                            if ((NULL!=datum) && (datum->n >0))
+                            {
+                                index = datum->keys[0].integer;
+                            }
+                            if (index != DHCP_RELAY_UDP_PORT)
+                                vty_out(vty, "%2s%s%16s%d%s", "",
+                                        fwd_server_ip, "", index,
+                                        VTY_NEWLINE);
+                        }
+                    }
+                    else
+                    {
+                       return CMD_SUCCESS;
+                    }
+                }
+            }
+            else
+            {
+                if (row_serv->udp_dport != DHCP_RELAY_UDP_PORT)
+                {
+                        vty_out(vty, "Interface: %s%s",
+                                row_serv->src_port->name, VTY_NEWLINE);
+                        vty_out(vty, "%2sIP Forward Address%4sUDP Port%s",
+                                "", "", VTY_NEWLINE);
+                        vty_out(vty, "%2s-----------------------------%s",
+                                "", VTY_NEWLINE);
+                }
+
+                for (i = 0; i < row_serv->n_ipv4_ucast_server; i++)
+                {
+                    /* get the configured server IP.*/
+                    fwd_server_ip = row_serv->ipv4_ucast_server[i];
+
+                    /* get the UDP port number. */
+                    datum = ovsrec_udp_bcast_forwarder_server_get_udp_dport
+                                                (row_serv, OVSDB_TYPE_INTEGER);
+                    if ((NULL!=datum) && (datum->n >0))
+                    {
+                        index = datum->keys[0].integer;
+                    }
+                    if (index != DHCP_RELAY_UDP_PORT)
+                        vty_out(vty, "%2s%s%16s%d%s", "",
+                                     fwd_server_ip, "",
+                                     index, VTY_NEWLINE);
+                }
+            }
+        }
+    }
+
     return CMD_SUCCESS;
 }

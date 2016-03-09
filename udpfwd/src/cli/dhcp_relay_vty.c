@@ -96,23 +96,6 @@ show_dhcp_relay_config (void)
 }
 
 /*-----------------------------------------------------------------------------
-| Function       : dhcp_relay_ovsdb_init
-| Responsibility : Initialise dhcp-relay table tables.
-| Parameters     :
-|      idl       : Pointer to idl structure
------------------------------------------------------------------------------*/
-static void
-dhcp_relay_ovsdb_init()
-{
-    ovsdb_idl_add_table(idl, &ovsrec_table_dhcp_relay);
-    ovsdb_idl_add_column(idl, &ovsrec_dhcp_relay_col_port);
-    ovsdb_idl_add_column(idl, &ovsrec_dhcp_relay_col_vrf);
-    ovsdb_idl_add_column(idl, &ovsrec_dhcp_relay_col_ipv4_ucast_server);
-
-    return;
-}
-
-/*-----------------------------------------------------------------------------
 | Defun for dhcp-relay configuration
 | Responsibility: Enable dhcp-relay
 -----------------------------------------------------------------------------*/
@@ -167,7 +150,7 @@ DEFUN(ip_helper_address_configuration,
     /* Validate the input parameters. */
     if (decode_server_param(&udpfwdServer, argv, DHCP_RELAY))
     {
-        return udpfwd_serverconfig(&udpfwdServer, SET);
+        return udpfwd_helperaddressconfig(&udpfwdServer, SET);
     }
     else
     {
@@ -194,7 +177,7 @@ DEFUN(no_ip_helper_address_configuration,
     /* Validate the input parameters. */
     if (decode_server_param(&udpfwdServer, argv, DHCP_RELAY))
     {
-        return udpfwd_serverconfig(&udpfwdServer, UNSET);
+        return udpfwd_helperaddressconfig(&udpfwdServer, UNSET);
     }
     else
     {
@@ -218,44 +201,10 @@ DEFUN(show_ip_helper_address_configuration,
 {
     if (argv[0])
     {
-        return show_ip_helper_address_config(argv[0], DHCP_RELAY);
+        return show_ip_helper_address_config(argv[0]);
     }
     else
     {
-        return show_ip_helper_address_config(NULL, DHCP_RELAY);
+        return show_ip_helper_address_config(NULL);
     }
-}
-
-/* Install dhcp-relay related vty commands */
-void cli_pre_init(void)
-{
-    vtysh_ret_val retval = e_vtysh_error;
-
-    dhcp_relay_ovsdb_init();
-
-    retval = install_show_run_config_context(e_vtysh_dhcp_relay_context,
-                                     &vtysh_dhcp_relay_context_clientcallback,
-                                     NULL, NULL);
-    if(e_vtysh_ok != retval)
-    {
-       vtysh_ovsdb_config_logmsg(VTYSH_OVSDB_CONFIG_ERR,
-                           "dhcp-relay context unable "\
-                           "to add config callback");
-        assert(0);
-    }
-    return;
-}
-
-/* Install dhcp-relay related vty commands */
-void
-cli_post_init(void)
-{
-    install_element (CONFIG_NODE, &dhcp_relay_configuration_cmd);
-    install_element (CONFIG_NODE, &no_dhcp_relay_configuration_cmd);
-    install_element (INTERFACE_NODE, &ip_helper_address_configuration_cmd);
-    install_element (INTERFACE_NODE, &no_ip_helper_address_configuration_cmd);
-    install_element (SUB_INTERFACE_NODE, &ip_helper_address_configuration_cmd);
-    install_element (SUB_INTERFACE_NODE, &no_ip_helper_address_configuration_cmd);
-    install_element (ENABLE_NODE, &show_dhcp_relay_configuration_cmd);
-    install_element (ENABLE_NODE, &show_ip_helper_address_configuration_cmd);
 }

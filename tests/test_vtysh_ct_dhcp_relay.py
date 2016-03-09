@@ -221,7 +221,7 @@ def helper_addressUnconfigFor_unConfigdHelperAddress(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = devIntReturn.get('buffer')
-    assert 'No such entries are present.' in cmdOut, \
+    assert 'Helper-address is not present.' in cmdOut, \
         "Test to unset helper-address configuration for " \
         "unconfigured helper-address failed"
 
