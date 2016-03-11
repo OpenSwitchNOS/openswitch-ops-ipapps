@@ -156,6 +156,7 @@ bool udpfwd_module_init(void)
         return false;
     }
 
+#if 0 /* temporary change, will be enabled later */
     /* Create UDP broadcast receiver thread */
     /* FIXME: Add logic to create recv thread only when there is a valid config */
     retVal = pthread_create(&udpBcastRecv_thread, (pthread_attr_t *)NULL,
@@ -166,7 +167,7 @@ bool udpfwd_module_init(void)
                  retVal);
         return false;
     }
-
+#endif
     return true;
 }
 
