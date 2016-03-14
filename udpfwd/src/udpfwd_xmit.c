@@ -44,15 +44,15 @@ VLOG_DEFINE_THIS_MODULE(udpfwd_xmit);
  *          false - any failures.
  */
 static bool udpfwd_send_pkt_through_socket(void *payload,
-                 int32_t size, struct in_pktinfo *pktInfo, struct sockaddr_in* to)
+                  int size, struct in_pktinfo *pktInfo, struct sockaddr_in* to)
 {
     struct msghdr msg;
     struct iovec iov[1];
     struct cmsghdr *cmptr;
     struct in_pktinfo p = *pktInfo;
+    int val = 1;
     char result = false;
 
-    /* union to store ancillary data */
     union {
         struct cmsghdr align; /* this ensures alignment */
         char control[CMSG_SPACE(sizeof(struct in_pktinfo))];
@@ -77,16 +77,124 @@ static bool udpfwd_send_pkt_through_socket(void *payload,
     cmptr->cmsg_level = IPPROTO_IP;
     cmptr->cmsg_type = IP_PKTINFO;
 
-    assert(udpfwd_ctrl_cb_p->send_sockFd);
+    VLOG_INFO("In function udpf_send_pkt_through_socket\n");
 
+    /* Create the socket if not created. */
+    if ( udpfwd_ctrl_cb_p->send_sockFd  < 0 )
+    {
+        if ((udpfwd_ctrl_cb_p->send_sockFd =
+              socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+        {
+            VLOG_ERR("\n udpf_send_pkt_through_socket():socket creation failed");
+            return result;
+        }
+         if (setsockopt(udpfwd_ctrl_cb_p->send_sockFd, IPPROTO_IP, IP_PKTINFO,
+            (char *)&val, sizeof(val)) < 0)
+         {
+            VLOG_ERR("\n udpf_send_pkt_through_socket():"
+                     "failed to set pktinfo socket options");
+            close(udpfwd_ctrl_cb_p->send_sockFd);
+            return result;
+        }
+        /* We allow subnet directed broadcasts, set the broadcast option
+         * for the socket.
+         */
+        if (setsockopt (udpfwd_ctrl_cb_p->send_sockFd, SOL_SOCKET, SO_BROADCAST,
+        (char *)&val, sizeof (val)) != 0 )
+        {
+            VLOG_ERR("failed to set bcast socket options");
+            /* No need to return here, since the same socket can be used for
+             * unicast forwarding as well.
+             */
+            }
+    }
     if (sendmsg(udpfwd_ctrl_cb_p->send_sockFd, &msg, 0) < 0 ) {
-            VLOG_ERR(" errno =%d sending packet failed\n", errno);
+            VLOG_ERR(" errno =%d udpf_send_pkt_through_socket: "
+                     "sending packet failed\n", errno);
             result = false;
     }
     else
         result = true;
 
+    close(udpfwd_ctrl_cb_p->send_sockFd);
     return result;
+}
+
+
+
+
+bool udpfwd_forward_packet (void *payload, uint16_t udp_dport, int size,
+                                 struct in_pktinfo *pktInfo)
+{
+    IP_ADDRESS interface_ip;
+    uint32_t iter = 0;
+    uint32_t ifIndex = -1;
+    char ifName[IFNAME_LEN];
+    struct sockaddr_in to;
+    struct shash_node *node;
+    UDPFWD_SERVER_T *server = NULL;
+    UDPFWD_SERVER_T **serverArray = NULL;
+    UDPFWD_INTERFACE_NODE_T *intfNode = NULL;
+
+    ifIndex = pktInfo->ipi_ifindex;
+
+    if ((-1 == ifIndex) ||
+        (NULL == if_indextoname(ifIndex, ifName))) {
+        VLOG_ERR("Failed to read input interface : %d", ifIndex);
+        return false;
+    }
+
+    /* Get IP address associated with the Interface. */
+    interface_ip = getIpAddressfromIfname(ifName);
+
+    /* If there is no IP address on the input interface do not proceed. */
+    if(interface_ip == 0) {
+        VLOG_ERR("interface IP address is 0. Discard packet");
+        return false;
+    }
+
+    node = shash_find(&udpfwd_ctrl_cb_p->intfHashTable, ifName);
+    if (NULL == node) {
+        VLOG_ERR("\n udpf_relay_to_dhcp_server: "
+                 "packet from client on interface without helper address");
+        return false;
+    }
+
+    /* Acquire db lock */
+    sem_wait(&udpfwd_ctrl_cb_p->waitSem);
+    intfNode = (UDPFWD_INTERFACE_NODE_T *)node->data;
+    serverArray = intfNode->serverArray;
+
+    /* UDP Broadcast Forwarder request to each of the configured server. */
+    for(iter = 0; iter < intfNode->addrCount; iter++) {
+        server = serverArray[iter];
+        if (server->udp_port != udp_dport) {
+            continue;
+        }
+
+        if ( pktInfo->ipi_addr.s_addr == INADDR_ANY) {
+            /* If the source IP address is 0, then replace the ip address with
+             * IP addresss of the interface on which the packet is received.
+             */
+            pktInfo->ipi_spec_dst.s_addr = interface_ip;
+        }
+
+        pktInfo->ipi_ifindex = 0;
+
+        to.sin_family = AF_INET;
+        to.sin_addr.s_addr = server->ip_address;
+        to.sin_port = htons(udp_dport);
+
+        if (udpfwd_send_pkt_through_socket(payload, size,
+                                           pktInfo, &to) == true) {
+            VLOG_ERR("\nudpf_relay_to_dhcp_server: "
+                     "packet sent to destination\n\n");
+        }
+    }
+    /* Release db lock */
+    sem_post(&udpfwd_ctrl_cb_p->waitSem);
+
+    return true;
 }
 
 /*

@@ -111,6 +111,12 @@ typedef enum DB_OP_TYPE_t {
 extern UDPFWD_CTRL_CB *udpfwd_ctrl_cb_p;
 
 /*
+ * Function prototypes for UDP Broadcast Forwarder
+ */
+extern bool udpfwd_forward_packet (void *, uint16_t , int size,
+                                   struct in_pktinfo *);
+
+/*
  * Function prototypes form udpfwd_config.c
  */
 void udpfwd_handle_dhcp_relay_config_change(

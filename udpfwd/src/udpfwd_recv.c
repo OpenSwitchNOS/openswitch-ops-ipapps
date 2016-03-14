@@ -77,9 +77,6 @@ int32_t create_udp_bcast_socket(void)
     saddr.sin_family = AF_INET;
     saddr.sin_addr.s_addr = INADDR_ANY;
 
-    /*FIXME :dont specify port and receive all udp packets */
-    saddr.sin_port = htons(DHCPS_PORT);
-
     if (bind(sockfd, (struct sockaddr *)&saddr, sizeof(struct sockaddr_in))) {
         VLOG_ERR("Failed to bind socket to port");
         close(sockfd);
@@ -130,6 +127,9 @@ void udpfwd_ctrl(void *payload, int32_t size,
         }
     default:
         {
+            udpfwd_forward_packet(payload, dstPort, size, pktInfo);
+            printf("UDP forwarding is supported only for DHCP Packets :"
+               ": dport (%d)", dstPort);
             break;
         }
     }
