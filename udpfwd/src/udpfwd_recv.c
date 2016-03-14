@@ -83,6 +83,8 @@ void udpfwd_ctrl(void *pkt, int32_t size,
         }
     default:
         {
+            /* UDP Broadcast Forwarding Case. */
+            udpfwd_forward_packet(pkt, ntohs(udph->dest), size, pktInfo);
             break;
         }
     }

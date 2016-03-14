@@ -120,6 +120,12 @@ union packet_info {
 extern UDPFWD_CTRL_CB *udpfwd_ctrl_cb_p;
 
 /*
+ * Function prototypes from udpfwd_xmit.c
+ */
+void udpfwd_forward_packet (void *pkt, uint16_t udp_dport, int size,
+                                 struct in_pktinfo *pktInfo);
+
+/*
  * Function prototypes form udpfwd_config.c
  */
 void udpfwd_handle_dhcp_relay_config_change(

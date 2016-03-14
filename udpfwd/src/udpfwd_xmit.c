@@ -36,7 +36,7 @@ VLOG_DEFINE_THIS_MODULE(udpfwd_xmit);
 /*
  * Function : udpf_send_pkt_through_socket
  * Responsiblity : To send a unicast packet to a known server address.
- * Parameters : payload - udp payload
+ * Parameters : pkt - IP packet
  *              size - size of udp payload
  *              in_pktinfo - pktInfo
  *              to - it has destination address and port number
@@ -98,6 +98,93 @@ static bool udpfwd_send_pkt_through_socket(void *pkt,
     }
 
     return result;
+}
+
+/*
+ * Function: udpfwd_forward_packet
+ * Responsibilty : Send incoming UDP broadcast message to server UDP port.
+ *                 This routine forwards the UDP broadcast message to the UDP port of
+ *                 configured destination UDP server.
+ * Parameters : pkt  - Ip packet
+ *              udp_dport - destination udp port
+ *              size - size of udp payload
+ *              pktInfo - pktInfo structure
+ * Returns: void
+ *
+ */
+void udpfwd_forward_packet (void *pkt, uint16_t udp_dport, int size,
+                            struct in_pktinfo *pktInfo)
+{
+    IP_ADDRESS interface_ip;
+    uint32_t iter = 0;
+    uint32_t ifIndex = -1;
+    char ifName[IF_NAMESIZE + 1];
+    struct sockaddr_in to;
+    struct shash_node *node;
+    UDPFWD_SERVER_T *server = NULL;
+    UDPFWD_SERVER_T **serverArray = NULL;
+    UDPFWD_INTERFACE_NODE_T *intfNode = NULL;
+
+    ifIndex = pktInfo->ipi_ifindex;
+
+    if ((-1 == ifIndex) ||
+        (NULL == if_indextoname(ifIndex, ifName))) {
+        VLOG_ERR("Failed to read input interface : %d", ifIndex);
+        return;
+    }
+
+    /* Get IP address associated with the Interface. */
+    interface_ip = getIpAddressfromIfname(ifName);
+
+    /* If there is no IP address on the input interface do not proceed. */
+    if(interface_ip == 0) {
+        VLOG_ERR("interface IP address is 0. Discard packet");
+        return;
+    }
+
+    node = shash_find(&udpfwd_ctrl_cb_p->intfHashTable, ifName);
+    if (NULL == node) {
+        VLOG_ERR("\n udpfwd_forward_packet: "
+                 "packet from client on interface "
+                 "without UDP forward-protocol address");
+        return;
+    }
+
+    /* Acquire db lock */
+    sem_wait(&udpfwd_ctrl_cb_p->waitSem);
+    intfNode = (UDPFWD_INTERFACE_NODE_T *)node->data;
+    serverArray = intfNode->serverArray;
+
+    /* UDP Broadcast Forwarder request to each of the configured server. */
+    for(iter = 0; iter < intfNode->addrCount; iter++) {
+        server = serverArray[iter];
+        if (server->udp_port != udp_dport) {
+            continue;
+        }
+
+        if ( pktInfo->ipi_addr.s_addr == INADDR_ANY) {
+            /* If the source IP address is 0, then replace the ip address with
+             * IP addresss of the interface on which the packet is received.
+             */
+            pktInfo->ipi_spec_dst.s_addr = interface_ip;
+        }
+
+        pktInfo->ipi_ifindex = 0;
+
+        to.sin_family = AF_INET;
+        to.sin_addr.s_addr = server->ip_address;
+        to.sin_port = htons(udp_dport);
+
+        if (udpfwd_send_pkt_through_socket(pkt, size,
+                                           pktInfo, &to) == true) {
+            VLOG_ERR("\nudpfwd_forward_packet: "
+                     "packet sent to destination\n\n");
+        }
+    }
+    /* Release db lock */
+    sem_post(&udpfwd_ctrl_cb_p->waitSem);
+
+    return;
 }
 
 /*
