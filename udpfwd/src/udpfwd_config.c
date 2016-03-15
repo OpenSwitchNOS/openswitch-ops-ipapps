@@ -23,6 +23,7 @@
  *
  */
 
+/* Demo comment */
 
 #include "udpfwd.h"
 #include "hash.h"
