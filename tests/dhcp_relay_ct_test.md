@@ -3,7 +3,15 @@
 ## Contents
 - [Verify the dhcp-relay configuration](#verify-the-dhcp-relay-configuration)
     - [Enable dhcp-relay globally](#enable-dhcp-relay-globally)
+    - [Enable dhcp-relay hop count increment](#enable-dhcp-relay-hop-count-increment)
+    - [Enable dhcp-relay option 82](#enable-dhcp-relay-option-82)
+    - [Enable dhcp-relay option 82 validation](#enable-dhcp-relay-option-82-validation)
+    - [Configure dhcp-relay option 82 policy](#configure-dhcp-relay-option-82-policy)
+    - [Configure dhcp-relay option 82 remote ID](#configure-dhcp-relay-option-82-remote-id)
     - [Disable dhcp-relay globally](#disable-dhcp-relay-globally)
+    - [Disable dhcp-relay hop count increment](#disable-dhcp-relay-hop-count-increment)
+    - [Disable dhcp-relay option 82](#disable-dhcp-relay-option-82)
+    - [Disable dhcp-relay option 82 validation](#disable-dhcp-relay-option-82-validation)
     - [Verify the dhcp-relay status](#verify-the-dhcp-relay-status)
     - [Verify the dhcp-relay configuration status in show-running](#verify-the-dhcp-relay-configuration-status-in-show-running)
     - [Verify dhcp-relay post reboot](#verify-dhcp-relay-post-reboot)
@@ -28,8 +36,14 @@
     - [Verify the helper address status on the specified interface](#verify-the-helper-address-status-on-the-specified-interface)
     - [Verify the helper address configuration status in show-running](#verify-the-helper-address-configuration-status-in-show-running)
     - [Verify the helper address configuration status on the specified interface in show-running](#verify-the-helper-address-configuration-status-on-the-specified-interface-in-show-running)
-
-
+- [Verify relay bootp gateway configuration](#verify-relay-bootp-gateway-configuration)
+    - [Verify the bootp gateway configuration for configured IP on an interface](#verify-the-bootp-gateway-configuration-for-invalid-server-ip-on-an-interface)
+    - [Verify the bootp gateway configuration for unconfigured IP on an interface](#verify-the-bootp-gateway-configuration-for-invalid-server-ip-on-an-interface)
+    - [Verify the bootp gateway configuration for invalid IP on an interface](#verify-the-bootp-gateway-configuration-for-invalid-server-ip-on-an-interface)
+    - [Verify the bootp gateway status](#verify-the-bootp-gateway-status)
+    - [Verify the bootp gateway status on the specified interface](#verify-the-bootp-gateway-status-on-the-specified-interface)
+    - [Verify the bootp gateway configuration status in show-running](#verify-the-bootp-gateway-configuration-status-in-show-running)
+    - [Verify the bootp gateway configuration status on the specified interface in show-running](#verify-the-bootp-gateway-configuration-status-on-the-specified-interface-in-show-running)
 ## Verify the dhcp-relay configuration
 ### Objective
 To verify if the dhcp-relay configuration is enabled/disabled.
@@ -59,6 +73,51 @@ Verify that the dhcp-relay enable state is reflected in the `show dhcp-relay` co
 #### Test fail criteria
 Verify that the dhcp-relay enable state is not reflected in the `show dhcp-relay` command.
 
+### Enable dhcp-relay hop count increment
+### Description
+Enable the dhcp-relay hop count increment on dut01 using the `dhcp-relay hop-count increment` command.
+### Test result criteria
+#### Test pass criteria
+Verify that the dhcp-relay hop count increment enable state is reflected in the `show dhcp-relay` command.
+#### Test fail criteria
+Verify that the dhcp-relay hop count increment enable state is not reflected in the `show dhcp-relay` command.
+
+### Enable dhcp-relay option 82
+### Description
+Enable the dhcp-relay option 82 on dut01 using the `dhcp-relay option 82 replace` command.
+### Test result criteria
+#### Test pass criteria
+Verify that the dhcp-relay option 82 enable state is reflected in the `show dhcp-relay` command.
+#### Test fail criteria
+Verify that the dhcp-relay option 82 enable state is not reflected in the `show dhcp-relay` command.
+
+### Enable dhcp-relay option 82 validation
+### Description
+Enable the dhcp-relay option 82 validation on dut01 using the `dhcp-relay option 82 validate` command.
+### Test result criteria
+#### Test pass criteria
+Verify that the dhcp-relay option 82 validation enable state is reflected in the `show dhcp-relay` command.
+#### Test fail criteria
+Verify that the dhcp-relay option 82 validation enable state is not reflected in the `show dhcp-relay` command.
+
+### Configure dhcp-relay option 82 policy
+### Description
+Configure the dhcp-relay option 82 policy on dut01 using the `dhcp-relay option 82 replace` command.
+### Test result criteria
+#### Test pass criteria
+Verify that the dhcp-relay option 82 policy replace is reflected in the `show dhcp-relay` command.
+#### Test fail criteria
+Verify that the dhcp-relay option 82 policy replace is not reflected in the `show dhcp-relay` command.
+
+### Configure dhcp-relay option 82 remote ID
+### Description
+Configure the dhcp-relay option 82 policy on dut01 using the `dhcp-relay option 82 replace mac` command.
+### Test result criteria
+#### Test pass criteria
+Verify that the dhcp-relay option 82 remote ID mac is reflected in the `show dhcp-relay` command.
+#### Test fail criteria
+Verify that the dhcp-relay option 82 remote ID mac is not reflected in the `show dhcp-relay` command.
+
 ### Disable dhcp-relay globally
 ### Description
 Disable the dhcp-relay on dut01 using the `no dhcp-relay` command.
@@ -67,6 +126,33 @@ Disable the dhcp-relay on dut01 using the `no dhcp-relay` command.
 Verify that the dhcp-relay disable state is reflected in the `show dhcp-relay` command.
 #### Test fail criteria
 Verify that the dhcp-relay disable state is not reflected in the `show dhcp-relay` command.
+
+### Disable dhcp-relay hop count increment
+### Description
+Disable the dhcp-relay hop count increment on dut01 using the `no dhcp-relay hop count increment` command.
+### Test result criteria
+#### Test pass criteria
+Verify that the dhcp-relay hop count increment disable state is reflected in the `show dhcp-relay` command.
+#### Test fail criteria
+Verify that the dhcp-relay hop count increment disable state is not reflected in the `show dhcp-relay` command.
+
+### Disable dhcp-relay option 82
+### Description
+Disable the dhcp-relay option 82 on dut01 using the `no dhcp-relay option 82` command.
+### Test result criteria
+#### Test pass criteria
+Verify that the dhcp-relay option 82 disable state is reflected in the `show dhcp-relay` command.
+#### Test fail criteria
+Verify that the dhcp-relay option 82 disable state is not reflected in the `show dhcp-relay` command.
+
+### Disable dhcp-relay option 82 validation
+### Description
+Disable the dhcp-relay option 82 validation on dut01 using the `no dhcp-relay option 82 validate` command.
+### Test result criteria
+#### Test pass criteria
+Verify that the dhcp-relay option 82 validation disable state is reflected in the `show dhcp-relay` command.
+#### Test fail criteria
+Verify that the dhcp-relay option 82 validation disable state is not reflected in the `show dhcp-relay` command.
 
 ### Verify the dhcp-relay configuration status in show-running
 ### Description
@@ -294,3 +380,76 @@ Verify the helper address configuration status on the specified interface using 
 The user verifies the current helper address configuration status on the specified interface is reflected in the `show` command.
 #### Test fail criteria
 The user verifies the current helper address configuration status on the specified interface is not reflected in the `show` command.
+
+## Verify relay bootp gateway configuration
+### Objective
+To configure a bootp gateway on an interface.
+### Requirements
+The requirements for this test case are:
+ - Docker version 1.7 or above
+ - Action switch docker instance/physical hardware switch
+
+### Setup
+#### Topology diagram
+```ditaa
+
+                    +----------------+
+                    |                |
+                    |     DUT01      |
+                    |                |
+                    |                |
+                    +----------------+
+```
+### Verify the bootp gateway configuration for configured IP on an interface
+### Description
+Verify the bootp gateway configuration with a configured IP on an interface.
+### Test result criteria
+#### Test pass criteria
+The user is able to configure the bootp gateway with a configured IP on an interface.
+#### Test fail criteria
+The user is unable to configure the bootp gateway with a configured IP on an interface.
+
+### Verify the bootp gateway unconfigured for configured IP on an interface
+### Description
+Verify the bootp gateway unconfigured with a configured IP on an interface.
+### Test result criteria
+#### Test pass criteria
+The user is unable to configure the bootp gateway with a configured IP on an interface.
+#### Test fail criteria
+The user is able to configure the bootp gateway with a configured IP on an interface.
+
+### Verify the bootp gateway status
+### Description
+Verify the bootp gateway status on an interface using the `show dhcp-relay bootp-gateway` command.
+### Test result criteria
+#### Test pass criteria
+The user is able to verify the bootp gateway status on an interface.
+#### Test fail criteria
+The user is unable to to verify the bootp gateway status on an interface.
+
+### Verify the bootp gateway status on the specified interface
+### Description
+Verify the bootp gateway status on the specified interface using the `show dhcp-relay bootp-gateway interface IFNAME` command.
+### Test result criteria
+#### Test pass criteria
+The user is able to verify the bootp gateway status on the specified interface.
+#### Test fail criteria
+The user is unable to to verify the bootp gateway status on the specified interface.
+
+### Verify the bootp-gateway configuration status in show-running
+### Description
+Verify the helper address configuration status using the `show running-configuration` command.
+### Test result criteria
+#### Test pass criteria
+The user verifies the current helper address configuration status is reflected in the `show` command.
+#### Test fail criteria
+The user verifies the current helper address configuration status is not reflected in the `show` command.
+
+### Verify the bootp-gateway configuration status on the specified interface in show-running
+### Description
+Verify the helper address configuration status on the specified interface using the `show running-configuration interface IFNAME` command.
+### Test result criteria
+#### Test pass criteria
+The user verifies the current bootp-gateway configuration status on the specified interface is reflected in the `show` command.
+#### Test fail criteria
+The user verifies the current bootp-gateway configuration status on the specified interface is not reflected in the `show` command.
