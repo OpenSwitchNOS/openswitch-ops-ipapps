@@ -102,28 +102,38 @@ bool udpfwd_module_init(void)
     int32_t val = 1;
     int32_t retVal;
 
+    memset(udpfwd_ctrl_cb_p, 0, sizeof(UDPFWD_CTRL_CB));
+
     VLOG_INFO("Creating UDP send socket");
 
     /* Create socket to send UDP packets to client or server */
-    udpfwd_ctrl_cb_p->send_sockFd = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (-1 == udpfwd_ctrl_cb_p->send_sockFd) {
+    udpfwd_ctrl_cb_p->udpSockFd = socket(PF_INET, SOCK_RAW, IPPROTO_UDP);
+    if (-1 == udpfwd_ctrl_cb_p->udpSockFd) {
         VLOG_ERR("Failed to create UDP socket");
         return false;
     }
 
-    retVal = setsockopt(udpfwd_ctrl_cb_p->send_sockFd, IPPROTO_IP, IP_PKTINFO,
+    retVal = setsockopt(udpfwd_ctrl_cb_p->udpSockFd, IPPROTO_IP, IP_PKTINFO,
                         (char *)&val, sizeof(val));
     if (0 != retVal) {
         VLOG_ERR("Failed to set IP_PKTINFO socket option : %d", retVal);
-        close(udpfwd_ctrl_cb_p->send_sockFd);
+        close(udpfwd_ctrl_cb_p->udpSockFd);
         return false;
     }
 
-    retVal = setsockopt(udpfwd_ctrl_cb_p->send_sockFd, SOL_SOCKET, SO_BROADCAST,
+    retVal = setsockopt(udpfwd_ctrl_cb_p->udpSockFd, IPPROTO_IP, IP_HDRINCL,
+                        (char *)&val, sizeof(val));
+    if (0 != retVal) {
+        VLOG_ERR("Failed to set IP_HDRINCL socket option : %d", retVal);
+        close(udpfwd_ctrl_cb_p->udpSockFd);
+        return false;
+    }
+
+    retVal = setsockopt(udpfwd_ctrl_cb_p->udpSockFd, SOL_SOCKET, SO_BROADCAST,
                        (char *)&val, sizeof (val));
     if (0 != retVal) {
         VLOG_ERR("Failed to set broadcast socket option : %d", retVal);
-        close(udpfwd_ctrl_cb_p->send_sockFd);
+        close(udpfwd_ctrl_cb_p->udpSockFd);
         return false;
     }
 
@@ -143,7 +153,7 @@ bool udpfwd_module_init(void)
     if (0 != retVal) {
         VLOG_ERR("Failed to initilize the semaphore, retval : %d (errno : %d)",
                  retVal, errno);
-        close(udpfwd_ctrl_cb_p->send_sockFd);
+        close(udpfwd_ctrl_cb_p->udpSockFd);
         return false;
     }
 
@@ -156,9 +166,7 @@ bool udpfwd_module_init(void)
         return false;
     }
 
-#if 0 /* temporary change, will be enabled later */
     /* Create UDP broadcast receiver thread */
-    /* FIXME: Add logic to create recv thread only when there is a valid config */
     retVal = pthread_create(&udpBcastRecv_thread, (pthread_attr_t *)NULL,
                             udp_packet_recv, NULL);
     if (0 != retVal)
@@ -167,7 +175,7 @@ bool udpfwd_module_init(void)
                  retVal);
         return false;
     }
-#endif
+
     return true;
 }
 
@@ -522,7 +530,12 @@ static void udpfwd_exit_cb(struct unixctl_conn *conn, int argc OVS_UNUSED,
 static void udpfwd_exit(void)
 {
     /* free memory for packet receive buffer */
-    free(udpfwd_ctrl_cb_p->rcvbuff);
+    if (0 < udpfwd_ctrl_cb_p->udpSockFd)
+        close(udpfwd_ctrl_cb_p->udpSockFd);
+
+    if (NULL != udpfwd_ctrl_cb_p->rcvbuff)
+        free(udpfwd_ctrl_cb_p->rcvbuff);
+
     ovsdb_idl_destroy(idl);
 }
 

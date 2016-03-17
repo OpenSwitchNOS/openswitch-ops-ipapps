@@ -231,3 +231,100 @@ IP_ADDRESS getIpAddressfromIfname(char *ifName)
     freeifaddrs(ifaddr);
     return 0; /* Failure case. */
 }
+
+/*
+ * Function      : get_ipsum
+ * Responsiblity : IP checksum calculation function
+ * Parameters    : data - pointer to the data
+ *                 len - data length
+ *                 initialValue - prior checksum value
+ * Return        : checksum value
+ */
+uint32_t get_ipsum(uint16_t *data, int32_t len, uint32_t initialValue)
+{
+    uint16_t tmp;
+
+    /*
+     * The data is in network order and may not be non-aligned so
+     * we use getShortFromPacket to get data from the pkt which
+     * handles both of these issues.
+     */
+    for ( ; len > 0; len--)
+    {
+       initialValue += getShortFromPacket(data);
+       data++;
+    }
+
+    /* Add the two partial sums (upper and lower 16 bits) together */
+    initialValue = (initialValue & 0xffff) + (initialValue >> 16);
+    tmp  = (initialValue & 0xffff) + (initialValue >> 16);
+
+    tmp = (uint16_t) ~tmp;
+    return tmp;
+}
+
+/*
+ * Function      : checksumUdpHeader
+ * Responsiblity : Sums the stuff at 'ptr' in preparation for use in the 1's
+ *                 complement checksum.  It is used during udp psuedo header
+ *                 calculation.
+ * Parameters    : data - pointer to the data
+ *                 len - number of words to be added
+ * Return        : 16 bit checksum value
+ */
+uint16_t checksumUdpHeader(uint16_t *data, uint32_t len)
+{
+   register uint32_t total = 0;
+
+   while (len--)
+   {
+      total += getShortFromPacket(data);
+      data++;
+      if (total >> 16 )
+      {
+         total = (total & 0xFFFF);
+         total++;
+      }
+   }
+
+   /* Make sure we are only returning 16-bit number */
+
+   return (total & 0x0000ffff);
+}
+
+/*
+ * Function      : get_udpsum
+ * Responsiblity : Sums the stuff at 'ptr' in preparation for use in the 1's
+ *                 complement checksum.  It is used during udp psuedo header
+ *                 calculation.
+ * Parameters    : data - pointer to the data
+ *                 len - number of words to be added
+ * Return        : 16 bit checksum value
+ */
+uint16_t get_udpsum(struct ip *iph, struct udphdr *udph)
+{
+
+    struct ps_udph ps_udph;       /* UDP pseudo-header */
+    uint32_t  rounded_length = 0;
+    u_int32_t xsum = 0;
+
+    memset((char *)&ps_udph, 0, sizeof(ps_udph));
+    ps_udph.srcip.s_addr = iph->ip_src.s_addr;
+    ps_udph.dstip.s_addr = iph->ip_dst.s_addr;
+    ps_udph.zero = 0;
+    ps_udph.proto = iph->ip_p;
+    ps_udph.ulen = udph->uh_ulen;
+    udph->uh_sum = 0;
+
+   if (0 == (ntohs(udph->uh_ulen) % 2))
+      rounded_length = (uint32_t)(getShortFromPacket(&udph->uh_ulen));
+   else
+   {
+      rounded_length = (uint32_t)((getShortFromPacket(&udph->uh_ulen)+1));
+          /* pad the data with a zero byte */
+      *((uint8_t *) udph + rounded_length-1) = 0;
+   }
+   xsum =  checksumUdpHeader((uint16_t *)&udph, sizeof(struct ps_udph)/2);
+   xsum =  get_ipsum((uint16_t *)udph, rounded_length/2, xsum);
+   return (htons((uint16_t)xsum));
+}
