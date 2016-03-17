@@ -34,9 +34,11 @@
 /*
  * DHCP-Relay macro definitions
  */
-#define DHCPOPTLEN(TAGP)   (*(((char *)TAGP) + 1)) /* Get DHCP option length */
-#define DFLTDHCPLEN   sizeof(struct dhcp_packet)   /* Default DHCP message size */
-#define OPTBODY(TAGP)  (((char *)TAGP) + 2)        /* Get contents of DHCP option */
+#define DHCPOPTLEN(TAGP) (*(((char *)TAGP) + 1)) /* Get DHCP option length */
+#define DFLTDHCPLEN      sizeof(struct dhcp_packet) /* Default DHCP message size */
+#define OPTBODY(TAGP)    (((char *)TAGP) + 2) /* Get contents of DHCP option */
+#define DHCP_PKTLEN      (ntohs(UDP->udp_length) - UDPHDR_LENGTH)
+
 
 #define DHCP_MSGTYPE         ((uint8_t)  53)
 #define DHCP_SERVER_ID       ((uint8_t)  54)
@@ -90,12 +92,21 @@ struct dhcp_packet {
   uint8_t   options[DFLTOPTLEN];  /* Optional parameters field. */
 };
 
+/* pseudo udp header for checksum computation */
+struct ps_udph {
+  struct in_addr srcip;
+  struct in_addr dstip;
+  int8_t  zero;
+  int8_t  proto;
+  int16_t ulen;
+};
+
 /*
  * Function prototypes from udpfwd_xmit.c
  */
-bool udpfwd_relay_to_dhcp_server(struct dhcp_packet* pkt_dhcp, int32_t size,
+void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
                    struct in_pktinfo *pktInfo);
-bool udpfwd_relay_to_dhcp_client(struct dhcp_packet* pkt_dhcp, int32_t size,
+void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
                                    struct in_pktinfo *pktInfo);
 
 #endif /* dhcp_relay.h */

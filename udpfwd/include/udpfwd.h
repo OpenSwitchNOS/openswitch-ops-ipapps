@@ -51,7 +51,8 @@
 
 typedef uint32_t IP_ADDRESS;     /* IP Address. */
 
-#define IFNAME_LEN 16  /* Maximum length of an interface name */
+#define IFNAME_LEN 16   /* Maximum length of an interface name */
+#define UDPHDR_LENGTH 8 /* UDP packet header length */
 
 #define RECV_BUFFER_SIZE 9228 /* Jumbo frame size */
 #define IDL_POLL_INTERVAL 5
@@ -73,7 +74,7 @@ typedef uint32_t IP_ADDRESS;     /* IP Address. */
 /* UDP Forwarder Control Block. */
 typedef struct UDPF_CTRL_CB
 {
-    int32_t send_sockFd;  /* Socket ID used for sending packets */
+    int32_t udpSockFd;    /* Socket to send/receive UDP packets */
     sem_t waitSem;        /* Semaphore for concurrent access protection */
     struct shash intfHashTable; /* interface hash table handle */
     struct cmap serverHashMap;  /* server hash map handle */
