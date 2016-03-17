@@ -27,6 +27,12 @@
 #define UDPFWD_UTIL_H 1
 
 #include "dhcp_relay.h"
+#include <netinet/ip.h>
+#include <netinet/udp.h>
+
+#define getShortFromPacket(shortPtr)                   \
+   (uint16_t)(((*(uint8_t *)(shortPtr)) << 8) |        \
+             (*(((uint8_t *)(shortPtr)) + 1)))
 
 /* Function to retrieve IP address from interface name. */
 IP_ADDRESS getIpAddressfromIfname(char *ifName);
@@ -38,5 +44,9 @@ uint32_t getIfIndexfromIpAddress(IP_ADDRESS ip);
 uint8_t *dhcpPickupOpt(struct dhcp_packet *dhcp, int32_t len, uint8_t tag);
 uint8_t * dhcpScanOpt(uint8_t *opt, uint8_t *optend,
                         uint8_t tag, uint8_t *ovld_opt);
+
+/* Checksum computation function */
+uint32_t get_ipsum(uint16_t *data, int32_t len, uint32_t initialValue);
+uint16_t get_udpsum (struct ip *iph, struct udphdr *udph);
 
 #endif /* udpfwd_util.h */
