@@ -43,13 +43,15 @@ VLOG_DEFINE_THIS_MODULE(udpfwd_xmit);
  * Returns: true - packet is sent successfully.
  *          false - any failures.
  */
-static bool udpfwd_send_pkt_through_socket(void *payload,
+static bool udpfwd_send_pkt_through_socket(void *pkt,
                  int32_t size, struct in_pktinfo *pktInfo, struct sockaddr_in* to)
 {
     struct msghdr msg;
     struct iovec iov[1];
     struct cmsghdr *cmptr;
     struct in_pktinfo p = *pktInfo;
+    struct ip  *iph;
+    struct udphdr *udph;
     char result = false;
 
     /* union to store ancillary data */
@@ -58,7 +60,19 @@ static bool udpfwd_send_pkt_through_socket(void *payload,
         char control[CMSG_SPACE(sizeof(struct in_pktinfo))];
     } control_u;
 
-    iov[0].iov_base = payload;
+    /* Update IP and UDP header checksum fields */
+    iph  = (struct ip *) pkt;
+    udph = (struct udphdr *) ((char *)iph + (iph->ip_hl * 4));
+
+    /* Set destination ip and udp port number in the packet */
+    iph->ip_dst.s_addr = to->sin_addr.s_addr;
+    udph->uh_dport = to->sin_port;
+
+    iph->ip_sum = get_ipsum((uint16_t *) pkt, iph->ip_len, 0);
+    /* FIXME: Add working udp checksum function */
+    udph->check = 0; //get_udpsum(iph, udph);
+
+    iov[0].iov_base = pkt;
     iov[0].iov_len = size;
 
     msg.msg_control = NULL;
@@ -77,14 +91,16 @@ static bool udpfwd_send_pkt_through_socket(void *payload,
     cmptr->cmsg_level = IPPROTO_IP;
     cmptr->cmsg_type = IP_PKTINFO;
 
-    assert(udpfwd_ctrl_cb_p->send_sockFd);
+    assert(udpfwd_ctrl_cb_p->udpSockFd);
 
-    if (sendmsg(udpfwd_ctrl_cb_p->send_sockFd, &msg, 0) < 0 ) {
-            VLOG_ERR(" errno =%d sending packet failed\n", errno);
-            result = false;
+    if (sendmsg(udpfwd_ctrl_cb_p->udpSockFd, &msg, 0) < 0 )
+    {
+        VLOG_ERR("errno = %d, sending packet failed", errno);
     }
     else
+    {
         result = true;
+    }
 
     return result;
 }
@@ -101,32 +117,34 @@ static bool udpfwd_send_pkt_through_socket(void *payload,
  *                 this routine is called. They will only be received by this
  *                 routine if the user ignores the instructions in the
  *                 manual and sets the value of DHCP_MAX_HOPS higher than 16.
- * Parameters : dhcp_packet* pkt - dhcp packet
+ * Parameters : pkt  - ip packet
  *              size - size of udp payload
  *              pktInfo - pktInfo structure
- * Returns: true - packet is sent successfully.
- *          false - any failures.
+ * Returns: void
  *
  */
-bool udpfwd_relay_to_dhcp_server(struct dhcp_packet* pkt_dhcp, int32_t size,
+void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
                                  struct in_pktinfo *pktInfo)
 {
+    struct ip *iph;              /* ip header */
+    struct udphdr *udph;            /* udp header */
+    struct dhcp_packet* dhcp;
     IP_ADDRESS interface_ip;
     int32_t iter = 0;
     uint32_t ifIndex = -1;
-    char ifName[IFNAME_LEN];
     struct sockaddr_in to;
     struct shash_node *node;
     UDPFWD_SERVER_T *server = NULL;
     UDPFWD_SERVER_T **serverArray = NULL;
     UDPFWD_INTERFACE_NODE_T *intfNode = NULL;
+    char ifName[IFNAME_LEN];
 
     ifIndex = pktInfo->ipi_ifindex;
 
     if ((-1 == ifIndex) ||
         (NULL == if_indextoname(ifIndex, ifName))) {
         VLOG_ERR("Failed to read input interface : %d", ifIndex);
-        return false;
+        return;
     }
 
     /* Get IP address associated with the Interface. */
@@ -134,14 +152,19 @@ bool udpfwd_relay_to_dhcp_server(struct dhcp_packet* pkt_dhcp, int32_t size,
 
     /* If there is no IP address on the input interface do not proceed. */
     if(interface_ip == 0) {
-        VLOG_ERR("Interface IP address is 0. Discard packet\n");
-        return false;
+        VLOG_ERR("%s: Interface IP address is 0. Discard packet", ifName);
+        return;
     }
 
-    if ((pkt_dhcp->hops++) > UDPFWD_DHCP_MAX_HOPS) {
+    iph  = (struct ip *) pkt;
+    udph = (struct udphdr *) ((char *)iph + (iph->ip_hl * 4));
+    dhcp = (struct dhcp_packet *)
+                        ((char *)iph + (iph->ip_hl * 4) + UDPHDR_LENGTH);
+
+    if ((dhcp->hops++) > UDPFWD_DHCP_MAX_HOPS) {
         VLOG_ERR("Hops field exceeds %d as a result packet is discarded\n",
                  UDPFWD_DHCP_MAX_HOPS);
-        return false;
+        return;
     }
 
     /*
@@ -149,18 +172,45 @@ bool udpfwd_relay_to_dhcp_server(struct dhcp_packet* pkt_dhcp, int32_t size,
      * so setting a giaddr should be done only when giaddr is zero.
      */
 
-    if(pkt_dhcp->giaddr.s_addr == 0) {
-        pkt_dhcp->giaddr.s_addr = interface_ip;
+    if(dhcp->giaddr.s_addr == 0) {
+        dhcp->giaddr.s_addr = interface_ip;
     }
+
+    /* ========================================================================
+       Make the appropriate port correction
+       http://www.ietf.org/internet-drafts/draft-ietf-dhc-implementation-02.txt
+         4.7.2 Relay Agent Port Usage
+            Relay agents should use port 67 as the source port number. Relay
+            agents always listen on port 67, but port 68 has sometimes used
+
+            as the source port number probably because it was copied from the
+            source port of the incoming packet.
+
+            Cable modem vendors would like to install filters blocking outgoing
+            packets with source port 67.
+
+            RECOMMENDATIONS:
+            O  Relay agents MUST use 67 as their source port number.
+            O  Relay agents MUST NOT forward packets with non-zero giaddr
+               unless the source port number on the packet is 67.
+
+       ===================================================================== */
+    if (udph->uh_sport == DHCPC_PORT)
+         udph->uh_sport = DHCPS_PORT;
+
+    /* RFC prefers to decrement time to live */
+    iph->ip_ttl--;
 
     /* Acquire db lock */
     sem_wait(&udpfwd_ctrl_cb_p->waitSem);
     node = shash_find(&udpfwd_ctrl_cb_p->intfHashTable, ifName);
     if (NULL == node) {
-        VLOG_ERR("udpf_relay_to_dhcp_server: "
-                 "packet from client on interface %s without"
+        /* FIXME: Debug to be removed after initial round of testing */
+        VLOG_DBG("packet from client on interface %s without"
                  " helper address\n", ifName);
-        return false;
+        /* Release db lock */
+        sem_post(&udpfwd_ctrl_cb_p->waitSem);
+        return;
     }
 
     intfNode = (UDPFWD_INTERFACE_NODE_T *)node->data;
@@ -173,12 +223,12 @@ bool udpfwd_relay_to_dhcp_server(struct dhcp_packet* pkt_dhcp, int32_t size,
             continue;
         }
 
-        if ( pktInfo->ipi_addr.s_addr == INADDR_ANY) {
+        if ( iph->ip_src.s_addr == INADDR_ANY) {
             /*
              * If the source IP address is 0, then replace the ip address with
              * IP addresss of the interface on which the packet is received.
              */
-            pktInfo->ipi_spec_dst.s_addr = interface_ip;
+            iph->ip_src.s_addr = interface_ip;
         }
 
         pktInfo->ipi_ifindex = 0;
@@ -187,7 +237,7 @@ bool udpfwd_relay_to_dhcp_server(struct dhcp_packet* pkt_dhcp, int32_t size,
         to.sin_addr.s_addr = server->ip_address;
         to.sin_port = htons(DHCPS_PORT);
 
-        if (udpfwd_send_pkt_through_socket((void*)pkt_dhcp, size,
+        if (udpfwd_send_pkt_through_socket((void*)pkt, size,
                                          pktInfo, &to) == true) {
             VLOG_INFO("packet sent to server successfully\n\n");
         }
@@ -195,7 +245,7 @@ bool udpfwd_relay_to_dhcp_server(struct dhcp_packet* pkt_dhcp, int32_t size,
 
     /* Release db lock */
     sem_post(&udpfwd_ctrl_cb_p->waitSem);
-    return true;
+    return;
 }
 
 /*
@@ -211,24 +261,28 @@ bool udpfwd_relay_to_dhcp_server(struct dhcp_packet* pkt_dhcp, int32_t size,
  *                 this routine if the user ignores the instructions
  *                 in the manual and sets the value of DHCP_MAX_HOPS higher than 16.
  *
- * Params: dhcp_packet* pkt - dhcp packet
+ * Params: void* pkt - packet
  *         size - size of udp payload
  *         in_pktinfo *pktInfo - pktInfo structure
  *
- * Returns: true - packet is sent successfully.
- *          false - any failures.
+ * Returns: void
  */
-bool udpfwd_relay_to_dhcp_client(struct dhcp_packet* pkt_dhcp, int32_t size,
+void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
                                  struct in_pktinfo *pktInfo)
 {
-    struct dhcp_packet *dhcp = (struct dhcp_packet*) pkt_dhcp;
-    struct in_addr interface_ip_address; /* Interface IP address. */
+    struct ip *iph;              /* ip header */
+    struct dhcp_packet *dhcp;       /* dhcp header */
     struct arpreq arp_req;
     unsigned char *option = NULL; /* Dhcp options. */
     bool NAKReply = false;  /* Whether this is a NAK. */
-    uint32_t ifIndex = -1;
     struct sockaddr_in dest;
+    uint32_t ifIndex = -1;
     char ifName[IFNAME_LEN];
+    struct in_addr interface_ip_address; /* Interface IP address. */
+
+    iph  = (struct ip *) pkt;
+    dhcp = (struct dhcp_packet *)
+                              ((char *)iph + (iph->ip_hl * 4) + UDPHDR_LENGTH);
 
     interface_ip_address.s_addr = dhcp->giaddr.s_addr;
 
@@ -239,7 +293,7 @@ bool udpfwd_relay_to_dhcp_client(struct dhcp_packet* pkt_dhcp, int32_t size,
     if ((-1 == ifIndex) ||
         (NULL == if_indextoname(ifIndex, ifName))) {
         VLOG_ERR("Failed to read input interface : %d", ifIndex);
-        return false;
+        return;
     }
 
     /* Check whether this packet is a NAK. */
@@ -284,7 +338,7 @@ bool udpfwd_relay_to_dhcp_client(struct dhcp_packet* pkt_dhcp, int32_t size,
                     dest.sin_addr.s_addr = dhcp->ciaddr.s_addr;
             else
                /* ciaddr is 0.0.0.0, don't relay to client. */
-               return false;
+               return;
             }
         }
 
@@ -293,16 +347,17 @@ bool udpfwd_relay_to_dhcp_client(struct dhcp_packet* pkt_dhcp, int32_t size,
         arp_req.arp_ha.sa_family = dhcp->htype;
         memcpy(arp_req.arp_ha.sa_data, dhcp->chaddr, dhcp->hlen);
         arp_req.arp_flags = ATF_COM;
-        if (ioctl(udpfwd_ctrl_cb_p->send_sockFd, SIOCSARP, &arp_req) == -1)
-        VLOG_ERR(" ARP Failed, errno value = %d\n", errno);
+        if (ioctl(udpfwd_ctrl_cb_p->udpSockFd, SIOCSARP, &arp_req) == -1)
+            VLOG_ERR("ARP Failed, errno value = %d", errno);
     }
 
     pktInfo->ipi_ifindex = ifIndex;
     pktInfo->ipi_spec_dst.s_addr = 0;
 
-    if (udpfwd_send_pkt_through_socket((void*)pkt_dhcp, size,
-                                pktInfo, &dest) == true) {
-        VLOG_INFO("\n packet sent to client successfully\n ");
+    if (udpfwd_send_pkt_through_socket((void*)pkt, size,
+                                pktInfo, &dest) != true) {
+        VLOG_INFO("Failed to send packet dhcp-client");
     }
-    return true;
+
+    return;
 }
