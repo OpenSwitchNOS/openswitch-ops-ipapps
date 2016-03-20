@@ -35,7 +35,6 @@
 #include "openswitch-idl.h"
 
 #include <stdio.h>
-#include <netinet/udp.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <string.h>
@@ -51,7 +50,7 @@
 
 typedef uint32_t IP_ADDRESS;     /* IP Address. */
 
-#define IFNAME_LEN 16  /* Maximum length of an interface name */
+#define UDPHDR_LENGTH 8 /* UDP packet header length */
 
 #define RECV_BUFFER_SIZE 9228 /* Jumbo frame size */
 #define IDL_POLL_INTERVAL 5
@@ -63,9 +62,6 @@ typedef uint32_t IP_ADDRESS;     /* IP Address. */
 #define DHCPS_PORT        67
 #define DHCPC_PORT        68
 
-/* Maximum number of entries allowed per INTERFACE. */
-#define MAX_UDP_BCAST_SERVER_PER_INTERFACE 16
-
 #define UDPFWD_DHCP_MAX_HOPS     16 /* RFC limit */
 
 #define UDPFWD_DHCP_BROADCAST_FLAG    0x8000
@@ -73,11 +69,12 @@ typedef uint32_t IP_ADDRESS;     /* IP Address. */
 /* UDP Forwarder Control Block. */
 typedef struct UDPF_CTRL_CB
 {
-    int32_t send_sockFd;  /* Socket ID used for sending packets */
+    int32_t udpSockFd;    /* Socket to send/receive UDP packets */
     sem_t waitSem;        /* Semaphore for concurrent access protection */
     struct shash intfHashTable; /* interface hash table handle */
     struct cmap serverHashMap;  /* server hash map handle */
     bool dhcp_relay_enable;     /* Flag to store DHCP_Relay global status */
+    bool udp_bcast_fwd_enable;  /* Flag to indiacte udp forwarder global status */
     char *rcvbuff; /* Buffer which is used to store udp packet */
 } UDPFWD_CTRL_CB;
 
@@ -93,8 +90,8 @@ typedef struct UDPFWD_SERVER_T {
 /* Interface Table Structure. */
 typedef struct UDPFWD_INTERFACE_NODE_T
 {
-  char portName[IFNAME_LEN + 1]; /* Name of the Interface */
-  uint8_t   addrCount;           /* Counts of configured servers */
+  char    *portName; /* Name of the Interface */
+  uint8_t addrCount; /* Counts of configured servers */
   UDPFWD_SERVER_T **serverArray; /* Pointer to the array server configs */
 } UDPFWD_INTERFACE_NODE_T;
 
@@ -104,6 +101,18 @@ typedef enum DB_OP_TYPE_t {
     TABLE_OP_MODIFIED,
     TABLE_OP_MAX
 } TABLE_OP_TYPE_t;
+
+/* union to store socket ancillary data */
+union control_u {
+    struct cmsghdr align; /* this ensures alignment */
+    char control[CMSG_SPACE(sizeof(struct in_pktinfo))];
+};
+
+/* union to store pktinfo meta data */
+union packet_info {
+    unsigned char *c;
+    struct in_pktinfo *pktInfo;
+};
 
 /*
  * Global variable declaration
@@ -116,5 +125,9 @@ extern UDPFWD_CTRL_CB *udpfwd_ctrl_cb_p;
 void udpfwd_handle_dhcp_relay_config_change(
               const struct ovsrec_dhcp_relay *rec);
 void udpfwd_handle_dhcp_relay_row_delete(struct ovsdb_idl *idl);
+void udpfwd_handle_udp_bcast_forwarder_row_delete(struct ovsdb_idl *idl);
+void udpfwd_handle_udp_bcast_forwarder_config_change(
+              const struct ovsrec_udp_bcast_forwarder_server *rec);
+
 
 #endif /* udpfwd.h */

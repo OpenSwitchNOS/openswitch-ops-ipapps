@@ -25,16 +25,21 @@
 #define UDPFWD_COMMON_H
 
 /* IP Address string maximum length(Ex : 255.255.255.255). */
-#define IPADDRESS_STRING_MAX_LENGTH   15
+#define IPADDRESS_STRING_MAX_LENGTH   (15)
 
 /* Maximum entries allowed on an interface. */
-#define MAX_HELPER_ADDRESSES_PER_INTERFACE   8
+#define MAX_HELPER_ADDRESSES_PER_INTERFACE   (8)
 
 /* Maximum UDP server IPs on an interface. */
-#define MAX_UDPFWD_SERVER_ADDRESSES_PER_INTERFACE   8
+#define MAX_UDPFWD_SERVER_ADDRESSES_PER_INTERFACE   (8)
 
 /* Sub interface string. */
 #define SUBIFNAME_STR \
 "Subinterface name\n"
+
+/* Maximum number of entries allowed per INTERFACE. */
+#define MAX_UDP_BCAST_SERVER_PER_INTERFACE \
+            (MAX_HELPER_ADDRESSES_PER_INTERFACE + \
+             MAX_UDPFWD_SERVER_ADDRESSES_PER_INTERFACE)
 
 #endif /* udpfwd_common.h */
