@@ -65,8 +65,8 @@ def dhcp_relay_enable(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
-    assert 'DHCP Relay Agent :enabled' in cmdOut, "Test to enable " \
-                                                  "dhcp-relay failed"
+    assert 'DHCP Relay Agent                 :enabled' in cmdOut, "Test to enable " \
+        "dhcp-relay failed"
 
     return True
 
@@ -81,8 +81,105 @@ def dhcp_relay_disable(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
-    assert 'DHCP Relay Agent :disabled' in cmdOut, "Test to disable " \
-                                                   "dhcp-relay failed"
+    assert 'DHCP Relay Agent                 :disabled' in cmdOut, "Test to " \
+        "enable dhcp-relay failed"
+
+    return True
+
+
+def dhcp_relay_hop_count_increment_enable(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="dhcp-relay hop-count-increment")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to enable dhcp-relay hop-count increment failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
+    assert 'DHCP Request Hop Count Increment :enabled' in cmdOut, "Test to " \
+        "enable dhcp-relay hop-count increment failed"
+
+    return True
+
+
+def dhcp_relay_hop_count_increment_disable(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="no dhcp-relay hop-count-increment")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to disable dhcp-relay hop-count increment failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
+    assert 'DHCP Request Hop Count Increment :disabled' in cmdOut, "Test to " \
+        "disable dhcp-relay hop-count increment failed"
+
+    return True
+
+def dhcp_relay_option_82_enable(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="dhcp-relay option 82 replace")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to enable dhcp-relay option 82 failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
+    assert 'Option 82                        :enabled' in cmdOut, "Test to " \
+        "enable dhcp-relay option 82 failed"
+
+    return True
+
+
+def dhcp_relay_option_82_disable(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="no dhcp-relay option 82")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to disable dhcp-relay option 82 failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
+    assert 'Option 82                        :disabled' in cmdOut, "Test to " \
+        "disable dhcp-relay option 82 failed"
+
+    return True
+
+
+def dhcp_relay_option_82_validation_enable(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="dhcp-relay option 82 validate")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to enable dhcp-relay option 82 " \
+        "response validation failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
+    assert 'Response validation              :enabled' in cmdOut, "Test to " \
+        "enable dhcp-relay option 82 response validation failed"
+
+    return True
+
+
+def dhcp_relay_option_82_validation_disable(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="no dhcp-relay option 82 validate")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to disable dhcp-relay option 82 " \
+        "response validation failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
+    assert 'Response validation              :disabled' in cmdOut, "Test to " \
+        "disable dhcp-relay option 82 response validation failed"
 
     return True
 
@@ -113,7 +210,7 @@ def show_dhcp_relay(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
-    assert 'DHCP Relay Agent :enabled' in cmdOut, "Test to show " \
+    assert 'DHCP Relay Agent                 :disabled' in cmdOut, "Test to show " \
                                                   "dhcp-relay " \
                                                   "configuration failed"
 
@@ -616,6 +713,62 @@ class Test_dhcp_relay_configuration:
             LogOutput('info', "Disable DHCP-Relay - passed")
         else:
             LogOutput('error', "Disable DHCP-Relay - failed")
+
+    def test_dhcp_relay_hop_count_increment_enable(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = dhcp_relay_hop_count_increment_enable(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Enable DHCP-Relay hop count " \
+                              "increment - passed")
+        else:
+            LogOutput('error', "Enable DHCP-Relay hop count " \
+                               "increment - failed")
+
+    def test_dhcp_relay_option_82_enable(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = dhcp_relay_option_82_enable(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Enable DHCP-Relay option 82 - passed")
+        else:
+            LogOutput('error', "Enable DDHCP-Relay option 82 - failed")
+
+    def test_dhcp_relay_option_82_validation_enable(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = dhcp_relay_option_82_validation_enable(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Enable DHCP-Relay option 82 hop count " \
+                              "validation - passed")
+        else:
+            LogOutput('error', "Enable DHCP-Relay option 82 hop count " \
+                               "validation - failed")
+
+    def test_dhcp_relay_hop_count_increment_disable(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = dhcp_relay_hop_count_increment_disable(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Disable DHCP-Relay option 82 hop count " \
+                              "validation - passed")
+        else:
+            LogOutput('error', "Disable DHCP-Relay option 82 hop count " \
+                               "validation - failed")
+
+    def test_dhcp_relay_option_82_disable(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = dhcp_relay_option_82_disable(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Disable DHCP-Relay option 82 - passed")
+        else:
+            LogOutput('info', "Disable DHCP-Relay option 82 - failed")
+
+    def test_dhcp_relay_option_82_validation_disable(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = dhcp_relay_option_82_validation_disable(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Disable DHCP-Relay option 82 hop count " \
+                              "validation - passed")
+        else:
+            LogOutput('error', "Disable DHCP-Relay option 82 hop count " \
+                               "validation - failed")
 
     def test_show_dhcp_relay(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")

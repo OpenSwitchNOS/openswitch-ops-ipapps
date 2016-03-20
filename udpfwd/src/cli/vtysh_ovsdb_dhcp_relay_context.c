@@ -60,8 +60,8 @@ vtysh_dhcp_relay_context_clientcallback (void *p_private)
         return e_vtysh_ok;
     }
 
-    dhcp_relay_status = (char *)smap_get(&ovs_row->other_config,
-                                  SYSTEM_OTHER_CONFIG_MAP_DHCP_RELAY_DISABLED);
+    dhcp_relay_status = (char *)smap_get(&ovs_row->dhcp_config,
+                                  SYSTEM_DHCP_CONFIG_MAP_V4RELAY_DISABLED);
     if (dhcp_relay_status && !strcmp(dhcp_relay_status, "true")) {
         vtysh_ovsdb_cli_print(p_msg, "%s", "no dhcp-relay");
     }

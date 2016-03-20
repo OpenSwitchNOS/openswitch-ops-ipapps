@@ -37,7 +37,7 @@ DEFUN ( cli_udp_bcast_fwd_enable,
         IP_STR
         UDPFWD_BCAST_STR )
 {
-      return udpfwd_globalconfig("true", UDP_BCAST_FWD);
+      return udpfwd_globalconfig("true");
 }
 
 /*-----------------------------------------------------------------------------
@@ -51,7 +51,7 @@ DEFUN ( cli_udp_bcast_fwd_disable,
         IP_STR
         UDPFWD_BCAST_STR )
 {
-      return udpfwd_globalconfig("false", UDP_BCAST_FWD);
+      return udpfwd_globalconfig("false");
 }
 
 /*-----------------------------------------------------------------------------

@@ -71,16 +71,15 @@ udp_protocol[MAX_UDP_PROTOCOL] = {
 
 /*-----------------------------------------------------------------------------
 | Function       : udpfwd_globalconfig
-| Responsibility : To enable/disable udp broadcast forwarding and dhcp-relay.
+| Responsibility : To enable/disable udp broadcast forwarding.
 | Parameters     :
-|        status  : If true, enable UDP broadcast forwarding/dhcp-relay and
-|                  if false disable the UDP broadcast forwarding/dhcp-relay
-|        type    : Determines the udpfwd feature type
+|        status  : If true, enable UDP broadcast forwarding and
+|                  if false disable the UDP broadcast forwarding
 | Return         : On success returns CMD_SUCCESS,
 |                  On failure returns CMD_OVSDB_FAILURE
 -----------------------------------------------------------------------------*/
 int8_t
-udpfwd_globalconfig (const char *status, udpfwd_feature type)
+udpfwd_globalconfig (const char *status)
 {
     const struct ovsrec_system *ovs_row = NULL;
     struct ovsdb_idl_txn *status_txn = cli_do_config_start();
@@ -102,11 +101,7 @@ udpfwd_globalconfig (const char *status, udpfwd_feature type)
         return CMD_OVSDB_FAILURE;
     }
 
-    /* Identify if the operation is for dhcp-relay. */
-    if (type == DHCP_RELAY)
-        key = SYSTEM_OTHER_CONFIG_MAP_DHCP_RELAY_DISABLED;
-    else if (type == UDP_BCAST_FWD)
-        key = SYSTEM_OTHER_CONFIG_MAP_UDP_BCAST_FWD_ENABLED;
+    key = SYSTEM_OTHER_CONFIG_MAP_UDP_BCAST_FWD_ENABLED;
 
     smap_clone(&smap_status_value, &ovs_row->other_config);
 

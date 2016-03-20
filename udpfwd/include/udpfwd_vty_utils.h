@@ -65,7 +65,7 @@ udp_bcast_server_row_lookup (const char *, const char *, udpfwd_server *);
 extern const struct ovsrec_dhcp_relay *
 dhcp_relay_row_lookup(const char *, const char *);
 extern int8_t
-udpfwd_globalconfig (const char *, udpfwd_feature );
+udpfwd_globalconfig (const char *);
 extern void
 udpfwd_serverupdate (void *, bool , udpfwd_server *, udpfwd_feature );
 extern bool
