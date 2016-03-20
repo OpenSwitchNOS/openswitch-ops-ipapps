@@ -24,6 +24,7 @@
  */
 
 
+#include "udpfwd_common.h"
 #include "udpfwd.h"
 #include "hash.h"
 
@@ -325,6 +326,10 @@ bool udpfwd_remove_address(UDPFWD_INTERFACE_NODE_T *intfNode,
             VLOG_ERR("Interface node not found in hash table : %s",
                      intfNode->portName);
         }
+
+        if (NULL != intfNode->portName)
+            free(intfNode->portName);
+
         free(intfNode);
     }
 
@@ -354,7 +359,8 @@ void udpfwd_handle_dhcp_relay_row_delete(struct ovsdb_idl *idl)
         /* Iterate through dhcp relay table to find a match */
         OVSREC_DHCP_RELAY_FOR_EACH(rec, idl) {
             if ((NULL != rec->port) &&
-                !strncmp(rec->port->name, node->name, IFNAME_LEN)) {
+                !strncmp(rec->port->name, node->name,
+                         strlen(rec->port->name))) {
                 found = true;
                 break;
             }
@@ -373,6 +379,42 @@ void udpfwd_handle_dhcp_relay_row_delete(struct ovsdb_idl *idl)
     }
 
     return;
+}
+
+/*
+ * Function      : udpfwd_create_intfnode
+ * Responsiblity : Allocate memory for interface entry
+ * Parameters    : pname - interface name
+ * Return        : UDPFWD_INTERFACE_NODE_T* - Interface node
+ */
+UDPFWD_INTERFACE_NODE_T *udpfwd_create_intferface_node(char *pname)
+{
+    UDPFWD_INTERFACE_NODE_T *intfNode = NULL;
+
+    /* There is no server configuration available for the port,
+    * create one */
+    intfNode = (UDPFWD_INTERFACE_NODE_T *)
+                    calloc(1, sizeof(UDPFWD_INTERFACE_NODE_T));
+    if (NULL == intfNode)
+    {
+        VLOG_ERR("Failed to allocate interface node for : %s", pname);
+        return NULL;
+    }
+
+    intfNode->portName = (char *) calloc (1, strlen(pname) + 1);
+    if (NULL == intfNode->portName)
+    {
+       VLOG_ERR("Failed to allocate memory for portName : %s", pname);
+       return NULL;
+    }
+
+    strncpy(intfNode->portName, pname, strlen(pname));
+    intfNode->addrCount = 0;
+    intfNode->serverArray = NULL;
+    shash_add(&udpfwd_ctrl_cb_p->intfHashTable, pname, intfNode);
+    VLOG_INFO("Allocated interface table record for port : %s", pname);
+
+    return intfNode;
 }
 
 /*
@@ -406,15 +448,11 @@ void udpfwd_handle_dhcp_relay_config_change(
     /* Do lookup for the interface entry in hash table */
     node = shash_find(&udpfwd_ctrl_cb_p->intfHashTable, portName);
     if (NULL == node) {
-       /* There is no server configuration available for the port,
-        * create one */
-       intfNode = (UDPFWD_INTERFACE_NODE_T *)
-                        calloc(1, sizeof(UDPFWD_INTERFACE_NODE_T));
-       strncpy(intfNode->portName, portName, IFNAME_LEN);
-       intfNode->addrCount = 0;
-       intfNode->serverArray = NULL;
-       shash_add(&udpfwd_ctrl_cb_p->intfHashTable, portName, intfNode);
-       VLOG_INFO("Allocated server table record for port : %s", portName);
+       /* Interface entry not found, create one */
+       if (NULL == (intfNode = udpfwd_create_intferface_node(portName)))
+       {
+           return;
+       }
     }
     else
     {
@@ -482,6 +520,178 @@ void udpfwd_handle_dhcp_relay_config_change(
     /* Create the newly added servers */
     for (iter = 0; servers[iter] != 0; iter++) {
         udpfwd_store_address(intfNode, servers[iter], DHCPS_PORT);
+    }
+
+    return;
+}
+
+/*
+ * Function      : udpfwd_handle_udp_bcast_forwarder_row_delete
+ * Responsiblity : Process delete event for one or more ports records from
+ *                 UDP_Bcast_forwarder table
+ * Parameters    : idl - idl reference
+ * Return        : none
+ */
+void udpfwd_handle_udp_bcast_forwarder_row_delete(struct ovsdb_idl *idl)
+{
+    const struct ovsrec_udp_bcast_forwarder_server *rec = NULL;
+    UDPFWD_INTERFACE_NODE_T *intf;
+    struct shash_node *node, *next;
+    int iter, addrCount;
+    bool found;
+
+    /* Walk the server configuration hash table per "port" to
+     * see if configuration related to an interface is completely deleted */
+    SHASH_FOR_EACH_SAFE(node, next, &udpfwd_ctrl_cb_p->intfHashTable)
+    {
+        found = false;
+        intf = (UDPFWD_INTERFACE_NODE_T *)node->data;
+        /* Iterate through UDP_Bcast_forwarder table to find a match */
+        OVSREC_UDP_BCAST_FORWARDER_SERVER_FOR_EACH(rec, idl) {
+            if ((NULL != rec->src_port) &&
+                !strncmp(rec->src_port->name, intf->portName,
+                         strlen(rec->src_port->name))) {
+                found = true;
+                break;
+            }
+        }
+
+        if (false == found) {
+            addrCount = intf->addrCount;
+            /* Delete the interface entry from hash table */
+            for (iter = 0; iter < addrCount; iter++) {
+                udpfwd_remove_address(intf,
+                        intf->serverArray[iter]->ip_address,
+                        intf->serverArray[iter]->udp_port);
+            }
+        }
+    }
+
+    return;
+}
+
+/*
+ * Function      : udpfwd_handle_udp_bcast_forwarder_config_change
+ * Responsiblity : Handle a record change in UDP-Bcast-Forwarder table
+ * Parameters    : rec - UDP broadcast forwarder OVSDB table record
+ * Return        : none
+ */
+void udpfwd_handle_udp_bcast_forwarder_config_change(
+              const struct ovsrec_udp_bcast_forwarder_server *rec)
+{
+    struct in_addr id;
+    char *portName = NULL;
+    int iter, iter1;
+    struct shash_node *node;
+    UDPFWD_INTERFACE_NODE_T *intfNode = NULL;
+    UDPFWD_SERVER_T *server;
+    UDPFWD_SERVER_T servers[MAX_UDP_BCAST_SERVER_PER_INTERFACE];
+    UDPFWD_SERVER_T *arrayPtr;
+    int retVal;
+    bool found;
+
+    if ((NULL == rec) ||
+        (NULL == rec->src_port) ||
+        (NULL == rec->dest_vrf)) {
+        return;
+    }
+
+    portName = rec->src_port->name;
+
+    /* Do lookup for the interface entry in hash table */
+    node = shash_find(&udpfwd_ctrl_cb_p->intfHashTable, portName);
+    if (NULL == node)
+    {
+       /* Interface entry not found, create one */
+       if (NULL == (intfNode = udpfwd_create_intferface_node(portName)))
+       {
+           return;
+       }
+    }
+    else
+    {
+        intfNode = (UDPFWD_INTERFACE_NODE_T *) node->data;
+    }
+
+    memset(servers, 0, sizeof(servers));
+
+    arrayPtr = (UDPFWD_SERVER_T *)servers;
+    /* Collect the servers that are removed from the list */
+    for (iter = 0; iter < intfNode->addrCount; iter++)
+    {
+        found = false;
+        server = intfNode->serverArray[iter];
+
+        for (iter1 = 0; iter1 < rec->n_ipv4_ucast_server; iter1++)
+        {
+            retVal = inet_aton (rec->ipv4_ucast_server[iter1], &id);
+            if (!retVal || (id.s_addr == 0))
+            {
+                VLOG_ERR("Invalid IP seen during server update : %s",
+                        rec->ipv4_ucast_server[iter1]);
+                continue;
+            }
+            if ((server->ip_address == (id.s_addr))
+                && (server->udp_port== rec->udp_dport))
+            {
+                found = true;
+                break;
+            }
+        }
+
+        if ((false == found)
+            && (server->udp_port== rec->udp_dport))
+        {
+            *arrayPtr = *server;
+            arrayPtr++;
+        }
+    }
+
+    /* Delete the servers that were removed in the config update */
+    for (iter = 0; (servers[iter].ip_address) != 0; iter++)
+    {
+        udpfwd_remove_address(intfNode, servers[iter].ip_address,
+                              servers[iter].udp_port);
+    }
+
+    memset(servers, 0, sizeof(servers));
+    /* Collect the servers that are newly added */
+    arrayPtr = (UDPFWD_SERVER_T *)servers;
+    for (iter = 0; iter < rec->n_ipv4_ucast_server; iter++)
+    {
+        found = false;
+        retVal = inet_aton(rec->ipv4_ucast_server[iter], &id);
+        if (!retVal || (id.s_addr == 0))
+        {
+            VLOG_ERR("Invalid IP seen during server update : %s",
+                    rec->ipv4_ucast_server[iter]);
+            continue;
+        }
+
+        for (iter1 = 0; iter1 < intfNode->addrCount; iter1++)
+        {
+            server = intfNode->serverArray[iter1];
+            if ((server->ip_address == id.s_addr)
+                 && (server->udp_port== rec->udp_dport))
+            {
+                found = true;
+                break;
+            }
+        }
+
+        if (false == found)
+        {
+            arrayPtr->ip_address = id.s_addr;
+            arrayPtr->udp_port = rec->udp_dport;
+            arrayPtr++;
+        }
+    }
+
+    /* Create the newly added servers */
+    for (iter = 0; (servers[iter].ip_address) != 0; iter++)
+    {
+        udpfwd_store_address(intfNode, servers[iter].ip_address,
+                             servers[iter].udp_port);
     }
 
     return;

@@ -27,6 +27,19 @@
 #define UDPFWD_UTIL_H 1
 
 #include "dhcp_relay.h"
+#include <netinet/ip.h>
+#include <netinet/udp.h>
+
+/* Pseudo header for UDP checksum computation */
+struct ipovly {
+    caddr_t  ih_next, ih_prev; /* for protocol sequence q's */
+    u_char   ih_x1;            /* (unused) */
+    u_char   ih_pr;            /* protocol */
+    short    ih_len;           /* protocol length */
+    struct   in_addr ih_src;   /* source internet address */
+    struct   in_addr ih_dst;   /* destination internet address */
+};
+
 
 /* Function to retrieve IP address from interface name. */
 IP_ADDRESS getIpAddressfromIfname(char *ifName);
@@ -38,5 +51,9 @@ uint32_t getIfIndexfromIpAddress(IP_ADDRESS ip);
 uint8_t *dhcpPickupOpt(struct dhcp_packet *dhcp, int32_t len, uint8_t tag);
 uint8_t * dhcpScanOpt(uint8_t *opt, uint8_t *optend,
                         uint8_t tag, uint8_t *ovld_opt);
+
+/* Checksum computation function */
+uint16_t in_cksum(const uint16_t *addr, register int32_t len, uint16_t csum);
+
 
 #endif /* udpfwd_util.h */
