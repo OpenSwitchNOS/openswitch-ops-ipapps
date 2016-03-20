@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <ifaddrs.h>
+
 #include "udpfwd_util.h"
 
 /*
@@ -179,7 +180,7 @@ uint32_t getIfIndexfromIpAddress(IP_ADDRESS ip)
                     !(i->if_index == 0 && i->if_name == NULL); i++)
                 {
                     if (strncmp(i->if_name, ifaddr_iter->ifa_name,
-                        IFNAME_LEN) == 0)
+                                IF_NAMESIZE) == 0)
                     {
                         ifIndex = i->if_index;
                         if_freenameindex(if_ni);
@@ -218,7 +219,7 @@ IP_ADDRESS getIpAddressfromIfname(char *ifName)
         if (ifaddr_iter->ifa_addr
             && ifaddr_iter->ifa_addr->sa_family == AF_INET)
         {
-            if (strncmp(ifName, ifaddr_iter->ifa_name, IFNAME_LEN) == 0)
+            if (strncmp(ifName, ifaddr_iter->ifa_name, IF_NAMESIZE) == 0)
             {
                 res = (struct sockaddr_in *)ifaddr_iter->ifa_addr;
                 ip = res->sin_addr.s_addr;
@@ -230,4 +231,44 @@ IP_ADDRESS getIpAddressfromIfname(char *ifName)
 
     freeifaddrs(ifaddr);
     return 0; /* Failure case. */
+}
+
+/*
+ * Function      : in_cksum
+ * Responsiblity : Checksum computation function
+ * Parameters    : addr - data pointer
+ *                 len - Data length
+ *                 csum - previous checksum if any
+ * Return        : checksum value
+ */
+uint16_t
+in_cksum(const uint16_t *addr, register int32_t len, uint16_t csum)
+{
+    register int32_t nleft = len;
+    const uint16_t *w = addr;
+    register uint16_t answer;
+    register int32_t sum = csum;
+
+    /*
+     *  Our algorithm is simple, using a 32 bit accumulator (sum),
+     *  we add sequential 16 bit words to it, and at the end, fold
+     *  back all the carry bits from the top 16 bits into the lower
+     *  16 bits.
+     */
+    while (nleft > 1)  {
+        sum += *w++;
+        nleft -= 2;
+    }
+
+    /* mop up an odd byte, if necessary */
+    if (nleft == 1)
+        sum += (*(uint8_t *)w); /* le16toh() may be unavailable on old systems */
+
+    /*
+     * add back carry outs from top 16 bits to low 16 bits
+     */
+    sum = (sum >> 16) + (sum & 0xffff);    /* add hi 16 to low 16 */
+    sum += (sum >> 16);            /* add carry */
+    answer = ~sum;                /* truncate to 16 bits */
+    return (answer);
 }

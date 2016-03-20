@@ -65,7 +65,6 @@
 /*
  * Global variable declarations.
  */
-static int system_configured = false;
 /* Cached idl sequence number */
 uint32_t idl_seqno;
 /* idl pointer */
@@ -85,10 +84,67 @@ UDPFWD_CTRL_CB *udpfwd_ctrl_cb_p = &udpfwd_ctrl_cb;
 
 VLOG_DEFINE_THIS_MODULE(udpfwd);
 
+/* FIXME: Temporary addition. Once macro is merged following shall be removed */
+#define SYSTEM_DHCP_CONFIG_MAP_DHCP_RELAY_DISABLED "dhcp_relay_disabled"
+
+
 /**
  * External Function Declarations
  */
 extern void *udp_packet_recv(void *args);
+
+/*
+ * Function      : udpfwd_module_init
+ * Responsiblity : Initialization routine for udp broadcast forwarder module
+ * Parameters    : none
+ * Return        : sockfd, on success
+ *                 -1, on failure
+ */
+/* FIXME: Socket needs to be created per VRF basis based on the
+ * configuration
+ */
+int create_udp_socket(void)
+{
+    int32_t sock = -1;
+    int32_t val = 1;
+    int retVal = -1;
+
+    VLOG_INFO("Creating UDP send socket");
+
+    /* Create socket to send UDP packets to client or server */
+    sock = socket(PF_INET, SOCK_RAW, IPPROTO_UDP);
+    if (-1 == sock) {
+        VLOG_ERR("Failed to create UDP socket");
+        return -1;
+    }
+
+    retVal = setsockopt(sock, IPPROTO_IP, IP_PKTINFO,
+                        (char *)&val, sizeof(val));
+    if (0 != retVal) {
+        VLOG_ERR("Failed to set IP_PKTINFO socket option : %d", retVal);
+        close(sock);
+        return -1;
+    }
+
+    retVal = setsockopt(sock, IPPROTO_IP, IP_HDRINCL,
+                        (char *)&val, sizeof(val));
+    if (0 != retVal) {
+        VLOG_ERR("Failed to set IP_HDRINCL socket option : %d", retVal);
+        close(sock);
+        return -1;
+    }
+
+    retVal = setsockopt(sock, SOL_SOCKET, SO_BROADCAST,
+                       (char *)&val, sizeof (val));
+    if (0 != retVal) {
+        VLOG_ERR("Failed to set broadcast socket option : %d", retVal);
+        close(sock);
+        return -1;
+    }
+
+    VLOG_INFO("UDP send socket created successfully");
+    return sock;
+}
 
 /*
  * Function      : udpfwd_module_init
@@ -99,41 +155,10 @@ extern void *udp_packet_recv(void *args);
  */
 bool udpfwd_module_init(void)
 {
-    int32_t val = 1;
     int32_t retVal;
+    int32_t sock;
 
-    VLOG_INFO("Creating UDP send socket");
-
-    /* Create socket to send UDP packets to client or server */
-    udpfwd_ctrl_cb_p->send_sockFd = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (-1 == udpfwd_ctrl_cb_p->send_sockFd) {
-        VLOG_ERR("Failed to create UDP socket");
-        return false;
-    }
-
-    retVal = setsockopt(udpfwd_ctrl_cb_p->send_sockFd, IPPROTO_IP, IP_PKTINFO,
-                        (char *)&val, sizeof(val));
-    if (0 != retVal) {
-        VLOG_ERR("Failed to set IP_PKTINFO socket option : %d", retVal);
-        close(udpfwd_ctrl_cb_p->send_sockFd);
-        return false;
-    }
-
-    retVal = setsockopt(udpfwd_ctrl_cb_p->send_sockFd, SOL_SOCKET, SO_BROADCAST,
-                       (char *)&val, sizeof (val));
-    if (0 != retVal) {
-        VLOG_ERR("Failed to set broadcast socket option : %d", retVal);
-        close(udpfwd_ctrl_cb_p->send_sockFd);
-        return false;
-    }
-
-    VLOG_INFO("UDP send socket created successfully");
-
-    /* Initialize server hash table */
-    shash_init(&udpfwd_ctrl_cb_p->intfHashTable);
-
-    /* Initialize server hash map */
-    cmap_init(&udpfwd_ctrl_cb_p->serverHashMap);
+    memset(udpfwd_ctrl_cb_p, 0, sizeof(UDPFWD_CTRL_CB));
 
     /* dhcp-relay is enabled by default */
     udpfwd_ctrl_cb_p->dhcp_relay_enable = true;
@@ -141,33 +166,49 @@ bool udpfwd_module_init(void)
     /* DB access semaphore initialization */
     retVal = sem_init(&udpfwd_ctrl_cb_p->waitSem, 0, 1);
     if (0 != retVal) {
-        VLOG_ERR("Failed to initilize the semaphore, retval : %d (errno : %d)",
-                 retVal, errno);
-        close(udpfwd_ctrl_cb_p->send_sockFd);
+        VLOG_FATAL("Failed to initilize the semaphore, retval : %d (errno : %d)",
+                   retVal, errno);
         return false;
     }
+
+    /* Create UDP socket */
+    if (-1 == (sock = create_udp_socket()))
+    {
+        VLOG_FATAL("Failed to create broadcast socket");
+        return false;
+    }
+
+    udpfwd_ctrl_cb_p->udpSockFd = sock;
 
     /* Allocate memory for packet recieve buffer */
     udpfwd_ctrl_cb_p->rcvbuff = (char *) calloc(RECV_BUFFER_SIZE, sizeof(char));
 
     if (NULL == udpfwd_ctrl_cb_p->rcvbuff)
     {
-        VLOG_ERR(" Memory allocation for receive buffer failed\n");
+        close(udpfwd_ctrl_cb_p->udpSockFd);
+        VLOG_FATAL(" Memory allocation for receive buffer failed\n");
         return false;
     }
 
-#if 0 /* temporary change, will be enabled later */
+    /* Initialize server hash table */
+    shash_init(&udpfwd_ctrl_cb_p->intfHashTable);
+
+    /* Initialize server hash map */
+    cmap_init(&udpfwd_ctrl_cb_p->serverHashMap);
+
     /* Create UDP broadcast receiver thread */
-    /* FIXME: Add logic to create recv thread only when there is a valid config */
     retVal = pthread_create(&udpBcastRecv_thread, (pthread_attr_t *)NULL,
                             udp_packet_recv, NULL);
     if (0 != retVal)
     {
-        VLOG_ERR("Failed to create UDP broadcast packet receiver thread : %d",
+        free(udpfwd_ctrl_cb_p->rcvbuff);
+        close(udpfwd_ctrl_cb_p->udpSockFd);
+        cmap_destroy(&udpfwd_ctrl_cb_p->serverHashMap);
+        VLOG_FATAL("Failed to create UDP broadcast packet receiver thread : %d",
                  retVal);
         return false;
     }
-#endif
+
     return true;
 }
 
@@ -175,14 +216,14 @@ bool udpfwd_module_init(void)
  * Function      : udpfwd_process_globalconfig_update
  * Responsiblity : Process system table update notifications related to udp
  *                 forwarder from OVSDB.
- * Parameters    : idl_seqno - Cached idl sequence number
+ * Parameters    : none
  * Return        : none
  */
-void udpfwd_process_globalconfig_update(int32_t idl_seqno)
+void udpfwd_process_globalconfig_update(void)
 {
     const struct ovsrec_system *system_row = NULL;
-    bool dhcp_relay_enabled = false;
-    char *disabled;
+    bool enabled = false;
+    char *status;
 
     system_row = ovsrec_system_first(idl);
     if (NULL == system_row) {
@@ -190,20 +231,50 @@ void udpfwd_process_globalconfig_update(int32_t idl_seqno)
         return;
     }
 
-    if (OVSREC_IDL_IS_ROW_MODIFIED(system_row, idl_seqno) &&
-        (OVSREC_IDL_IS_COLUMN_MODIFIED(ovsrec_system_col_other_config,
-                                       idl_seqno))) {
-        disabled = (char *)smap_get(&system_row->other_config,
-                                 SYSTEM_OTHER_CONFIG_MAP_DHCP_RELAY_DISABLED);
-
-        /* Check if dhcp-relay is enabled globally */
-        dhcp_relay_enabled = (NULL == disabled) ? true : false;
-
+    if (OVSREC_IDL_IS_ROW_MODIFIED(system_row, idl_seqno)) {
         /* Check if dhcp-relay global configuration is changed */
-        if (dhcp_relay_enabled != udpfwd_ctrl_cb_p->dhcp_relay_enable) {
-            VLOG_INFO("DHCP-Relay global config change. old : %d, new : %d",
-                     udpfwd_ctrl_cb_p->dhcp_relay_enable, dhcp_relay_enabled);
-            udpfwd_ctrl_cb_p->dhcp_relay_enable = dhcp_relay_enabled;
+        if (OVSREC_IDL_IS_COLUMN_MODIFIED(ovsrec_system_col_dhcp_config,
+                                       idl_seqno)) {
+            status = (char *)smap_get(&system_row->dhcp_config,
+                                     SYSTEM_DHCP_CONFIG_MAP_DHCP_RELAY_DISABLED);
+
+            /* DHCP-Relay is enabled by default. Feature is assumed to be enabled
+             * if the key is missing */
+            if (NULL == status) {
+                enabled = true;
+            } else {
+                if (!strncmp(status, "false", strlen(status))) {
+                    enabled = true;
+                }
+            }
+
+            /* Check if dhcp-relay global configuration is changed */
+            if (enabled != udpfwd_ctrl_cb_p->dhcp_relay_enable) {
+                VLOG_INFO("DHCP-Relay global config change. old : %d, new : %d",
+                         udpfwd_ctrl_cb_p->dhcp_relay_enable, enabled);
+                udpfwd_ctrl_cb_p->dhcp_relay_enable = enabled;
+            }
+        }
+
+        /* Check if there is a change in UDP Broadcast Forwarder global config */
+        if (OVSREC_IDL_IS_COLUMN_MODIFIED(ovsrec_system_col_other_config,
+                                       idl_seqno)) {
+            status = (char *)smap_get(&system_row->dhcp_config,
+                                     SYSTEM_OTHER_CONFIG_MAP_UDP_BCAST_FWD_ENABLED);
+            /* UDP broadcast forwarder is disabled by default. Feature is assumed
+             * to be disabled if the key is missing */
+            if ((NULL != status) &&
+                (!strncmp(status, "true", strlen(status)))) {
+                enabled = true;
+            }
+
+            /* Check if UDP broadcast forwarder global config is changed */
+            if (enabled != udpfwd_ctrl_cb_p->udp_bcast_fwd_enable) {
+                VLOG_INFO("UDP_Bcast_Forwarder global config change. old : %d,"
+                          " new : %d",
+                          udpfwd_ctrl_cb_p->udp_bcast_fwd_enable, enabled);
+                udpfwd_ctrl_cb_p->udp_bcast_fwd_enable = enabled;
+            }
         }
     }
 
@@ -211,13 +282,13 @@ void udpfwd_process_globalconfig_update(int32_t idl_seqno)
 }
 
 /*
- * Function      : udpfwd_dhcp_relay_config_update
+ * Function      : dhcp_relay_config_update
  * Responsiblity : Process dhcp_relay table update notifications from OVSDB for the
  *                 configuration changes.
- * Parameters    : idl_seqno - Cached idl sequence number
+ * Parameters    : none
  * Return        : none
  */
-void udpfwd_dhcp_relay_config_update(int32_t idl_seqno)
+void dhcp_relay_config_update(void)
 {
     const struct ovsrec_dhcp_relay *rec_first = NULL;
     const struct ovsrec_dhcp_relay *rec = NULL;
@@ -231,8 +302,9 @@ void udpfwd_dhcp_relay_config_update(int32_t idl_seqno)
     if (!OVSREC_IDL_ANY_TABLE_ROWS_INSERTED(rec_first, idl_seqno)
         && !OVSREC_IDL_ANY_TABLE_ROWS_DELETED(rec_first, idl_seqno)
         && !OVSREC_IDL_ANY_TABLE_ROWS_MODIFIED(rec_first, idl_seqno)) {
-            VLOG_DBG("No table changes updates");
-            return;
+        /* FIXME: Log to be removed after initial round of testing */
+        VLOG_DBG("No table changes updates");
+        return;
     }
 
     /* Process row delete notification */
@@ -245,6 +317,51 @@ void udpfwd_dhcp_relay_config_update(int32_t idl_seqno)
         if (OVSREC_IDL_IS_ROW_INSERTED(rec, idl_seqno)
             || OVSREC_IDL_IS_ROW_MODIFIED(rec, idl_seqno)) {
             udpfwd_handle_dhcp_relay_config_change(rec);
+        }
+    }
+
+    /* FIXME: Handle the case of NULL port column value. Currently
+     * "no interface" command doesn't seem to be working */
+
+    return;
+}
+
+/*
+ * Function      : udp_bcast_forwarder_config_update
+ * Responsiblity : Process udp_bcast_forwarder table update notifications from
+ *                 OVSDB for the configuration changes.
+ * Parameters    : none
+ * Return        : none
+ */
+void udp_bcast_forwarder_config_update(void)
+{
+    const struct ovsrec_udp_bcast_forwarder_server *rec = NULL;
+    const struct ovsrec_udp_bcast_forwarder_server *rec_first = NULL;
+
+    /* Check for server configuration changes */
+    rec_first = ovsrec_udp_bcast_forwarder_server_first(idl);
+    if (NULL == rec_first) {
+        return;
+    }
+
+    if (!OVSREC_IDL_ANY_TABLE_ROWS_INSERTED(rec_first, idl_seqno)
+        && !OVSREC_IDL_ANY_TABLE_ROWS_DELETED(rec_first, idl_seqno)
+        && !OVSREC_IDL_ANY_TABLE_ROWS_MODIFIED(rec_first, idl_seqno)) {
+        /* FIXME: Log to be removed after initial round of testing */
+        VLOG_DBG("No table changes updates");
+        return;
+    }
+
+    /* Process row delete notification */
+    if (OVSREC_IDL_ANY_TABLE_ROWS_DELETED(rec_first, idl_seqno)) {
+        udpfwd_handle_udp_bcast_forwarder_row_delete(idl);
+    }
+
+    /* Process row insert/modify notifications */
+    OVSREC_UDP_BCAST_FORWARDER_SERVER_FOR_EACH (rec, idl) {
+        if (OVSREC_IDL_IS_ROW_INSERTED(rec, idl_seqno)
+            || OVSREC_IDL_IS_ROW_MODIFIED(rec, idl_seqno)) {
+            udpfwd_handle_udp_bcast_forwarder_config_change(rec);
         }
     }
 
@@ -271,10 +388,13 @@ void udpfwd_reconfigure(void)
     }
 
     /* Check for global configuration changes in system table */
-    udpfwd_process_globalconfig_update(idl_seqno);
+    udpfwd_process_globalconfig_update();
 
     /* Process dhcp_relay table updates */
-    udpfwd_dhcp_relay_config_update(idl_seqno);
+    dhcp_relay_config_update();
+
+    /* Process udp_bcast_forwarder_server table updates */
+    udp_bcast_forwarder_config_update();
 
     /* Cache the lated idl sequence number */
     idl_seqno = new_idl_seqno;
@@ -488,15 +608,24 @@ static char *parse_options(int argc, char *argv[], char **unixctl_pathp)
 }
 
 /*
- * Function      : udpfwd_wait
- * Responsiblity : Wait for next idl run
+ * Function      : udpfwd_unixctl_run_and_wait
+ * Responsiblity : run unixctl and wait for next idl run
  * Parameters    : none
  * Return        : none
  */
-static void udpfwd_wait(void)
+static void udpfwd_unixctl_run_and_wait(struct unixctl_server *unixctl,
+                                        bool exiting)
 {
+    unixctl_server_run(unixctl);
+
     ovsdb_idl_wait(idl);
     poll_timer_wait(IDL_POLL_INTERVAL * 1000);
+
+    unixctl_server_wait(unixctl);
+    if (exiting) {
+        poll_immediate_wake();
+    }
+    poll_block();
 }
 
 /*
@@ -522,7 +651,12 @@ static void udpfwd_exit_cb(struct unixctl_conn *conn, int argc OVS_UNUSED,
 static void udpfwd_exit(void)
 {
     /* free memory for packet receive buffer */
-    free(udpfwd_ctrl_cb_p->rcvbuff);
+    if (0 < udpfwd_ctrl_cb_p->udpSockFd)
+        close(udpfwd_ctrl_cb_p->udpSockFd);
+
+    if (NULL != udpfwd_ctrl_cb_p->rcvbuff)
+        free(udpfwd_ctrl_cb_p->rcvbuff);
+
     ovsdb_idl_destroy(idl);
 }
 
@@ -531,9 +665,10 @@ static void udpfwd_exit(void)
  * Responsiblity : idl create/registration, module initialization and
  *                 unixctl registrations
  * Parameters    : remote - daemon launch command
- * Return        : none
+ * Return        : true - on success
+ *                 false - on failure
  */
-void udpfwd_init(const char *remote)
+bool udpfwd_init(const char *remote)
 {
     idl = ovsdb_idl_create(remote, &ovsrec_idl_class, false, true);
     idl_seqno = ovsdb_idl_get_seqno(idl);
@@ -542,6 +677,7 @@ void udpfwd_init(const char *remote)
     /* Register for System table updates */
     ovsdb_idl_add_table(idl, &ovsrec_table_system);
     ovsdb_idl_add_column(idl, &ovsrec_system_col_cur_cfg);
+    ovsdb_idl_add_column(idl, &ovsrec_system_col_dhcp_config);
     ovsdb_idl_add_column(idl, &ovsrec_system_col_other_config);
 
     /* Register for DHCP_Relay table updates */
@@ -552,16 +688,29 @@ void udpfwd_init(const char *remote)
     ovsdb_idl_add_column(idl,
                         &ovsrec_dhcp_relay_col_ipv4_ucast_server);
 
+    /* Register for UDP_Bcast_Forwarder table updates */
+    ovsdb_idl_add_table(idl, &ovsrec_table_udp_bcast_forwarder_server);
+    ovsdb_idl_add_column(idl, &ovsrec_udp_bcast_forwarder_server_col_src_port);
+    ovsdb_idl_add_column(idl, &ovsrec_udp_bcast_forwarder_server_col_udp_dport);
+    ovsdb_idl_add_column(idl,
+                         &ovsrec_udp_bcast_forwarder_server_col_ipv4_ucast_server);
+
     /* Register for port table for dhcp_relay_statistics update */
     ovsdb_idl_add_table(idl, &ovsrec_table_port);
     ovsdb_idl_add_column(idl, &ovsrec_port_col_name);
     ovsdb_idl_add_column(idl, &ovsrec_port_col_dhcp_relay_statistics);
 
     /* Initialize module data structures */
-    udpfwd_module_init();
+    if (true != udpfwd_module_init())
+    {
+        VLOG_FATAL("Module failed to initialize");
+        return false;
+    }
 
     unixctl_command_register("udpfwd/dump", "", 0, 4,
                              udpfwd_unixctl_dump, NULL);
+
+    return true;
 }
 
 /**
@@ -569,24 +718,46 @@ void udpfwd_init(const char *remote)
  * Responsiblity : Check if system is fully configured by looking into
  *                 system table
  * Parameters    : none
- * Return        : none
+ * Return        : true  - if system configured
+ *                 false - otherwise
  */
-static inline void udpfwd_chk_for_system_configured(void)
+bool udpfwd_chk_for_system_configured(void)
 {
     const struct ovsrec_system *ovs_vsw = NULL;
-
-    if (system_configured) {
-        /* Nothing to do if we're already configured. */
-        return;
-    }
 
     ovs_vsw = ovsrec_system_first(idl);
 
     if (ovs_vsw && (ovs_vsw->cur_cfg > (int64_t) 0)) {
-        system_configured = true;
         VLOG_INFO("System is now configured (cur_cfg=%d).",
                   (int)ovs_vsw->cur_cfg);
+        return true;
     }
+
+    return false;
+}
+
+/*
+ * Function      : udpfwd_idl_run_and_lockcheck
+ * Responsiblity : trigger idl run and check if we have the lock
+ * Parameters    : none
+ * Return        : true  - on success
+ *                 false - otherwise
+ */
+bool udpfwd_idl_run_and_lockcheck(void)
+{
+    ovsdb_idl_run(idl);
+
+    if (ovsdb_idl_is_lock_contended(idl)) {
+        static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(1, 1);
+
+        VLOG_ERR_RL(&rl, "another udpfwd process is running, "
+                    "disabling this process until it goes away");
+        return false;
+    } else if (!ovsdb_idl_has_lock(idl)) {
+        return false;
+    }
+
+    return true;
 }
 
 /*
@@ -597,22 +768,8 @@ static inline void udpfwd_chk_for_system_configured(void)
  */
 void udpfwd_run(void)
 {
-    ovsdb_idl_run(idl);
-
-    if (ovsdb_idl_is_lock_contended(idl)) {
-        static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(1, 1);
-
-        VLOG_ERR_RL(&rl, "another udpfwd process is running, "
-                    "disabling this process until it goes away");
+    if (!udpfwd_idl_run_and_lockcheck())
         return;
-    } else if (!ovsdb_idl_has_lock(idl)) {
-        return;
-    }
-
-    udpfwd_chk_for_system_configured();
-    if (!system_configured) {
-        return;
-    }
 
     udpfwd_reconfigure();
 }
@@ -644,23 +801,33 @@ int main(int argc, char *argv[])
     }
     unixctl_command_register("exit", "", 0, 0, udpfwd_exit_cb, &exiting);
 
-    udpfwd_init(remote);
+    if (false == udpfwd_init(remote))
+    {
+        free(remote);
+        return -1;
+    }
+
     free(remote);
     daemonize_complete();
     vlog_enable_async();
+
+    /* Wait until system is completely initialized */
+    while (!exiting)
+    {
+        udpfwd_idl_run_and_lockcheck();
+
+        /* Check if system initialization is done */
+        if (true == udpfwd_chk_for_system_configured())
+            break;
+
+        udpfwd_unixctl_run_and_wait(unixctl, exiting);
+    }
 
     /* Daemon Task loop */
     while (!exiting)
     {
         udpfwd_run();
-        unixctl_server_run(unixctl);
-
-        udpfwd_wait();
-        unixctl_server_wait(unixctl);
-        if (exiting) {
-            poll_immediate_wake();
-        }
-        poll_block();
+        udpfwd_unixctl_run_and_wait(unixctl, exiting);
     }
 
     udpfwd_exit();
