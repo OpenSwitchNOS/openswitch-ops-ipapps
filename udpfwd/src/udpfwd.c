@@ -561,7 +561,12 @@ static void udpfwd_interface_dump(struct shash_node *node,
     serverArray = intfNode->serverArray;
 
     /* Print all configured server IP addresses along with port number */
-    ds_put_format(ds, "Interface : %s\n", intfNode->portName);
+    ds_put_format(ds, "Interface %s: %d\n", intfNode->portName,
+                      intfNode->addrCount);
+
+    /* Print bootp gateway */
+    ip_addr.s_addr = intfNode->bootp_gw;
+    ds_put_format(ds, "%s\n", inet_ntoa(ip_addr));
 
     for(iter = 0; iter < intfNode->addrCount; iter++)
     {
@@ -569,14 +574,16 @@ static void udpfwd_interface_dump(struct shash_node *node,
         if(udp_port && (udp_port != server->udp_port))
             continue;
         found = true;
-        ds_put_format(ds, "Port no : %d\n", server->udp_port);
+        ds_put_format(ds, "Port %d - ", server->udp_port);
         ip_addr.s_addr = server->ip_address;
-        ds_put_format(ds, "Server IP Address : %s\n", inet_ntoa(ip_addr));
-        ds_put_format(ds, "Server Ip ref count :%d\n", server->ref_count);
+        ds_put_format(ds, "%s,%d\n", inet_ntoa(ip_addr), server->ref_count);
     }
+
     if(!found && udp_port)
         ds_put_format(ds, "No IP address associated with this port: %d\n",
                       udp_port);
+
+    return;
 }
 
 /*
