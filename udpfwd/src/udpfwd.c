@@ -55,11 +55,11 @@
 #include "unixctl.h"
 #include "openvswitch/vconn.h"
 #include "openvswitch/vlog.h"
-#include "openvswitch/types.h"
 #include "openswitch-dflt.h"
 #include "coverage.h"
 #include "svec.h"
 
+#include "udpfwd_util.h"
 #include "udpfwd.h"
 
 /*
@@ -84,8 +84,15 @@ UDPFWD_CTRL_CB *udpfwd_ctrl_cb_p = &udpfwd_ctrl_cb;
 
 VLOG_DEFINE_THIS_MODULE(udpfwd);
 
-/* FIXME: Temporary addition. Once macro is merged following shall be removed */
+/* FIXME: Temporary addition. Once macro definitions are merged in idl, this shall shall be removed */
 #define SYSTEM_DHCP_CONFIG_MAP_DHCP_RELAY_DISABLED "dhcp_relay_disabled"
+#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_DISABLED    "v4relay_disabled"
+#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_ENABLED "v4relay_option82_enabled"
+#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_POLICY "v4relay_option82_policy"
+#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_VALIDATION_ENABLED "v4relay_option82_validation_enabled"
+#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_REMOTE_ID "v4relay_option82_remote_id"
+#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_HOP_COUNT_INCREMENT_DISABLED "v4relay_hop_count_increment_disabled"
+#define DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY    "bootp_gateway"
 
 
 /**
@@ -147,6 +154,43 @@ int create_udp_socket(void)
 }
 
 /*
+ * Function      : udpfwd_set_default_config
+ * Responsiblity : Set default configuration for the features
+ * Parameters    : none
+ * Return        : none
+ */
+void udpfwd_set_default_config(void)
+{
+    /* Set UDP-broadcast-forwarding enabled */
+    set_feature_status(&(udpfwd_ctrl_cb_p->feature_config.config),
+                       UDP_BCAST_FORWARDER, DISABLE);
+
+    /* Set DHCP-Relay enabled */
+    set_feature_status(&(udpfwd_ctrl_cb_p->feature_config.config),
+                       DHCP_RELAY, ENABLE);
+
+    /* Set DHCP hop-count-increment enabled */
+    set_feature_status(&(udpfwd_ctrl_cb_p->feature_config.config),
+                       DHCP_RELAY_HOP_COUNT_INCREMENT, ENABLE);
+
+    /* Set DHCP-Relay Option82 disabled  */
+    set_feature_status(&(udpfwd_ctrl_cb_p->feature_config.config),
+                       DHCP_RELAY_OPTION82, DISABLE);
+
+    /* Set DHCP-Relay validation disabled */
+    set_feature_status(&(udpfwd_ctrl_cb_p->feature_config.config),
+                       DHCP_RELAY_OPTION82_VALIDATE, DISABLE);
+
+    /* Set DHCP-Relay option82 policy keep */
+    udpfwd_ctrl_cb_p->feature_config.policy = KEEP;
+
+    /* Set DHCP-Relay option82 remote-id to mac */
+    udpfwd_ctrl_cb_p->feature_config.r_id = REMOTE_ID_MAC;
+
+    return;
+}
+
+/*
  * Function      : udpfwd_module_init
  * Responsiblity : Initialization routine for udp broadcast forwarder module
  * Parameters    : none
@@ -160,8 +204,8 @@ bool udpfwd_module_init(void)
 
     memset(udpfwd_ctrl_cb_p, 0, sizeof(UDPFWD_CTRL_CB));
 
-    /* dhcp-relay is enabled by default */
-    udpfwd_ctrl_cb_p->dhcp_relay_enable = true;
+    /* Set feature default configuration status */
+    udpfwd_set_default_config();
 
     /* DB access semaphore initialization */
     retVal = sem_init(&udpfwd_ctrl_cb_p->waitSem, 0, 1);
@@ -213,6 +257,77 @@ bool udpfwd_module_init(void)
 }
 
 /*
+ * Function      : update_feature_state
+ * Responsiblity : Update config state of a feature.
+ * Parameters    : feature - feature enum value
+ *                 state - latest config state of the feature
+ * Return        : none
+ */
+void update_feature_state(UDPFWD_FEATURE feature, FEATURE_STATUS state)
+{
+    FEATURE_STATUS prev_state;
+    uint16_t *config = &(udpfwd_ctrl_cb_p->feature_config.config);
+
+    /* Cache previous config state of the feature */
+    prev_state = get_feature_status(*config, feature);
+
+    /* If there is a change in config state, update the flag */
+    if (state != prev_state) {
+        VLOG_INFO("%s config change. old : %d, new : %d",
+                  feature_name[feature], prev_state, state);
+        set_feature_status(config, feature, state);
+    }
+
+    return;
+}
+
+/*
+ * Function      : update_option82_policy
+ * Responsiblity : Check for dhcp relay option 82 policy update.
+ * Parameters    : value - policy type
+ * Return        : none
+ */
+void update_option82_policy(char *value)
+{
+    DHCP_RELAY_OPTION82_POLICY policy = KEEP;
+
+    if (value && !strncmp(value, "replace", strlen(value)))
+        policy = REPLACE;
+    else if (value && !strncmp(value, "drop", strlen(value)))
+        policy = DROP;
+
+    if (policy != udpfwd_ctrl_cb_p->feature_config.policy) {
+        VLOG_INFO("Option 82 policy config changed. old : %s, new : %s",
+                  policy_name[udpfwd_ctrl_cb_p->feature_config.policy],
+                  policy_name[policy]);
+    }
+
+    return;
+}
+
+/*
+ * Function      : update_option82_remote_id
+ * Responsiblity : Check for dhcp relay option 82 remote-id update.
+ * Parameters    : value - remote-id type
+ * Return        : none
+ */
+void update_option82_remote_id(char *value)
+{
+    DHCP_RELAY_OPTION82_REMOTE_ID r_id = REMOTE_ID_MAC;
+
+    if (value && !strncmp(value, "ip", strlen(value)))
+        r_id = REMOTE_ID_IP;
+
+    if (r_id != udpfwd_ctrl_cb_p->feature_config.r_id) {
+        VLOG_INFO("Option 82 policy remote_id config changed. old : %s, new : %s",
+                  remote_id_name[udpfwd_ctrl_cb_p->feature_config.r_id],
+                  remote_id_name[r_id]);
+    }
+
+    return;
+}
+
+/*
  * Function      : udpfwd_process_globalconfig_update
  * Responsiblity : Process system table update notifications related to udp
  *                 forwarder from OVSDB.
@@ -222,8 +337,8 @@ bool udpfwd_module_init(void)
 void udpfwd_process_globalconfig_update(void)
 {
     const struct ovsrec_system *system_row = NULL;
-    bool enabled = false;
-    char *status;
+    FEATURE_STATUS state;
+    char *value;
 
     system_row = ovsrec_system_first(idl);
     if (NULL == system_row) {
@@ -231,64 +346,86 @@ void udpfwd_process_globalconfig_update(void)
         return;
     }
 
-    if (OVSREC_IDL_IS_ROW_MODIFIED(system_row, idl_seqno)) {
-        /* Check if dhcp-relay global configuration is changed */
-        if (OVSREC_IDL_IS_COLUMN_MODIFIED(ovsrec_system_col_dhcp_config,
-                                       idl_seqno)) {
-            status = (char *)smap_get(&system_row->dhcp_config,
-                                     SYSTEM_DHCP_CONFIG_MAP_DHCP_RELAY_DISABLED);
+    /* If system table row is not modified do no-op */
+    if (!OVSREC_IDL_IS_ROW_MODIFIED(system_row, idl_seqno))
+    {
+        return;
+    }
 
-            /* DHCP-Relay is enabled by default. Feature is assumed to be enabled
-             * if the key is missing */
-            if (NULL == status) {
-                enabled = true;
-            } else {
-                if (!strncmp(status, "false", strlen(status))) {
-                    enabled = true;
-                }
-            }
+    /* Check if dhcp-relay global configuration is changed */
+    if (OVSREC_IDL_IS_COLUMN_MODIFIED(ovsrec_system_col_dhcp_config,
+                                   idl_seqno)) {
+        /* Check for dhcp-relay configuration update */
+        state = ENABLE;
+        value = (char *)smap_get(&system_row->dhcp_config,
+                                 SYSTEM_DHCP_CONFIG_MAP_DHCP_RELAY_DISABLED);
 
-            /* Check if dhcp-relay global configuration is changed */
-            if (enabled != udpfwd_ctrl_cb_p->dhcp_relay_enable) {
-                VLOG_INFO("DHCP-Relay global config change. old : %d, new : %d",
-                         udpfwd_ctrl_cb_p->dhcp_relay_enable, enabled);
-                udpfwd_ctrl_cb_p->dhcp_relay_enable = enabled;
-            }
+        if (value && (!strncmp(value, "true", strlen(value)))) {
+            state = DISABLE;
         }
+        update_feature_state(DHCP_RELAY, state);
 
-        /* Check if there is a change in UDP Broadcast Forwarder global config */
-        if (OVSREC_IDL_IS_COLUMN_MODIFIED(ovsrec_system_col_other_config,
-                                       idl_seqno)) {
-            status = (char *)smap_get(&system_row->dhcp_config,
-                                     SYSTEM_OTHER_CONFIG_MAP_UDP_BCAST_FWD_ENABLED);
-            /* UDP broadcast forwarder is disabled by default. Feature is assumed
-             * to be disabled if the key is missing */
-            if ((NULL != status) &&
-                (!strncmp(status, "true", strlen(status)))) {
-                enabled = true;
-            }
-
-            /* Check if UDP broadcast forwarder global config is changed */
-            if (enabled != udpfwd_ctrl_cb_p->udp_bcast_fwd_enable) {
-                VLOG_INFO("UDP_Bcast_Forwarder global config change. old : %d,"
-                          " new : %d",
-                          udpfwd_ctrl_cb_p->udp_bcast_fwd_enable, enabled);
-                udpfwd_ctrl_cb_p->udp_bcast_fwd_enable = enabled;
-            }
+        /* Check for dhcp-relay hop count increment configuration update */
+        state = ENABLE;
+        value = (char *)smap_get(&system_row->dhcp_config,
+                  SYSTEM_DHCP_CONFIG_MAP_V4RELAY_HOP_COUNT_INCREMENT_DISABLED);
+        if (value && (!strncmp(value, "true", strlen(value)))) {
+            state = DISABLE;
         }
+        update_feature_state(DHCP_RELAY_HOP_COUNT_INCREMENT, state);
+
+        /* Check for dhcp-relay option 82 configuration update */
+        state = DISABLE;
+        value = (char *)smap_get(&system_row->dhcp_config,
+                  SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_ENABLED);
+        if (value && (!strncmp(value, "true", strlen(value)))) {
+            state = ENABLE;
+        }
+        update_feature_state(DHCP_RELAY_OPTION82, state);
+
+        /* Check for dhcp-relay option 82 validate configuration update */
+        state = DISABLE;
+        value = (char *)smap_get(&system_row->dhcp_config,
+                  SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_VALIDATION_ENABLED);
+        if (value && (!strncmp(value, "true", strlen(value)))) {
+            state = ENABLE;
+        }
+        update_feature_state(DHCP_RELAY_OPTION82_VALIDATE, state);
+
+        /* Check for dhcp-relay option 82 policy configuration update */
+        value = (char *)smap_get(&system_row->dhcp_config,
+                  SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_POLICY);
+        update_option82_policy(value);
+
+        /* Check for dhcp-relay option 82 remote-id configuration update */
+        value = (char *)smap_get(&system_row->dhcp_config,
+                  SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_REMOTE_ID);
+        update_option82_remote_id(value);
+    }
+
+    /* Check if there is a change in UDP Broadcast Forwarder global config */
+    if (OVSREC_IDL_IS_COLUMN_MODIFIED(ovsrec_system_col_other_config,
+                                   idl_seqno)) {
+        state = DISABLE;
+        value = (char *)smap_get(&system_row->other_config,
+                                 SYSTEM_OTHER_CONFIG_MAP_UDP_BCAST_FWD_ENABLED);
+        if (value && (!strncmp(value, "true", strlen(value)))) {
+            state = ENABLE;
+        }
+        update_feature_state(UDP_BCAST_FORWARDER, state);
     }
 
     return;
 }
 
 /*
- * Function      : dhcp_relay_config_update
+ * Function      : dhcp_relay_server_config_update
  * Responsiblity : Process dhcp_relay table update notifications from OVSDB for the
  *                 configuration changes.
  * Parameters    : none
  * Return        : none
  */
-void dhcp_relay_config_update(void)
+void dhcp_relay_server_config_update(void)
 {
     const struct ovsrec_dhcp_relay *rec_first = NULL;
     const struct ovsrec_dhcp_relay *rec = NULL;
@@ -327,13 +464,13 @@ void dhcp_relay_config_update(void)
 }
 
 /*
- * Function      : udp_bcast_forwarder_config_update
+ * Function      : udp_bcast_forwarder_server_config_update
  * Responsiblity : Process udp_bcast_forwarder table update notifications from
  *                 OVSDB for the configuration changes.
  * Parameters    : none
  * Return        : none
  */
-void udp_bcast_forwarder_config_update(void)
+void udp_bcast_forwarder_server_config_update(void)
 {
     const struct ovsrec_udp_bcast_forwarder_server *rec = NULL;
     const struct ovsrec_udp_bcast_forwarder_server *rec_first = NULL;
@@ -391,10 +528,10 @@ void udpfwd_reconfigure(void)
     udpfwd_process_globalconfig_update();
 
     /* Process dhcp_relay table updates */
-    dhcp_relay_config_update();
+    dhcp_relay_server_config_update();
 
     /* Process udp_bcast_forwarder_server table updates */
-    udp_bcast_forwarder_config_update();
+    udp_bcast_forwarder_server_config_update();
 
     /* Cache the lated idl sequence number */
     idl_seqno = new_idl_seqno;
@@ -455,11 +592,21 @@ static void udpfwd_interface_dump(struct shash_node *node,
 static void udpfwd_interfaces_dump(struct ds *ds, struct dump_params *params)
 {
     struct shash_node *node, *temp;
+    uint16_t config = udpfwd_ctrl_cb_p->feature_config.config;
 
-    if (udpfwd_ctrl_cb_p->dhcp_relay_enable)
-        ds_put_cstr(ds, "DHCP Relay is enabled\n");
-    else
-        ds_put_cstr(ds, "DHCP Relay is disabled\n");
+    ds_put_format(ds, "UDP Bcast Forwarder : %d\n",
+                      get_feature_status(config, UDP_BCAST_FORWARDER));
+    ds_put_format(ds, "DHCP Relay : %d\n", get_feature_status(config, DHCP_RELAY));
+    ds_put_format(ds, "DHCP Relay hop-count-increment : %d\n",
+                      get_feature_status(config, DHCP_RELAY_HOP_COUNT_INCREMENT));
+    ds_put_format(ds, "DHCP Relay Option82 : %d\n",
+                      get_feature_status(config, DHCP_RELAY_OPTION82));
+    ds_put_format(ds, "DHCP Relay Option82 validate : %d\n",
+                      get_feature_status(config, DHCP_RELAY_OPTION82_VALIDATE));
+    ds_put_format(ds, "DHCP Relay Option82 policy : %s\n",
+                      policy_name[udpfwd_ctrl_cb_p->feature_config.policy]);
+    ds_put_format(ds, "DHCP Relay Option82 remote-id : %s\n",
+                      remote_id_name[udpfwd_ctrl_cb_p->feature_config.r_id]);
 
     if (!params->ifName) {
         /* dump all interfaces */
@@ -691,6 +838,7 @@ bool udpfwd_init(const char *remote)
     /* Register for UDP_Bcast_Forwarder table updates */
     ovsdb_idl_add_table(idl, &ovsrec_table_udp_bcast_forwarder_server);
     ovsdb_idl_add_column(idl, &ovsrec_udp_bcast_forwarder_server_col_src_port);
+    ovsdb_idl_add_column(idl, &ovsrec_udp_bcast_forwarder_server_col_dest_vrf);
     ovsdb_idl_add_column(idl, &ovsrec_udp_bcast_forwarder_server_col_udp_dport);
     ovsdb_idl_add_column(idl,
                          &ovsrec_udp_bcast_forwarder_server_col_ipv4_ucast_server);

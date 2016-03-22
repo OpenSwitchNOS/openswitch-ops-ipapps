@@ -47,7 +47,6 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include "udpfwd_vty_utils.h"
-#include "udpfwd_common.h"
 
 static const struct ovsrec_vrf* udp_bcast_config_vrf_lookup(const char *);
 extern struct ovsdb_idl *idl;
@@ -80,7 +79,7 @@ udp_protocol[MAX_UDP_PROTOCOL] = {
 |                  On failure returns CMD_OVSDB_FAILURE
 -----------------------------------------------------------------------------*/
 int8_t
-udpfwd_globalconfig (const char *status, udpfwd_feature type)
+udpfwd_globalconfig (const char *status, UDPFWD_FEATURE type)
 {
     const struct ovsrec_system *ovs_row = NULL;
     struct ovsdb_idl_txn *status_txn = cli_do_config_start();
@@ -105,7 +104,7 @@ udpfwd_globalconfig (const char *status, udpfwd_feature type)
     /* Identify if the operation is for dhcp-relay. */
     if (type == DHCP_RELAY)
         key = SYSTEM_OTHER_CONFIG_MAP_DHCP_RELAY_DISABLED;
-    else if (type == UDP_BCAST_FWD)
+    else if (type == UDP_BCAST_FORWARDER)
         key = SYSTEM_OTHER_CONFIG_MAP_UDP_BCAST_FWD_ENABLED;
 
     smap_clone(&smap_status_value, &ovs_row->other_config);
@@ -167,7 +166,7 @@ ovsrec_vrf* udp_bcast_config_vrf_lookup (const char *vrf_name)
 -----------------------------------------------------------------------------*/
 bool
 decode_server_param (udpfwd_server *udpfwdServer, const char *argv[],
-                     udpfwd_feature type)
+                     UDPFWD_FEATURE type)
 {
     int pNum, i;
     char *pName;
@@ -185,7 +184,7 @@ decode_server_param (udpfwd_server *udpfwdServer, const char *argv[],
 
     if (!IS_VALID_IPV4(htonl(addr.s_addr)))
     {
-        if (type == UDP_BCAST_FWD)
+        if (type == UDP_BCAST_FORWARDER)
         {
             if ((IS_BROADCAST_IPV4(htonl(addr.s_addr))) ||
                 (!IS_SUBNET_BROADCAST(htonl(addr.s_addr))))
@@ -349,13 +348,13 @@ ovsrec_udp_bcast_forwarder_server *udp_bcast_server_row_lookup
 |                    On failure returns false
 -----------------------------------------------------------------------------*/
 bool
-server_address_maxcount_reached (const char *portname, udpfwd_feature type)
+server_address_maxcount_reached (const char *portname, UDPFWD_FEATURE type)
 {
     const struct ovsrec_udp_bcast_forwarder_server *udp_row_serv = NULL;
     const struct ovsrec_dhcp_relay *dhcp_row_serv = NULL;
     size_t entries = 0;
 
-    if(type == UDP_BCAST_FWD)
+    if(type == UDP_BCAST_FORWARDER)
     {
         OVSREC_UDP_BCAST_FORWARDER_SERVER_FOR_EACH (udp_row_serv, idl)
         {
@@ -409,7 +408,7 @@ server_address_maxcount_reached (const char *portname, udpfwd_feature type)
 -----------------------------------------------------------------------------*/
 void
 udpfwd_serverupdate (void *row_serv, bool action, udpfwd_server *udpfwdServ,
-                     udpfwd_feature type)
+                     UDPFWD_FEATURE type)
 {
     const struct ovsrec_udp_bcast_forwarder_server *udp_row_serv = NULL;
     const struct ovsrec_dhcp_relay *dhcp_row_serv = NULL;
@@ -417,7 +416,7 @@ udpfwd_serverupdate (void *row_serv, bool action, udpfwd_server *udpfwdServ,
     char **serverArray;
     size_t i, n, server_length = 0, serverCount = 0;
 
-    if (type == UDP_BCAST_FWD)
+    if (type == UDP_BCAST_FORWARDER)
     {
         udp_row_serv = (const struct
                         ovsrec_udp_bcast_forwarder_server *)row_serv;
@@ -442,7 +441,7 @@ udpfwd_serverupdate (void *row_serv, bool action, udpfwd_server *udpfwdServ,
             servers[i] = serverArray[i];
 
         servers[serverCount] = udpfwdServ->ipAddr;
-        if (type == UDP_BCAST_FWD)
+        if (type == UDP_BCAST_FORWARDER)
         {
             ovsrec_udp_bcast_forwarder_server_set_ipv4_ucast_server
                         (udp_row_serv, servers, server_length);
@@ -464,7 +463,7 @@ udpfwd_serverupdate (void *row_serv, bool action, udpfwd_server *udpfwdServ,
             if (strcmp (udpfwdServ->ipAddr, serverArray[i]) != 0)
                 servers[n++] = serverArray[i];
         }
-        if (type == UDP_BCAST_FWD)
+        if (type == UDP_BCAST_FORWARDER)
         {
             ovsrec_udp_bcast_forwarder_server_set_ipv4_ucast_server
                                 (udp_row_serv, servers, n);
@@ -491,7 +490,7 @@ udpfwd_serverupdate (void *row_serv, bool action, udpfwd_server *udpfwdServ,
 |                    On failure returns false
 -----------------------------------------------------------------------------*/
 bool
-udpfwd_setcommoncolumn (void *row_serv, udpfwd_feature type)
+udpfwd_setcommoncolumn (void *row_serv, UDPFWD_FEATURE type)
 {
     const struct ovsrec_port *port_row = NULL;
     const struct ovsrec_vrf *vrf_row = NULL;
@@ -501,7 +500,7 @@ udpfwd_setcommoncolumn (void *row_serv, udpfwd_feature type)
     {
         if (strcmp(port_row->name, (char*)vty->index) == 0)
         {
-            if (type == UDP_BCAST_FWD)
+            if (type == UDP_BCAST_FORWARDER)
             {
                 ovsrec_udp_bcast_forwarder_server_set_src_port
                 ((const struct ovsrec_udp_bcast_forwarder_server *)row_serv,
@@ -530,7 +529,7 @@ udpfwd_setcommoncolumn (void *row_serv, udpfwd_feature type)
 
     if (!strcmp(vrf_row->name, DEFAULT_VRF_NAME))
     {
-        if (type == UDP_BCAST_FWD)
+        if (type == UDP_BCAST_FORWARDER)
         {
             ovsrec_udp_bcast_forwarder_server_set_dest_vrf
                 ((const struct ovsrec_udp_bcast_forwarder_server *)row_serv,
@@ -564,7 +563,7 @@ udpfwd_helperaddressconfig (udpfwd_server *udpfwdServ, bool set)
     enum ovsdb_idl_txn_status txn_status;
     bool isAddrMatch = false;
     bool isMaxEntries;
-    udpfwd_feature type = DHCP_RELAY;
+    UDPFWD_FEATURE type = DHCP_RELAY;
 
     if (status_txn == NULL)
     {
@@ -689,7 +688,7 @@ udpfwd_serverconfig (udpfwd_server *udpfwdServ, bool set)
     struct ovsdb_idl_txn *status_txn = cli_do_config_start();
     enum ovsdb_idl_txn_status txn_status;
     bool isAddrMatch = false, isMaxEntries = false;
-    udpfwd_feature type = UDP_BCAST_FWD;
+    UDPFWD_FEATURE type = UDP_BCAST_FORWARDER;
 
     if (status_txn == NULL)
     {

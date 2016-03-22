@@ -24,6 +24,8 @@
 #ifndef UDPFWD_VTY_UTILS_H
 #define UDPFWD_VTY_UTILS_H
 
+#include "udpfwd_common.h"
+
 #define SET     1
 #define UNSET   0
 
@@ -43,33 +45,26 @@ udpfwd_server_t {
     int  udpPort;       /* UDP port number. */
 } udpfwd_server;
 
-/* Enums for UDP Bcast Forwarding and dhcp-relay */
-typedef enum
-udpfwd_feature_t {
-    DHCP_RELAY = 0,
-    UDP_BCAST_FWD
-} udpfwd_feature;
-
 /* Handler functions. */
 
 extern bool
 decode_server_param (udpfwd_server *, const char **,
-                     udpfwd_feature);
+                     UDPFWD_FEATURE);
 extern bool
 find_udpfwd_server_ip (char **, int8_t,
                        udpfwd_server *);
 extern bool
-server_address_maxcount_reached (const char *, udpfwd_feature );
+server_address_maxcount_reached (const char *, UDPFWD_FEATURE );
 extern const struct ovsrec_udp_bcast_forwarder_server *
 udp_bcast_server_row_lookup (const char *, const char *, udpfwd_server *);
 extern const struct ovsrec_dhcp_relay *
 dhcp_relay_row_lookup(const char *, const char *);
 extern int8_t
-udpfwd_globalconfig (const char *, udpfwd_feature );
+udpfwd_globalconfig (const char *, UDPFWD_FEATURE );
 extern void
-udpfwd_serverupdate (void *, bool , udpfwd_server *, udpfwd_feature );
+udpfwd_serverupdate (void *, bool , udpfwd_server *, UDPFWD_FEATURE );
 extern bool
-udpfwd_setcommoncolumn (void *, udpfwd_feature );
+udpfwd_setcommoncolumn (void *, UDPFWD_FEATURE );
 extern int8_t
 udpfwd_helperaddressconfig (udpfwd_server *, bool);
 extern int8_t
