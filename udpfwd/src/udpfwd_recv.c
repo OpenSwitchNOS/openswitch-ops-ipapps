@@ -63,8 +63,9 @@ void udpfwd_ctrl(void *pkt, int32_t size,
     case DHCPS_PORT:
     case DHCPC_PORT:
         {
-            if (!udpfwd_ctrl_cb_p->dhcp_relay_enable) {
-                VLOG_ERR("Since DHCP relay is disabled. Discard the packet\n");
+            if (ENABLE != get_feature_status(udpfwd_ctrl_cb_p->feature_config.config,
+                          DHCP_RELAY)) {
+                VLOG_ERR("DHCP relay is disabled. Discard the packet\n");
                 return;
             }
 

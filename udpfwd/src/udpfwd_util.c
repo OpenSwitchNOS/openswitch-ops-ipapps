@@ -33,6 +33,132 @@
 
 #include "udpfwd_util.h"
 
+/* Feature to name mapping. There should be exact one-to-one mapping
+ * between UDPFWD_FEATURE enum and feature_name array */
+char *feature_name[] =
+       {"UDP-Bcast-Forwarder",            /* UDP_BCAST_FORWARDER */
+        "DHCP-Relay",                     /* DHCP_RELAY */
+        "DHCP-Relay hop-count increment", /* DHCP_RELAY_HOP_COUNT_INCREMENT */
+        "DHCP-Relay Option 82",           /* DHCP_RELAY_OPTION82 */
+        "DHCP-Relay Option 82 validation" /* DHCP_RELAY_OPTION82_VALIDATE */
+       };
+
+/* Policy to name mapping. There should be strict one-to-one mapping
+ * between DHCP_RELAY_OPTION82_POLICY and policy_name array */
+char *policy_name[] =
+     {"keep",    /* KEEP */
+      "drop",    /* DROP */
+      "replace"  /* REPLACE */
+     };
+
+/* remote-id to name mapping. There should be strict one-to-one mapping
+ * between DHCP_RELAY_OPTION82_REMOTE_ID and policy_name array */
+char *remote_id_name[] =
+     {"ip",    /* REMOTE_ID_IP */
+      "mac"    /* REMOTE_ID_MAC */
+     };
+
+/*
+ * Function      : get_feature_status
+ * Responsiblity : Get the configuration status of a feature
+ * Parameters    : value - configuration bit map
+ *                 feature - feature enum value
+ * Return        : ENABLE - If the feature is enabled
+ *                 DISABLE - otherwise
+ */
+FEATURE_STATUS get_feature_status(uint16_t value, UDPFWD_FEATURE feature)
+{
+    FEATURE_STATUS status = DISABLE;
+
+    switch(feature)
+    {
+    case UDP_BCAST_FORWARDER:
+        if (value & UDP_BCAST_FORWARDER_BIT)
+            status = ENABLE;
+    break;
+
+    case DHCP_RELAY:
+        if (value & DHCP_RELAY_BIT)
+            status = ENABLE;
+    break;
+
+    case DHCP_RELAY_HOP_COUNT_INCREMENT:
+        if (value & DHCP_RELAY_HOP_COUNT_INCR_BIT)
+            status = ENABLE;
+    break;
+
+    case DHCP_RELAY_OPTION82:
+        if (value & DHCP_RELAY_OPTION82_BIT)
+            status = ENABLE;
+    break;
+
+    case DHCP_RELAY_OPTION82_VALIDATE:
+        if (value & DHCP_RELAY_OPTION82_VALIDATE_BIT)
+            status = ENABLE;
+    break;
+
+    default:
+    break;
+    }
+
+    return status;
+}
+
+/*
+ * Function      : set_feature_status
+ * Responsiblity : Set the configuration status of a feature
+ * Parameters    : value - pointer to configuration bit map
+ *                 feature - feature enum value
+ *                 status - config status of the feature
+ * Return        : none
+ */
+void set_feature_status(uint16_t *value, UDPFWD_FEATURE feature,
+                        FEATURE_STATUS status)
+{
+    switch(feature)
+    {
+    case UDP_BCAST_FORWARDER:
+        if (ENABLE == status)
+            *value |= UDP_BCAST_FORWARDER_BIT;
+        else
+            *value &= ~UDP_BCAST_FORWARDER_BIT;
+    break;
+
+    case DHCP_RELAY:
+        if (ENABLE == status)
+            *value |= DHCP_RELAY_BIT;
+        else
+            *value &= ~DHCP_RELAY_BIT;
+    break;
+
+    case DHCP_RELAY_HOP_COUNT_INCREMENT:
+        if (ENABLE == status)
+            *value |= DHCP_RELAY_HOP_COUNT_INCR_BIT;
+        else
+            *value &= ~DHCP_RELAY_HOP_COUNT_INCR_BIT;
+    break;
+
+    case DHCP_RELAY_OPTION82:
+        if (ENABLE == status)
+            *value |= DHCP_RELAY_OPTION82_BIT;
+        else
+            *value &= ~DHCP_RELAY_OPTION82_BIT;
+    break;
+
+    case DHCP_RELAY_OPTION82_VALIDATE:
+        if (ENABLE == status)
+            *value |= DHCP_RELAY_OPTION82_VALIDATE_BIT;
+        else
+            *value &= ~DHCP_RELAY_OPTION82_VALIDATE_BIT;
+    break;
+
+    default:
+    break;
+    }
+
+    return;
+}
+
 /*
  * Function      : dhcpScanOpt
  * Responsiblity : This function is used to search for a specified option tag

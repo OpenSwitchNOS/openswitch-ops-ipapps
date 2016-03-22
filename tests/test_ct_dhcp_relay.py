@@ -66,7 +66,7 @@ def dhcp_relay_disable(dut01):
         return False
 
     output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump")
-    assert 'DHCP Relay is disabled' in output, "Test to disable"
+    assert 'DHCP Relay : 0' in output, "Test to disable"
     " dhcp-relay failed"
     return True
 

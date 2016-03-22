@@ -37,7 +37,7 @@ DEFUN ( cli_udp_bcast_fwd_enable,
         IP_STR
         UDPFWD_BCAST_STR )
 {
-      return udpfwd_globalconfig("true", UDP_BCAST_FWD);
+      return udpfwd_globalconfig("true", UDP_BCAST_FORWARDER);
 }
 
 /*-----------------------------------------------------------------------------
@@ -51,7 +51,7 @@ DEFUN ( cli_udp_bcast_fwd_disable,
         IP_STR
         UDPFWD_BCAST_STR )
 {
-      return udpfwd_globalconfig("false", UDP_BCAST_FWD);
+      return udpfwd_globalconfig("false", UDP_BCAST_FORWARDER);
 }
 
 /*-----------------------------------------------------------------------------
@@ -72,7 +72,7 @@ DEFUN ( cli_udpf_bcast_set_proto,
     memset(&udpfServer, 0, sizeof(udpfwd_server));
 
     /* Validate the input parameters. */
-    if (decode_server_param(&udpfServer, argv, UDP_BCAST_FWD))
+    if (decode_server_param(&udpfServer, argv, UDP_BCAST_FORWARDER))
     {
         return udpfwd_serverconfig(&udpfServer, SET);
     }
@@ -101,7 +101,7 @@ DEFUN ( cli_udpf_bcast_no_set_proto,
     memset(&udpfServer, 0, sizeof(udpfwd_server));
 
     /* Validate the input parameters. */
-    if (decode_server_param(&udpfServer, argv, UDP_BCAST_FWD))
+    if (decode_server_param(&udpfServer, argv, UDP_BCAST_FORWARDER))
     {
         return udpfwd_serverconfig(&udpfServer, UNSET);
     }

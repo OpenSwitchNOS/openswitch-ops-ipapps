@@ -24,6 +24,79 @@
 #ifndef UDPFWD_COMMON_H
 #define UDPFWD_COMMON_H
 
+#include "openvswitch/types.h"
+
+/* Feature bit map */
+typedef uint16_t feature_bmap;
+
+/* Feature enumeration bit positions */
+typedef enum FEATURE_BIT
+{
+    /* UDP broadcast forwarder feature bit */
+    UDP_BCAST_FORWARDER_BIT           = 0x0001,
+    /* DHCP relay feature bit */
+    DHCP_RELAY_BIT                    = 0x0002,
+    /* DHCP packet hop count increment feature bit */
+    DHCP_RELAY_HOP_COUNT_INCR_BIT     = 0x0004,
+    /* DHCP relay option 82 feature bit */
+    DHCP_RELAY_OPTION82_BIT           = 0x0008,
+    /* DHCP relay option 82 server resonse validate bit */
+    DHCP_RELAY_OPTION82_VALIDATE_BIT  = 0x0020,
+    /* Invalid feature */
+    INVALID_FEATURE_BIT               = 0x0040
+} FEATURE_BIT;
+
+/* Feature enumeration */
+typedef enum UDPFWD_FEATURE
+{
+    UDP_BCAST_FORWARDER = 0,
+    DHCP_RELAY,
+    DHCP_RELAY_HOP_COUNT_INCREMENT,
+    DHCP_RELAY_OPTION82,
+    DHCP_RELAY_OPTION82_VALIDATE
+} UDPFWD_FEATURE;
+
+/* Feature to name mapping. There should be exact one-to-one mapping
+ * between UDPFWD_FEATURE enum and feature_name array */
+extern char *feature_name[];
+
+/* DHCP-Relay option 82 policy types */
+typedef enum DHCP_RELAY_OPTION82_POLICY
+{
+    KEEP = 0,
+    DROP,
+    REPLACE
+} DHCP_RELAY_OPTION82_POLICY;
+
+/* Policy to name mapping. There should be strict one-to-one mapping
+ * between DHCP_RELAY_OPTION82_POLICY and policy_name array */
+extern char *policy_name[];
+
+typedef enum dhcp_relay_option82_remote_id
+{
+    REMOTE_ID_IP = 0,
+    REMOTE_ID_MAC
+} DHCP_RELAY_OPTION82_REMOTE_ID;
+
+/* remote-id to name mapping. There should be strict one-to-one mapping
+ * between DHCP_RELAY_OPTION82_REMOTE_ID and policy_name array */
+extern char *remote_id_name[];
+
+/* Feature configuration status */
+typedef enum feature_status
+{
+    DISABLE,
+    ENABLE
+} FEATURE_STATUS;
+
+/* Status of the feature configurations */
+typedef struct FEATURE_CONFIG
+{
+    feature_bmap config;
+    DHCP_RELAY_OPTION82_POLICY    policy;
+    DHCP_RELAY_OPTION82_REMOTE_ID r_id;
+} FEATURE_CONFIG;
+
 /* IP Address string maximum length(Ex : 255.255.255.255). */
 #define IPADDRESS_STRING_MAX_LENGTH   (15)
 

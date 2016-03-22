@@ -47,6 +47,7 @@
 #include <unistd.h>
 #include <net/if.h>
 #include <assert.h>
+#include "udpfwd_common.h"
 
 typedef uint32_t IP_ADDRESS;     /* IP Address. */
 
@@ -73,8 +74,7 @@ typedef struct UDPF_CTRL_CB
     sem_t waitSem;        /* Semaphore for concurrent access protection */
     struct shash intfHashTable; /* interface hash table handle */
     struct cmap serverHashMap;  /* server hash map handle */
-    bool dhcp_relay_enable;     /* Flag to store DHCP_Relay global status */
-    bool udp_bcast_fwd_enable;  /* Flag to indiacte udp forwarder global status */
+    FEATURE_CONFIG feature_config;
     char *rcvbuff; /* Buffer which is used to store udp packet */
 } UDPFWD_CTRL_CB;
 

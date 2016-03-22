@@ -27,6 +27,7 @@
 #define UDPFWD_UTIL_H 1
 
 #include "dhcp_relay.h"
+#include "udpfwd_common.h"
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 
@@ -47,6 +48,10 @@ IP_ADDRESS getIpAddressfromIfname(char *ifName);
 /* Function to retrieve interface index from IP address. */
 uint32_t getIfIndexfromIpAddress(IP_ADDRESS ip);
 
+/* Set get routines for feature configuration */
+FEATURE_STATUS get_feature_status(uint16_t value, UDPFWD_FEATURE feature);
+void set_feature_status(uint16_t *value, UDPFWD_FEATURE feature,
+                        FEATURE_STATUS status);
 /* Functions to search for a specified option tag in the dhcp packet. */
 uint8_t *dhcpPickupOpt(struct dhcp_packet *dhcp, int32_t len, uint8_t tag);
 uint8_t * dhcpScanOpt(uint8_t *opt, uint8_t *optend,
