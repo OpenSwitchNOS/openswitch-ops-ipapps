@@ -4,6 +4,13 @@
 - [Verify DHCP-relay configuration](#verify-dhcp-relay-configuration)
     - [Enable DHCP-relay globally](#enable-dhcp-relay-globally)
     - [Disable DHCP-relay globally](#disable-dhcp-relay-globally)
+- [Verify DHCP-relay option 82 configuration](#verify-dhcp-relay-option-82-configuration)
+    - [Enable DHCP-relay hop count increment](#enable-dhcp-relay-hop-count-increment)
+    - [Disable DHCP-relay hop count increment](#disable-dhcp-relay-hop-count-increment)
+    - [Enable DHCP-relay option 82](#enable-dhcp-relay-option-82)
+    - [Disable DHCP-relay option 82](#disable-dhcp-relay-option-82)
+    - [Enable DHCP-relay option 82 validation](#enable-dhcp-relay-option-82-validation)
+    - [Disable DHCP-relay option 82 validation](#disable-dhcp-relay-option-82-validation)
 - [Verify the relay helper address configuration](#verify-the-relay-helper-address-configuration)
     - [Verify the helper address configuration on a specific interface](#verify-the-helper-address-configuration-on-a-specific-interface)
     - [Verify the maximum helper address configurations per interface](#verify-the-maximum-helper-address-configurations-per-interface)
@@ -47,6 +54,78 @@ Disable the DHCP-relay on dut01 using the `no dhcp-relay` command.
 Verify that the DHCP-relay state in the unixctl dump output is false.
 #### Test fail criteria
 Verify that the DHCP-relay state in the unixctl dump output is true.
+
+## Verify DHCP-relay option 82 configuration
+### Objective
+To verify DHCP-relay option 82 configuration is enabled/disabled.
+
+### Requirements
+One switch is required for this test.
+
+### Setup
+#### Topology diagram
+```ditaa
+
+                          +----------------+
+                          |                |
+                          |     DUT01      |
+                          |                |
+                          |                |
+                          +----------------+
+```
+### Enable DHCP-relay hop count increment
+### Description
+Enable the DHCP-relay hop count increment on dut01 using the `dhcp-relay hop-count-increment` command.
+### Test result Criteria
+#### Test pass criteria
+Verify that the DHCP-relay hop count increment state in the unixctl dump output is true.
+#### Test fail criteria
+Verify that the DHCP-relay hop count increment state in the unixctl dump output is false.
+
+### Disable DHCP-relay hop count increment
+### Description
+Disable the DHCP-relay hop count increment on dut01 using the `no dhcp-relay hop-count-increment` command.
+### Test result Criteria
+#### Test pass criteria
+Verify that the DHCP-relay hop count increment state in the unixctl dump output is false.
+#### Test fail criteria
+Verify that the DHCP-relay hop count increment state in the unixctl dump output is true.
+
+### Enable DHCP-relay option 82
+### Description
+Enable the DHCP-relay option 82 on dut01 using the `dhcp-relay option 82 replace` command.
+### Test result Criteria
+#### Test pass criteria
+Verify that the DHCP-relay option 82 state in the unixctl dump output is true.
+#### Test fail criteria
+Verify that the DHCP-relay option 82 state in the unixctl dump output is false.
+
+### Disable DHCP-relay option 82
+### Description
+Disable the DHCP-relay option 82 on dut01 using the `no dhcp-relay option 82` command.
+### Test result Criteria
+#### Test pass criteria
+Verify that the DHCP-relay option 82 state in the unixctl dump output is false.
+#### Test fail criteria
+Verify that the DHCP-relay option 82 state in the unixctl dump output is true.
+
+### Enable DHCP-relay option 82 validation
+### Description
+Enable the DHCP-relay option 82 validation on dut01 using the `dhcp-relay option 82 validate` command.
+### Test result Criteria
+#### Test pass criteria
+Verify that the DHCP-relay option 82 validation state in the unixctl dump output is true.
+#### Test fail criteria
+Verify that the DHCP-relay option 82 validation state in the unixctl dump output is false.
+
+### Disable DHCP-relay option 82 validation
+### Description
+Disable the DHCP-relay option 82 validation on dut01 using the `no dhcp-relay option 82 validate` command.
+### Test result Criteria
+#### Test pass criteria
+Verify that the DHCP-relay option 82 validation state in the unixctl dump output is false.
+#### Test fail criteria
+Verify that the DHCP-relay option 82 validation state in the unixctl dump output is true.
 
 ## Verify the relay helper address configuration
 ### Objective
