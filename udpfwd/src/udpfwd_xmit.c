@@ -103,8 +103,8 @@ static bool udpfwd_send_pkt_through_socket(void *pkt,
 /*
  * Function: udpfwd_forward_packet
  * Responsibilty : Send incoming UDP broadcast message to server UDP port.
- *                 This routine forwards the UDP broadcast message to the UDP port of
- *                 configured destination UDP server.
+ *                 This routine forwards the UDP broadcast message to the
+ *                 UDP port of configured destination UDP server.
  * Parameters : pkt  - Ip packet
  *              udp_dport - destination udp port
  *              size - size of udp payload
@@ -112,7 +112,7 @@ static bool udpfwd_send_pkt_through_socket(void *pkt,
  * Returns: void
  *
  */
-void udpfwd_forward_packet (void *pkt, uint16_t udp_dport, int size,
+void udpfwd_forward_packet (void *pkt, uint16_t udp_dport, int32_t size,
                             struct in_pktinfo *pktInfo)
 {
     IP_ADDRESS interface_ip;

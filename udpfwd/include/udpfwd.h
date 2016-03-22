@@ -127,7 +127,7 @@ extern UDPFWD_CTRL_CB *udpfwd_ctrl_cb_p;
 /*
  * Function prototypes from udpfwd_xmit.c
  */
-void udpfwd_forward_packet (void *pkt, uint16_t udp_dport, int size,
+void udpfwd_forward_packet (void *pkt, uint16_t udp_dport, int32_t size,
                                  struct in_pktinfo *pktInfo);
 
 /*

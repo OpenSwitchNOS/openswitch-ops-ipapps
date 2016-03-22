@@ -68,7 +68,7 @@ def udp_bcast_forwarder_enable(dut01):
     cmdOut = "ovs-appctl -t ops-udpfwd udpfwd/dump"
     output = dut01.cmd(cmdOut)
     assert \
-    'UDP Broadcast Forwarder is enabled' in output, \
+    'UDP Bcast Forwarder : 1' in output, \
     "Test to enable UDP Broadcast Forwarder failed"
 
     return True
@@ -89,7 +89,7 @@ def udp_bcast_forwarder_disable(dut01):
         return False
 
     output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump")
-    assert 'UDP Broadcast Forwarder is disabled' in output, \
+    assert 'UDP Bcast Forwarder : 0' in output, \
            "Test to disable UDP Broadcast Forwarder failed"
 
     return True
@@ -122,9 +122,60 @@ def udp_forward_protocol_Test01(dut01):
     return True
 
 
+def udp_forward_protocol_unconfigure(dut01):
+
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    # Configure
+    devIntReturn = dut01.DeviceInteract(command="interface 20")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to enter Interface context"
+
+    cmd = "ip forward-protocol udp 1.1.1.1 rip"
+    devIntReturn = dut01.DeviceInteract(command=cmd)
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute UDP forward-protocol"
+
+    dut01.DeviceInteract(command="exit")
+
+    if (exitContext(dut01) is False):
+        return False
+
+    cmdOut = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 20"
+    output = dut01.cmd(cmdOut)
+    assert '1.1.1.1' in output, "Test to set UDP forward-protocol " \
+                                "configuration failed"
+
+    # Unconfigure
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="interface 20")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to enter Interface context"
+
+    cmd = "no ip forward-protocol udp 1.1.1.1 rip"
+    devIntReturn = dut01.DeviceInteract(command=cmd)
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute UDP forward-protocol"
+
+    dut01.DeviceInteract(command="exit")
+
+    if (exitContext(dut01) is False):
+        return False
+
+    cmdOut = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 20"
+    output = dut01.cmd(cmdOut)
+    assert '1.1.1.1' not in output, "Test to unset UDP forward-protocol " \
+                                    "configuration failed"
+
+    return True
+
+
+# Verify UDP forward-protocol configuration for multiple
+# UDP ports on a specific interface
 def udp_forward_protocol_Test02(dut01):
-    # Verify UDP forward-protocol configuration for multiple
-    # UDP ports on a specific interface
 
     if (enterConfigShell(dut01) is False):
         return False
@@ -168,9 +219,9 @@ def udp_forward_protocol_Test02(dut01):
     return True
 
 
+# Verify UDP forward-protocol configurations for multiple
+# server IP addresses for a single UDP port on an interface
 def udp_forward_protocol_Test03(dut01):
-    # Verify UDP forward-protocol configurations for multiple
-    # server IP addresses for a single UDP port on an interface
 
     if (enterConfigShell(dut01) is False):
         return False
@@ -215,9 +266,9 @@ def udp_forward_protocol_Test03(dut01):
     return True
 
 
+# Verify UDP forward-protocol configuration for
+# subnet broadcast IP address on an interface
 def udp_forward_protocol_Test04(dut01):
-    # Verify UDP forward-protocol configuration for
-    # subnet broadcast IP address on an interface
 
     if (enterConfigShell(dut01) is False):
         return False
@@ -248,8 +299,9 @@ def udp_forward_protocol_Test04(dut01):
     return True
 
 
+# Verify UDP forward-protocol configuration on same subnet
 def udp_forward_protocol_Test05(dut01):
-    # Verify UDP forward-protocol configuration on same subnet
+
     if (enterConfigShell(dut01) is False):
         return False
 
@@ -284,9 +336,10 @@ def udp_forward_protocol_Test05(dut01):
     return True
 
 
+# Verify single UDP forward-protocol configuration
+# on multiple interfaces
 def udp_forward_protocol_Test06(dut01):
-    # Verify single UDP forward-protocol configuration
-    # on multiple interfaces
+
     if (enterConfigShell(dut01) is False):
         return False
 
@@ -349,8 +402,9 @@ def udp_forward_protocol_Test06(dut01):
     return True
 
 
+# Verify maximum UDP forward-protocol configurations per interface
 def udp_forward_protocol_max_per_interface(dut01):
-    # Verify maximum UDP forward-protocol configurations per interface
+
     if (enterConfigShell(dut01) is False):
         return False
 
@@ -417,6 +471,159 @@ def udp_forward_protocol_max_per_interface(dut01):
     return True
 
 
+# Verify number of servers configured per interface
+def udp_forward_protocol_server_entry01(dut01):
+
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="interface 11")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to enter Interface context"
+
+    cmd = "ip forward-protocol udp 1.1.1.1 dns"
+    devIntReturn = dut01.DeviceInteract(command=cmd)
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute UDP forward-protocol"
+
+    cmd = "ip forward-protocol udp 1.1.1.1 ntp"
+    devIntReturn = dut01.DeviceInteract(command=cmd)
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute UDP forward-protocol"
+
+    cmd = "ip forward-protocol udp 1.1.1.1 161"
+    devIntReturn = dut01.DeviceInteract(command=cmd)
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute UDP forward-protocol"
+
+    dut01.DeviceInteract(command="exit")
+
+    if (exitContext(dut01) is False):
+        return False
+
+    cmdOut = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 11"
+    output = dut01.cmd(cmdOut)
+    assert 'Interface 11: 3' in output, \
+           "Test to verify number of UDP forward-protocol " \
+           "servers configurated per interface failed"
+
+    return True
+
+
+# Verify individual number of servers configured per UDP port
+# on an interface
+def udp_forward_protocol_server_entry02(dut01):
+
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="interface 12")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to enter Interface context"
+
+    cmd = "ip forward-protocol udp 191.1.1.1 dns"
+    devIntReturn = dut01.DeviceInteract(command=cmd)
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute UDP forward-protocol"
+
+    cmd = "ip forward-protocol udp 191.1.1.1 ntp"
+    devIntReturn = dut01.DeviceInteract(command=cmd)
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute UDP forward-protocol"
+
+    cmd = "ip forward-protocol udp 191.1.1.1 161"
+    devIntReturn = dut01.DeviceInteract(command=cmd)
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute UDP forward-protocol"
+
+    cmd = "ip forward-protocol udp 191.1.1.1 timep"
+    devIntReturn = dut01.DeviceInteract(command=cmd)
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute UDP forward-protocol"
+
+    cmd = "ip forward-protocol udp 191.1.1.1 tftp"
+    devIntReturn = dut01.DeviceInteract(command=cmd)
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute UDP forward-protocol"
+
+    cmd = "ip forward-protocol udp 191.1.1.1 162"
+    devIntReturn = dut01.DeviceInteract(command=cmd)
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute UDP forward-protocol"
+
+    dut01.DeviceInteract(command="exit")
+
+    if (exitContext(dut01) is False):
+        return False
+
+    # Check output
+    count = 0
+    cmdOut = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 12"
+    output = dut01.cmd(cmdOut)
+    lines = output.split('\n')
+    for line in lines:
+        if "Interface" in line:
+            count_on_int = line.split(':')
+            total = int(count_on_int[1])
+        if "191.1.1.1" in line:
+            count_per_port = line.split(',')
+            count += int(count_per_port[1])
+
+    assert total == count, "Test to verify individual servers " \
+            "configured per UDP port on an interface failed"
+
+    return True
+
+
+# Verify the configuration of dhcp-relay helper address and
+# UDP forward-protocol server addresses together
+def udp_forward_protocol_server_entry03(dut01):
+
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="interface 13")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to enter Interface context"
+
+    cmd = "ip forward-protocol udp 12.12.12.12 dns"
+    devIntReturn = dut01.DeviceInteract(command=cmd)
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute UDP forward-protocol"
+
+    cmd = "ip forward-protocol udp 1.1.1.12 ntp"
+    devIntReturn = dut01.DeviceInteract(command=cmd)
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute UDP forward-protocol"
+
+    cmd = "ip forward-protocol udp 1.1.12.1 snmp"
+    devIntReturn = dut01.DeviceInteract(command=cmd)
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute UDP forward-protocol"
+
+    cmd = "ip helper-address 12.1.1.1"
+    devIntReturn = dut01.DeviceInteract(command=cmd)
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute helper-address"
+
+    dut01.DeviceInteract(command="exit")
+
+    if (exitContext(dut01) is False):
+        return False
+
+    cmdOut = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 13"
+    output = dut01.cmd(cmdOut)
+    assert 'Interface 13: 4' in output \
+           and 'Port 67 - 12.1.1.1' in output \
+           and 'Port 53 - 12.12.12.12' in output \
+           and 'Port 123 - 1.1.1.12' in output \
+           and 'Port 161 - 1.1.12.1' in output, \
+           "Test to configure both dhcp-relay helper address " \
+           "and UDP forward-protocol server address together failed"
+
+    return True
+
+
 # Support function to reboot the switch
 def switch_reboot(deviceObj):
     LogOutput('info', "Reboot switch " + deviceObj.device)
@@ -425,8 +632,9 @@ def switch_reboot(deviceObj):
     return rebootRetStruct
 
 
+# Verify UDP forward-protocol configuration post reboot
 def udp_forward_protocol_reboot(dut01):
-    # Verify UDP forward-protocol configuration post reboot
+
     if (enterConfigShell(dut01) is False):
         return False
 
@@ -482,21 +690,21 @@ class Test_udp_bcast_forwarder_configuration:
     def teardown_class(cls):
         Test_udp_bcast_forwarder_configuration.topoObj.terminate_nodes()
 
-#    def test_udp_bcast_forwarder_enable(self):
- #       dut01Obj = self.topoObj.deviceObjGet(device="dut01")
-  #      retValue = udp_bcast_forwarder_enable(dut01Obj)
-#        if(retValue):
- #           LogOutput('info', "Enable UDP Broadcast Forwarder - passed")
-  #      else:
-   #         LogOutput('error', "Enable UDP Broadcast Forwarder - failed")
+    def test_udp_bcast_forwarder_enable(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = udp_bcast_forwarder_enable(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Enable UDP Broadcast Forwarder - passed")
+        else:
+            LogOutput('error', "Enable UDP Broadcast Forwarder - failed")
 
-    #def test_udp_bcast_forwarder_disable(self):
-     #   dut01Obj = self.topoObj.deviceObjGet(device="dut01")
-      #  retValue = udp_bcast_forwarder_disable(dut01Obj)
-       # if(retValue):
-        #    LogOutput('info', "Disable UDP Broadcast Forwarder - passed")
-#        else:
- #           LogOutput('error', "Disable UDP Broadcast Forwarder - failed")
+    def test_udp_bcast_forwarder_disable(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = udp_bcast_forwarder_disable(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Disable UDP Broadcast Forwarder - passed")
+        else:
+            LogOutput('error', "Disable UDP Broadcast Forwarder - failed")
 
     # Verify UDP forward-protocol configuration on a specific interface
     def test_udp_forward_protocol_Test01(self):
@@ -507,6 +715,17 @@ class Test_udp_bcast_forwarder_configuration:
                       "configuration per interface - passed")
         else:
             LogOutput('error', "Test to set UDP forward-protocol "
+                      "configuration per interface - failed")
+
+    # Verify UDP forward-protocol uunconfiguration on a specific interface
+    def test_udp_forward_protocol_Unconfigure(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = udp_forward_protocol_unconfigure(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to unset UDP forward-protocol "
+                      "configuration per interface - passed")
+        else:
+            LogOutput('error', "Test to unset UDP forward-protocol "
                       "configuration per interface - failed")
 
     # Verify UDP forward-protocol configuration for multiple
@@ -593,13 +812,54 @@ class Test_udp_bcast_forwarder_configuration:
             LogOutput('error', "Test to verify maximum UDP "
                                "forward-protocol per interface - failed")
 
+    # Verify number of servers configured per interface
+    def test_udp_forward_protocol_server_entry01(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = udp_forward_protocol_server_entry01(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to verify number of UDP "
+                              "forward-protoccol servers configured "
+                              "per interface - passed")
+        else:
+            LogOutput('error', "Test to verify number of UDP "
+                               "forward-protocol servers configured "
+                               "per interface - failed")
+
+    # Verify individual number of servers configured per UDP port
+    # on an interface
+    def test_udp_forward_protocol_server_entry02(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = udp_forward_protocol_server_entry02(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to verify individual number of UDP "
+                              "forward-protocol servers configured "
+                              "per UDP port on an interface - passed")
+        else:
+            LogOutput('error', "Test to verify individual number of UDP "
+                               "forward-protocol servers configured "
+                               "per UDP port on an interface - failed")
+
+    # Verify the configuration of dhcp-relay helper address and
+    # UDP forward-protocol server addresses together
+    def test_udp_forward_protocol_server_entry03(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = udp_forward_protocol_server_entry03(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to verify configuration of both "
+                              "dhcp-relay helper address and UDP "
+                              "forward-protocol on same interface - passed")
+        else:
+            LogOutput('error', "Test to verify configuration of both "
+                              "dhcp-relay helper address and UDP "
+                              "forward-protocol on same interface - failed")
+
 #    # Verify UDP forward-protocol configuration post reboot
- #   def test_udp_forward_protocol_reboot(self):
-  #      dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+#   def test_udp_forward_protocol_reboot(self):
+#      dut01Obj = self.topoObj.deviceObjGet(device="dut01")
 #        retValue = udp_forward_protocol_reboot(dut01Obj)
-  #      if(retValue):
-   #         LogOutput('info', "Test to verify UDP "
-    #                          "forward-protocol post reboot - passed")
-     #   else:
-      #      LogOutput('error', "Test to verify  UDP "
-                               #"forward-protocol post reboot - failed")
+#      if(retValue):
+#         LogOutput('info', "Test to verify UDP "
+#                          "forward-protocol post reboot - passed")
+#   else:
+#      LogOutput('error', "Test to verify  UDP "
+#                               "forward-protocol post reboot - failed")
