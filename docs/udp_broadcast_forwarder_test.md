@@ -13,6 +13,9 @@
     - [Verify a single UDP forward-protocol configuration on multiple interfaces](#verify-a-single-udp-forward-protocol-configuration-on-multiple-interfaces)
     - [Verify the UDP forward-protocol configuration post reboot](#verify-the-udp-forward-protocol-configuration-post-reboot)
     - [Verify the maximum UDP forward-protocol configurations per interface](#verify-the-maximum-udp-forward-protocol-configurations-per-interface)
+    - [Verify the UDP forward-protocol servers configured count per interface](#verify-the-udp-forward-protocol-servers-configured-count-per-interface)
+    - [Verify the UDP forward-protocol servers count per UDP port on an interface](#verify-the-udp-forward-protocol-servers-count-per-udp-port-on-an-interface)
+    - [Verify the UDP forward-protocol configurations along with the dhcp-relay helper address configuration on an interface](#verify-the-udp-forward-protocol-configurations-along-with-the-dhcp-relay-helper-address-configuration-on-an-interface)
 
 
 ## Verify the UDP broadcast forwarder configuration
@@ -141,3 +144,30 @@ Configure the UDP forward-protocol on an interface using appropriate CLI command
 The user verifies that the unixctl dump output displays 8 UDP forward-protocol configurations.
 #### Test fail criteria
 The user verifies that the unixctl dump output displays more than 8 UDP forward-protocol configurations.
+
+### Verify the UDP forward-protocol servers configured count per interface
+### Description
+Configure the multiple UDP forward-protocol servers on an interface using appropriate CLI commands. Verify that the unixctl dump the count of servers configured on that interface.
+### Test result criteria
+#### Test pass criteria
+The user verifies the number of servers configured count in the unixctl dump output is same as the number of servers configured.
+#### Test fail criteria
+The user verifies the number of servers configured count in the unixctl dump output is not same as the number of servers configured.
+
+### Verify the UDP forward-protocol servers count per UDP port on an interface
+### Description
+Configure the UDP forward-protocol servers for different UDP ports on an interface using appropriate CLI commands. Verify that the unixctl dump the count of servers configured for that UDP port on that interface.
+### Test result criteria
+#### Test pass criteria
+The user verifies that the total sum of number of servers configured per port on an interface is equal to the overall number of UDP forward-protocol servers configured on that interface.
+#### Test fail criteria
+The user verifies that the total sum of number of servers configured per port on an interface is not equal to the overall number of UDP forward-protocol servers configured on that interface.
+
+### Verify the UDP forward-protocol configurations along with the dhcp-relay helper address configuration on an interface
+### Description
+Configure the UDP forward-protocol on an interface and dhcp-relay helper address on that same interface using appropriate CLI commands. Verify that the unixctl dump output of an interface displays both the UDP forward-protocol configurations and the dhcp-relay helper address configuration.
+### Test result criteria
+#### Test pass criteria
+The user verifies that the unixctl dump output displays both the UDP forward-protocol configurations and the dhcp-relay helper address configuration.
+#### Test fail criteria
+The user verifies that the unixctl dump output does not display both the UDP forward-protocol configurations and the dhcp-relay helper address configuration.
