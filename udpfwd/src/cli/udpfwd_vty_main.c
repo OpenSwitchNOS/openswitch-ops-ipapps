@@ -42,6 +42,8 @@ static void
 dhcp_relay_ovsdb_init(void)
 {
     ovsdb_idl_add_table(idl, &ovsrec_table_dhcp_relay);
+    ovsdb_idl_add_table(idl, &ovsrec_table_system);
+    ovsdb_idl_add_column(idl, &ovsrec_system_col_dhcp_config);
     ovsdb_idl_add_column(idl, &ovsrec_dhcp_relay_col_port);
     ovsdb_idl_add_column(idl, &ovsrec_dhcp_relay_col_vrf);
     ovsdb_idl_add_column(idl, &ovsrec_dhcp_relay_col_ipv4_ucast_server);
@@ -103,20 +105,33 @@ cli_pre_init(void)
     }
     return;
 }
-
 /* Install dhcp-relay and UDP forwarder related vty commands */
 void
 cli_post_init(void)
 {
     /* dhcp-relay */
-    install_element (CONFIG_NODE, &dhcp_relay_configuration_cmd);
-    install_element (CONFIG_NODE, &no_dhcp_relay_configuration_cmd);
-    install_element (INTERFACE_NODE, &ip_helper_address_configuration_cmd);
-    install_element (INTERFACE_NODE, &no_ip_helper_address_configuration_cmd);
-    install_element (SUB_INTERFACE_NODE, &ip_helper_address_configuration_cmd);
-    install_element (SUB_INTERFACE_NODE, &no_ip_helper_address_configuration_cmd);
-    install_element (ENABLE_NODE, &show_dhcp_relay_configuration_cmd);
-    install_element (ENABLE_NODE, &show_ip_helper_address_configuration_cmd);
+    install_element(CONFIG_NODE, &dhcp_relay_configuration_cmd);
+    install_element(CONFIG_NODE, &dhcp_relay_options_configuration_cmd);
+    install_element(CONFIG_NODE, &dhcp_relay_keep_option_configuration_cmd);
+    install_element(CONFIG_NODE, &dhcp_relay_drop_option_configuration_cmd);
+    install_element(CONFIG_NODE, &dhcp_relay_drop_validate_option_configuration_cmd);
+    install_element(CONFIG_NODE, &dhcp_relay_drop_remote_id_mac_option_configuration_cmd);
+    install_element(CONFIG_NODE, &dhcp_relay_drop_remote_id_ip_option_configuration_cmd);
+    install_element(CONFIG_NODE, &dhcp_relay_replace_option_configuration_cmd);
+    install_element(CONFIG_NODE, &dhcp_relay_replace_validate_option_configuration_cmd);
+    install_element(CONFIG_NODE, &dhcp_relay_replace_remote_id_mac_option_configuration_cmd);
+    install_element(CONFIG_NODE, &dhcp_relay_replace_remote_id_ip_option_configuration_cmd);
+    install_element(CONFIG_NODE, &dhcp_relay_validate_policy_option_configuration_cmd);
+    install_element(CONFIG_NODE, &dhcp_relay_validate_drop_option_configuration_cmd);
+    install_element(CONFIG_NODE, &dhcp_relay_validate_replace_option_configuration_cmd);
+    install_element(CONFIG_NODE, &no_dhcp_relay_configuration_cmd);
+    install_element(CONFIG_NODE, &no_dhcp_relay_option_configuration_cmd);
+    install_element(INTERFACE_NODE, &ip_helper_address_configuration_cmd);
+    install_element(INTERFACE_NODE, &no_ip_helper_address_configuration_cmd);
+    install_element(SUB_INTERFACE_NODE, &ip_helper_address_configuration_cmd);
+    install_element(SUB_INTERFACE_NODE, &no_ip_helper_address_configuration_cmd);
+    install_element(ENABLE_NODE, &show_dhcp_relay_configuration_cmd);
+    install_element(ENABLE_NODE, &show_ip_helper_address_configuration_cmd);
 
     /* UDP Forwarder */
     install_element(CONFIG_NODE, &cli_udp_bcast_fwd_enable_cmd);
