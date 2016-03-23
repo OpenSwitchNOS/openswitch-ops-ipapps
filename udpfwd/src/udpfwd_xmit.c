@@ -205,7 +205,7 @@ void udpfwd_forward_packet (void *pkt, uint16_t udp_dport, int size,
  * Returns: void
  *
  */
-void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
+bool udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
                                  struct in_pktinfo *pktInfo)
 {
     struct ip *iph;              /* ip header */
@@ -220,13 +220,17 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
     UDPFWD_SERVER_T **serverArray = NULL;
     UDPFWD_INTERFACE_NODE_T *intfNode = NULL;
     char ifName[IF_NAMESIZE + 1];
+    unsigned char *option = NULL; /* dhcp packet type options */
+    int32_t dhcp_msg_type=0;
+    DHCP_OPTION_82_OPTIONS  option82_info;
+    int32_t new_length;
 
     ifIndex = pktInfo->ipi_ifindex;
 
     if ((-1 == ifIndex) ||
         (NULL == if_indextoname(ifIndex, ifName))) {
         VLOG_ERR("Failed to read input interface : %d", ifIndex);
-        return;
+        return false;
     }
 
     /* Get IP address associated with the Interface. */
@@ -235,7 +239,7 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
     /* If there is no IP address on the input interface do not proceed. */
     if(interface_ip == 0) {
         VLOG_ERR("%s: Interface IP address is 0. Discard packet", ifName);
-        return;
+        return false;
     }
 
     iph  = (struct ip *) pkt;
@@ -243,10 +247,10 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
     dhcp = (struct dhcp_packet *)
                         ((char *)iph + (iph->ip_hl * 4) + UDPHDR_LENGTH);
 
-    if ((dhcp->hops++) > UDPFWD_DHCP_MAX_HOPS) {
+    if ((dhcp->hops) > UDPFWD_DHCP_MAX_HOPS) {
         VLOG_ERR("Hops field exceeds %d as a result packet is discarded\n",
                  UDPFWD_DHCP_MAX_HOPS);
-        return;
+        return false;
     }
 
     /*
@@ -257,6 +261,29 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
     if(dhcp->giaddr.s_addr == 0) {
         dhcp->giaddr.s_addr = interface_ip;
     }
+
+#if 0 /*FIXME */
+         {
+            /* Check if Bootp Gateway configured on this VLAN is valid one and if yes,
+             * use this for stamping the DHCP requests
+             */
+
+            struct   in_addr cmd_addr;
+            cmd_addr.s_addr = IP_ADDRESS_NULL;
+
+            if(udpf_getBootpGwAddr(vlan, &cmd_addr) == SW_SUCCESS)
+            {
+               cmd_addr.s_addr = htonl(cmd_addr.s_addr);
+
+               if(inaddrToVlan(cmd_addr))
+               {
+                  dhcp->giaddr.s_addr = cmd_addr.s_addr;
+               }
+            }
+         }
+
+#endif /* BOOTP_GATEWAY */
+
 
     /* ========================================================================
        Make the appropriate port correction
@@ -280,8 +307,23 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
     if (udph->uh_sport == DHCPC_PORT)
          udph->uh_sport = DHCPS_PORT;
 
+    if (ENABLE == get_feature_status(udpfwd_ctrl_cb_p->feature_config.config,
+                  DHCP_RELAY_HOP_COUNT_INCREMENT)) {
+        dhcp->hops++;
+    }
+
     /* RFC prefers to decrement time to live */
     iph->ip_ttl--;
+
+    memset(&option82_info, 0, sizeof(option82_info));
+    option82_info.ip_addr = interface_ip;
+    if (dhcpr_check_and_process_option82_message(pkt, &option82_info,
+                                         DHCPR_HANDLE_REQUEST, &new_length) == false)
+      {
+         VLOG_ERR("Option 82 check failed when relaying packet to server."
+                  "Drop packet \n\n");
+         return false;
+      }
 
     /* Acquire db lock */
     sem_wait(&udpfwd_ctrl_cb_p->waitSem);
@@ -292,11 +334,14 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
                  " helper address\n", ifName);
         /* Release db lock */
         sem_post(&udpfwd_ctrl_cb_p->waitSem);
-        return;
+        return false;
     }
 
     intfNode = (UDPFWD_INTERFACE_NODE_T *)node->data;
     serverArray = intfNode->serverArray;
+
+    /* check for the type of the packet being sent to server */
+    option = dhcpPickupOpt(dhcp, DHCP_PKTLEN(udph), DHCP_MSGTYPE);
 
     /* Relay DHCP-Request to each of the configured server. */
     for(iter = 0; iter < intfNode->addrCount; iter++) {
@@ -318,16 +363,35 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
         to.sin_family = AF_INET;
         to.sin_addr.s_addr = server->ip_address;
         to.sin_port = htons(DHCPS_PORT);
+        size= size + new_length;
 
         if (udpfwd_send_pkt_through_socket((void*)pkt, size,
-                                         pktInfo, &to) == true) {
-            VLOG_INFO("packet sent to server successfully\n\n");
+                                         pktInfo, &to) == true)
+        {
+            VLOG_INFO("packet sent to server successfully \n\n");
+            INC_UDPF_DHCPR_CLIENT_SENT(ifIndex);
+            if(option != NULL)
+            {
+                dhcp_msg_type = (*OPTBODY(option));
+                /* Increment the counter for client packet relayed to server */
+                udpfwd_client_packet_type_relayed(ifIndex, dhcp_msg_type);
+            }
+            /*INCREMENT THE COUNTER FOR THE  PACKETS RELAYED TO SERVERS */
+            INC_UDPF_DHCPRELAY_SERVERS_PKTS(ifIndex);
         }
+        else
+        {
+            VLOG_ERR("failed to send packet to server\n\n");
+            INC_UDPF_DHCPR_CLIENT_DROPS(ifIndex);
+
+            /* INCREMENT THE COUNTER FOR THE BAD PACKETS */
+            INC_UDPF_DHCPRECV_BAD_PKTS(ifIndex);
+         }
     }
 
     /* Release db lock */
     sem_post(&udpfwd_ctrl_cb_p->waitSem);
-    return;
+    return true;
 }
 
 /*
@@ -349,10 +413,11 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
  *
  * Returns: void
  */
-void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
+bool udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
                                  struct in_pktinfo *pktInfo)
 {
     struct ip *iph;              /* ip header */
+    struct udphdr *udph;            /* udp header */
     struct dhcp_packet *dhcp;       /* dhcp header */
     struct arpreq arp_req;
     unsigned char *option = NULL; /* Dhcp options. */
@@ -361,8 +426,12 @@ void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
     uint32_t ifIndex = -1;
     char ifName[IF_NAMESIZE + 1];
     struct in_addr interface_ip_address; /* Interface IP address. */
+    int32_t dhcp_msg_type=0;
+    DHCP_OPTION_82_OPTIONS  option82_info;
+    int32_t new_length;
 
     iph  = (struct ip *) pkt;
+    udph = (struct udphdr *) ((char *)iph + (iph->ip_hl * 4));
     dhcp = (struct dhcp_packet *)
                               ((char *)iph + (iph->ip_hl * 4) + UDPHDR_LENGTH);
 
@@ -375,16 +444,28 @@ void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
     if ((-1 == ifIndex) ||
         (NULL == if_indextoname(ifIndex, ifName))) {
         VLOG_ERR("Failed to read input interface : %d", ifIndex);
-        return;
+        return false;
+    }
+
+    iph->ip_ttl--;
+
+    /* initialize option82_info struct */
+    memset(&option82_info, 0, sizeof(option82_info));
+    if (dhcpr_check_and_process_option82_message(pkt, &option82_info,
+                                         DHCPR_HANDLE_RESPONSE, &new_length) == false)
+    {
+        VLOG_ERR("Option 82 check failed when relaying packet to client."
+                 "Drop packet \n\n");
+        return false;
     }
 
     /* Check whether this packet is a NAK. */
-    option = dhcpPickupOpt(dhcp, size, DHCP_MSGTYPE);
+    option = dhcpPickupOpt(dhcp, DHCP_PKTLEN(udph), DHCP_MSGTYPE);
     if (option != NULL)
         NAKReply = (*OPTBODY (option) == DHCPNAK);
 
     /* Examine broadcast flag. */
-    if((ntohs(dhcp->flags) & UDPFWD_DHCP_BROADCAST_FLAG)|| NAKReply)
+    if ((ntohs(dhcp->flags) & UDPFWD_DHCP_BROADCAST_FLAG)|| NAKReply)
         /* Broadcast flag is set or a NAK, so set MAC address to broadcast. */
     {
         /* Set destination IP address to broadcast address. */
@@ -420,7 +501,7 @@ void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
                     dest.sin_addr.s_addr = dhcp->ciaddr.s_addr;
             else
                /* ciaddr is 0.0.0.0, don't relay to client. */
-               return;
+               return false;
             }
         }
 
@@ -435,11 +516,22 @@ void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
 
     pktInfo->ipi_ifindex = ifIndex;
     pktInfo->ipi_spec_dst.s_addr = 0;
+    size= size + new_length;
 
     if (udpfwd_send_pkt_through_socket((void*)pkt, size,
-                                pktInfo, &dest) != true) {
-        VLOG_ERR("Failed to send packet dhcp-client");
+                                pktInfo, &dest) == true)
+    {
+        VLOG_INFO("packet sent to client successfully");
+        INC_UDPF_DHCPR_SERVER_SENT(ifIndex);
+        if (option != NULL)
+        {
+            dhcp_msg_type = *OPTBODY(option);
+            /* Increment the counter for server packet relayed to client */
+            udpfwd_server_packet_type_relayed(ifIndex ,dhcp_msg_type);
+        }
+        /* keep the record of the type of dhcp reply packet being relayed to client */
+        /* INCREASE THE COUNTER FOR THE PKTS RELAYED TO CLIENT */
+        INC_UDPF_DHCPRELAY_CLIENTS_PKTS(ifIndex);
     }
-
-    return;
+    return true;
 }

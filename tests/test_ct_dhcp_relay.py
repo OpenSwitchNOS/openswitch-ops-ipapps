@@ -52,6 +52,26 @@ def exitContext(dut01):
     return True
 
 
+def dhcp_relay_enable(dut01):
+
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    LogOutput('info', "Test to enable DHCP relay")
+    devIntReturn = dut01.DeviceInteract(command="dhcp-relay")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute no dhcp-relay command"
+
+    if (exitContext(dut01) is False):
+        return False
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump")
+    assert 'DHCP Relay : 1' in output, "Test to enable"
+    " dhcp-relay failed"
+
+    return True
+
+
 def dhcp_relay_disable(dut01):
 
     if (enterConfigShell(dut01) is False):
@@ -68,6 +88,137 @@ def dhcp_relay_disable(dut01):
     output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump")
     assert 'DHCP Relay : 0' in output, "Test to disable"
     " dhcp-relay failed"
+
+    return True
+
+def dhcp_relay_hop_count_increment_enable(dut01):
+
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    LogOutput('info', "Test to enable DHCP relay hop count increment")
+    devIntReturn = dut01.DeviceInteract(command="dhcp-relay"
+                                        " hop-count-increment")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute dhcp-relay hop-count"
+    "increment command"
+
+    if (exitContext(dut01) is False):
+        return False
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump")
+    assert 'DHCP Relay hop-count-increment : 1' in output, "Test to enable"
+    " dhcp-relay hop-count increment failed"
+
+    return True
+
+
+def dhcp_relay_hop_count_increment_disable(dut01):
+
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    LogOutput('info', "Test to disable DHCP relay hop count increment")
+    devIntReturn = dut01.DeviceInteract(command="no dhcp-relay"
+    " hop-count-increment")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute dhcp-relay hop-count"
+    "increment command"
+
+    if (exitContext(dut01) is False):
+        return False
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump")
+    assert 'DHCP Relay hop-count-increment : 0' in output, "Test to disable"
+    " dhcp-relay hop-count increment failed"
+
+    return True
+
+
+def dhcp_relay_option_82_enable(dut01):
+
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    LogOutput('info', "Test to enable DHCP relay option 82")
+    devIntReturn = dut01.DeviceInteract(command="dhcp-relay"
+    " option 82 replace")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute dhcp-relay option 82 command"
+
+    if (exitContext(dut01) is False):
+        return False
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump")
+    assert 'DHCP Relay Option82 : 1' in output, "Test to enable"
+    " dhcp-relay option 82 failed"
+
+    return True
+
+
+def dhcp_relay_option_82_disable(dut01):
+
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    LogOutput('info', "Test to disable DHCP relay option 82")
+    devIntReturn = dut01.DeviceInteract(command="no dhcp-relay option 82")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute dhcp-relay option 82 command"
+
+    if (exitContext(dut01) is False):
+        return False
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump")
+    assert 'DHCP Relay Option82 : 0' in output, "Test to disable"
+    " dhcp-relay option 82 failed"
+
+    return True
+
+
+def dhcp_relay_option_82_validation_enable(dut01):
+
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    LogOutput('info', "Test to enable DHCP relay option 82"
+    " response validation")
+    devIntReturn = dut01.DeviceInteract(command="dhcp-relay option"
+    " 82 validate")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute dhcp-relay option 82 "
+    "response validation command"
+
+    if (exitContext(dut01) is False):
+        return False
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump")
+    assert 'DHCP Relay Option82 policy : 1' in output, "Test to enable"
+    " dhcp-relay option 82 response validation failed"
+
+    return True
+
+
+def dhcp_relay_option_82_validation_disable(dut01):
+
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    LogOutput('info', "Test to disable DHCP relay option 82"
+    " response validation")
+    devIntReturn = dut01.DeviceInteract(command="no dhcp-relay option"
+    " 82 validate")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Failed to execute dhcp-relay option 82 " \
+    "response validation command"
+
+    if (exitContext(dut01) is False):
+        return False
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump")
+    assert 'DHCP Relay Option82 policy : 0' in output, "Test to disable"
+    " dhcp-relay option 82 response validation failed"
+
     return True
 
 
@@ -94,6 +245,18 @@ def helper_address_configuration_per_interface(dut01):
     output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 1")
     assert '192.168.10.1' in output, "Test to set helper-address"
     " configuration failed"
+
+    # Remove configuration
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="interface 1")
+    devIntReturn = dut01.DeviceInteract(command="no ip helper-address "
+                                        "192.168.10.1")
+
+    devIntReturn = dut01.DeviceInteract(command="exit")
+    if (exitContext(dut01) is False):
+        return False
 
     return True
 
@@ -143,6 +306,31 @@ def maximum_helper_address_configuration_per_interface(dut01):
         and '192.168.10.7' in retBuffer \
         and '192.168.10.8' in retBuffer, "maximum helper-address"
     " configuration on interface 1 failed"
+
+    # Remove configuration
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="interface 2")
+    devIntReturn = dut01.DeviceInteract(command="no ip helper-address "
+                                        "192.168.10.1")
+    devIntReturn = dut01.DeviceInteract(command="no ip helper-address "
+                                        "192.168.10.2")
+    devIntReturn = dut01.DeviceInteract(command="no ip helper-address "
+                                        "192.168.10.3")
+    devIntReturn = dut01.DeviceInteract(command="no ip helper-address "
+                                        "192.168.10.4")
+    devIntReturn = dut01.DeviceInteract(command="no ip helper-address "
+                                        "192.168.10.5")
+    devIntReturn = dut01.DeviceInteract(command="no ip helper-address "
+                                        "192.168.10.6")
+    devIntReturn = dut01.DeviceInteract(command="no ip helper-address "
+                                        "192.168.10.7")
+    devIntReturn = dut01.DeviceInteract(command="no ip helper-address "
+                                        "192.168.10.8")
+    devIntReturn = dut01.DeviceInteract(command="exit")
+    if (exitContext(dut01) is False):
+        return False
 
     return True
 
@@ -195,46 +383,349 @@ def same_helper_address_on_multiple_interface(dut01):
     if (exitContext(dut01) is False):
         return False
 
-    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 4")
-    assert 'Server Ip ref count :4' in output, "Test to set same"
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 5")
+    lines = output.split('\n')
+    for line in lines:
+        if "10.10.10.1" in line:
+            out = line.split(',')
+            count = int(out[1])
+
+    assert count == 4, "Test to set same"
     " helper-address configuration failed"
+
+    #Remove configuration
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="interface 1")
+    devIntReturn = dut01.DeviceInteract(command="no ip helper-address "
+                                        "10.10.10.1")
+    devIntReturn = dut01.DeviceInteract(command="exit")
+    devIntReturn = dut01.DeviceInteract(command="interface 3")
+    devIntReturn = dut01.DeviceInteract(command="no ip helper-address "
+                                        "10.10.10.1")
+    devIntReturn = dut01.DeviceInteract(command="exit")
+    devIntReturn = dut01.DeviceInteract(command="interface 4")
+    devIntReturn = dut01.DeviceInteract(command="no ip helper-address "
+                                        "10.10.10.1")
+    devIntReturn = dut01.DeviceInteract(command="exit")
+    devIntReturn = dut01.DeviceInteract(command="interface 5")
+    devIntReturn = dut01.DeviceInteract(command="no ip helper-address "
+                                        "10.10.10.1")
+    devIntReturn = dut01.DeviceInteract(command="exit")
+
+    if (exitContext(dut01) is False):
+        return False
 
     return True
 
+def add_helper_addresses(dut01):
 
-def all_interfaces(dut01):
+    # Create IP pool , adding 100 IP addresses
+    global ipPool
+    ipPool = []
+
+    # 192.168.1.1 to 192.168.1.32
+    for i in range(1, 33):
+        ip = "192.168.1." + str(i)
+        ipPool.append(ip)
+
+    # 10.10.1.1 to 10.10.1.32
+    for i in range(1, 33):
+        ip = "10.10.1." + str(i)
+        ipPool.append(ip)
+
+    # 192.168.1.1 to 192.168.1.16
+    for i in range(1, 17):
+        ip = "192.168.1." + str(i)
+        ipPool.append(ip)
+
+    # 9.10.1.1 to 9.10.1.20
+    for i in range(1, 21):
+        ip = "9.10.1." + str(i)
+        ipPool.append(ip)
+
+    # 100 IP addresses
+    print " number of ip address = %d" % len(ipPool)
 
     if (enterConfigShell(dut01) is False):
         return False
 
-    devIntReturn = dut01.DeviceInteract(command="interface 5")
-    retCode = devIntReturn.get('returnCode')
-    assert retCode == 0, "Failed to enter Interface context"
+    #enter interface 11
+    devIntReturn = dut01.DeviceInteract(command="interface 11")
 
-    devIntReturn = dut01.DeviceInteract(command="ip helper-address 30.10.10.1")
-    devIntReturn = dut01.DeviceInteract(command="ip helper-address 30.10.10.2")
-    retCode = devIntReturn.get('returnCode')
-    assert retCode == 0, " Failed to execute helper-address"
-    " configuration command"
+    for k in range(0, 8):
+        cmd = "ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " configuration command"
+
     dut01.DeviceInteract(command="exit")
 
-    dut01.DeviceInteract(command="int 6")
-    devIntReturn = dut01.DeviceInteract(command="ip helper-address 20.10.10.1")
-    devIntReturn = dut01.DeviceInteract(command="ip helper-address 40.10.10.2")
-    retCode = devIntReturn.get('returnCode')
-    assert retCode == 0, " Failed to execute helper-address"
-    " configuration command"
+    #enter interface 12
+    devIntReturn = dut01.DeviceInteract(command="interface 12")
+
+    for k in range(8, 16):
+        cmd = "ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " configuration command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 13
+    devIntReturn = dut01.DeviceInteract(command="interface 13")
+
+    for k in range(16, 24):
+        cmd = "ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " configuration command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 14
+    devIntReturn = dut01.DeviceInteract(command="interface 14")
+
+    for k in range(24, 32):
+        cmd = "ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " configuration command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 15
+    devIntReturn = dut01.DeviceInteract(command="interface 15")
+    for k in range(32, 40):
+        cmd = "ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " configuration command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 16
+    devIntReturn = dut01.DeviceInteract(command="interface 16")
+
+    for k in range(40, 48):
+        cmd = "ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " configuration command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 17
+    devIntReturn = dut01.DeviceInteract(command="interface 17")
+
+    for k in range(48, 56):
+        cmd = "ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " configuration command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 18
+    devIntReturn = dut01.DeviceInteract(command="interface 18")
+    for k in range(56, 64):
+        cmd = "ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " configuration command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 19
+    devIntReturn = dut01.DeviceInteract(command="interface 19")
+    for k in range(64, 72):
+        cmd = "ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " configuration command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 20
+    devIntReturn = dut01.DeviceInteract(command="interface 20")
+    for k in range(72, 80):
+        cmd = "ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " configuration command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 21
+    devIntReturn = dut01.DeviceInteract(command="interface 21")
+    for k in range(80, 88):
+        cmd = "ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " configuration command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 22
+    devIntReturn = dut01.DeviceInteract(command="interface 22")
+    for k in range(88, 96):
+        cmd = "ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " configuration command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 23
+    devIntReturn = dut01.DeviceInteract(command="interface 23")
+    for k in range(96, 100):
+        cmd = "ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " configuration command"
+
     dut01.DeviceInteract(command="exit")
 
     if (exitContext(dut01) is False):
         return False
 
+    # Check output
+    count = 0
     output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump")
-    assert '30.10.10.1' in output \
-        and '30.10.10.2' in output \
-        and '20.10.10.1' in output \
-        and '40.10.10.2' in output, "Test to set helper-address"
-    "configuration failed"
+    lines = output.split('\n')
+    for line in lines:
+        if 'Interface ' in line:
+            out = line.split(':')
+            count += int(out[1])
+
+    #for debug
+    print " length of ipPool = %d" % len(ipPool)
+    print " value of count = %d" % count
+
+    if len(ipPool) != count:
+        print " Adding Helper Addresses failed"
+        return False
+
+    return True
+
+
+def delete_helper_addresses(dut01):
+
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    #enter interface 11
+    devIntReturn = dut01.DeviceInteract(command="interface 11")
+
+    for k in range(0, 8):
+        cmd = " no ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " deletion command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 12
+    devIntReturn = dut01.DeviceInteract(command="interface 12")
+
+    for k in range(8, 16):
+        cmd = " no ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " deletion command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 13
+    devIntReturn = dut01.DeviceInteract(command="interface 13")
+
+    for k in range(16, 24):
+        cmd = " no ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " deletion command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 14
+    devIntReturn = dut01.DeviceInteract(command="interface 14")
+
+    for k in range(24, 32):
+        cmd = " no ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " deletion command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 15
+    devIntReturn = dut01.DeviceInteract(command="interface 15")
+
+    for k in range(32, 40):
+        cmd = " no ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " deletion command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 16
+    devIntReturn = dut01.DeviceInteract(command="interface 16")
+
+    for k in range(40, 48):
+        cmd = " no ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " deletion command"
+
+    dut01.DeviceInteract(command="exit")
+
+    if (exitContext(dut01) is False):
+        return False
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 11")
+    assert 'No servers are configured on this interface :11' in output, "Helper"
+    " address deletion on interface 11 failed"
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 12")
+    assert 'No servers are configured on this interface :12' in output, "Helper"
+    " address deletion on interface 12 failed"
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 13")
+    assert 'No servers are configured on this interface :13' in output, "Helper"
+    " address deletion on interface 13 failed"
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 14")
+    assert 'No servers are configured on this interface :14' in output, "Helper"
+    " address deletion on interface 14 failed"
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 15")
+    assert 'No servers are configured on this interface :15' in output, "Helper"
+    " address deletion on interface 15 failed"
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 16")
+    assert 'No servers are configured on this interface :16' in output, "Helper"
+    " address deletion on interface 16 failed"
 
     return True
 
@@ -249,8 +740,16 @@ class Test_dhcp_relay_configuration:
         Test_dhcp_relay_configuration.topoObj = \
             Test_dhcp_relay_configuration.testObj.topoObjGet()
 
-    def teardown_class(cls):
-        Test_dhcp_relay_configuration.topoObj.terminate_nodes()
+    #def teardown_class(cls):
+        #Test_dhcp_relay_configuration.topoObj.terminate_nodes()
+
+    def test_dhcp_relay_enable(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = dhcp_relay_enable(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Enable DHCP-Relay - passed")
+        else:
+            LogOutput('error', "Enable DHCP-Relay - failed")
 
     def test_dhcp_relay_disable(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
@@ -259,6 +758,62 @@ class Test_dhcp_relay_configuration:
             LogOutput('info', "Disable DHCP-Relay - passed")
         else:
             LogOutput('error', "Disable DHCP-Relay - failed")
+
+    def test_dhcp_relay_hop_count_increment_enable(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = dhcp_relay_hop_count_increment_enable(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Enable DHCP-Relay hop count "
+                              "increment - passed")
+        else:
+            LogOutput('error', "Enable DHCP-Relay hop count "
+                               "increment - failed")
+
+    def test_dhcp_relay_hop_count_increment_disable(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = dhcp_relay_hop_count_increment_disable(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Disable DHCP-Relay option 82 hop count "
+                      "validation - passed")
+        else:
+            LogOutput('error', "Disable DHCP-Relay option 82 hop count "
+                      "validation - failed")
+
+    def test_dhcp_relay_option_82_enable(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = dhcp_relay_option_82_enable(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Enable DHCP-Relay option 82 - passed")
+        else:
+            LogOutput('error', "Enable DDHCP-Relay option 82 - failed")
+
+    def test_dhcp_relay_option_82_disable(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = dhcp_relay_option_82_disable(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Disable DHCP-Relay option 82 - passed")
+        else:
+            LogOutput('info', "Disable DHCP-Relay option 82 - failed")
+
+    def test_dhcp_relay_option_82_validation_enable(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = dhcp_relay_option_82_validation_enable(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Enable DHCP-Relay option 82 hop count "
+                      "validation - passed")
+        else:
+            LogOutput('error', "Enable DHCP-Relay option 82 hop count "
+                      "validation - failed")
+
+    def test_dhcp_relay_option_82_validation_disable(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = dhcp_relay_option_82_validation_disable(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Disable DHCP-Relay option 82 hop count "
+                      "validation - passed")
+        else:
+            LogOutput('error', "Disable DHCP-Relay option 82 hop count "
+                      "validation - failed")
 
     def test_helper_address_configuration_per_interface(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
@@ -290,10 +845,18 @@ class Test_dhcp_relay_configuration:
             LogOutput('error', "Test to set same helper-address"
                       " configuration on multiple interface - failed")
 
-    def test_all_interfaces(self):
+    def test_add_helper_addresses(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
-        retValue = all_interfaces(dut01Obj)
+        retValue = add_helper_addresses(dut01Obj)
         if(retValue):
-            LogOutput('info', "Test to display complete dump passed")
+            LogOutput('info', "Helper address addition stress test passed")
         else:
-            LogOutput('error', "Test to display complete dump failed")
+            LogOutput('error', "Helper address addition stress test failed")
+
+    def test_delete_helper_addresses(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = delete_helper_addresses(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Helper address deletion stress test passed")
+        else:
+            LogOutput('error', "Helper address deletion stress test failed")
