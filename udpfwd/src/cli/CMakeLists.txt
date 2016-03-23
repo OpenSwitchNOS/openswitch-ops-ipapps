@@ -17,6 +17,7 @@ cmake_minimum_required (VERSION 2.8)
 project ("ops_udpfwd_cli")
 
 set (INCL_DIR ${CMAKE_SOURCE_DIR}/include)
+set (SRC_DIR ${CMAKE_SOURCE_DIR}/udpfwd/src)
 set (LIBUDPFWDCLI udpfwd_cli)
 
 # This option is passed by build system.
@@ -38,6 +39,7 @@ include_directories (${INCL_DIR}
                      ${PROJECT_SOURCE_DIR}
                      ${OVSCOMMON_INCLUDE_DIRS}
                      ${OPSCLI_INCLUDE_DIRS}
+					 ${SRC_DIR}
                     )
 
 # CLI libraries source files
@@ -47,6 +49,7 @@ set (SOURCES_CLI ${PROJECT_SOURCE_DIR}/udpfwd_vty_main.c
                  ${PROJECT_SOURCE_DIR}/udpfwd_vty_utils.c
                  ${PROJECT_SOURCE_DIR}/vtysh_ovsdb_dhcp_relay_context.c
                  ${PROJECT_SOURCE_DIR}/vtysh_ovsdb_udpfwd_context.c
+				 ${SRC_DIR}/udpfwd_util.c
     )
 
 

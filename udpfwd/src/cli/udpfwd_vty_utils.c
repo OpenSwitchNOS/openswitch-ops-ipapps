@@ -101,11 +101,7 @@ udpfwd_globalconfig (const char *status, UDPFWD_FEATURE type)
         return CMD_OVSDB_FAILURE;
     }
 
-    /* Identify if the operation is for dhcp-relay. */
-    if (type == DHCP_RELAY)
-        key = SYSTEM_OTHER_CONFIG_MAP_DHCP_RELAY_DISABLED;
-    else if (type == UDP_BCAST_FORWARDER)
-        key = SYSTEM_OTHER_CONFIG_MAP_UDP_BCAST_FWD_ENABLED;
+    key = SYSTEM_OTHER_CONFIG_MAP_UDP_BCAST_FWD_ENABLED;
 
     smap_clone(&smap_status_value, &ovs_row->other_config);
 

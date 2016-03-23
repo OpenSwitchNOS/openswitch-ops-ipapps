@@ -65,7 +65,8 @@ typedef enum DHCP_RELAY_OPTION82_POLICY
 {
     KEEP = 0,
     DROP,
-    REPLACE
+    REPLACE,
+    INVALID
 } DHCP_RELAY_OPTION82_POLICY;
 
 /* Policy to name mapping. There should be strict one-to-one mapping
@@ -75,7 +76,8 @@ extern char *policy_name[];
 typedef enum dhcp_relay_option82_remote_id
 {
     REMOTE_ID_IP = 0,
-    REMOTE_ID_MAC
+    REMOTE_ID_MAC,
+    REMOTE_ID_INVALID
 } DHCP_RELAY_OPTION82_REMOTE_ID;
 
 /* remote-id to name mapping. There should be strict one-to-one mapping
