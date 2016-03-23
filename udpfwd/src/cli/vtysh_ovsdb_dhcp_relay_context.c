@@ -53,17 +53,60 @@ vtysh_dhcp_relay_context_clientcallback (void *p_private)
 {
     vtysh_ovsdb_cbmsg_ptr p_msg = (vtysh_ovsdb_cbmsg *)p_private;
     const struct ovsrec_system *ovs_row = NULL;
-    char *dhcp_relay_status = NULL;
+    char *status = NULL;
+    char *validation_status = NULL;
+    char *policy = NULL;
+    char *remote_id = NULL;
 
     ovs_row = ovsrec_system_first (p_msg->idl);
     if (!ovs_row) {
         return e_vtysh_ok;
     }
 
-    dhcp_relay_status = (char *)smap_get(&ovs_row->other_config,
-                                  SYSTEM_OTHER_CONFIG_MAP_DHCP_RELAY_DISABLED);
-    if (dhcp_relay_status && !strcmp(dhcp_relay_status, "true")) {
+    status = (char *)smap_get(&ovs_row->dhcp_config,
+                                  SYSTEM_DHCP_CONFIG_MAP_V4RELAY_DISABLED);
+    if (status && !strcmp(status, "true")) {
         vtysh_ovsdb_cli_print(p_msg, "%s", "no dhcp-relay");
+    }
+
+    status = (char *)smap_get(&ovs_row->dhcp_config,
+                 SYSTEM_DHCP_CONFIG_MAP_V4RELAY_HOP_COUNT_INCREMENT_DISABLED);
+    if (status && !strcmp(status, "true")) {
+        vtysh_ovsdb_cli_print(p_msg, "%s", "no dhcp-relay hop-count-increment");
+    }
+
+    status = (char *)smap_get(&ovs_row->dhcp_config,
+                 SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_ENABLED);
+    validation_status = (char *)smap_get(&ovs_row->dhcp_config,
+                 SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_VALIDATION_ENABLED);
+    policy = (char *)smap_get(&ovs_row->dhcp_config,
+                 SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_POLICY);
+    remote_id = (char *)smap_get(&ovs_row->dhcp_config,
+                 SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_REMOTE_ID);
+    if (status && !strcmp(status, "true")) {
+
+        if (policy != NULL) {
+            if (validation_status && !strcmp(validation_status, "true")) {
+                if (remote_id && !strcmp(remote_id, "ip")) {
+                    vtysh_ovsdb_cli_print(p_msg, "%s %s %s",
+                          "dhcp-relay option 82", policy, "validate ip");
+                }
+                else {
+                    vtysh_ovsdb_cli_print(p_msg, "%s %s %s",
+                          "dhcp-relay option 82", policy, "validate");
+                }
+            }
+            else {
+                if (remote_id && !strcmp(remote_id, "ip")) {
+                    vtysh_ovsdb_cli_print(p_msg, "%s %s %s",
+                          "dhcp-relay option 82", policy, " ip");
+                }
+                else {
+                vtysh_ovsdb_cli_print(p_msg, "%s %s",
+                          "dhcp-relay option 82", policy);
+                }
+            }
+        }
     }
 
     return e_vtysh_ok;

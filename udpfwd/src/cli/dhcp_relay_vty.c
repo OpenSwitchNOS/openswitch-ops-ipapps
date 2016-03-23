@@ -48,8 +48,7 @@
 #include "vtysh_ovsdb_dhcp_relay_context.h"
 #include "udpfwd_vty_utils.h"
 #include "udpfwd_common.h"
-
-static int show_dhcp_relay_config (void);
+#include "udpfwd_util.h"
 
 extern struct ovsdb_idl *idl;
 VLOG_DEFINE_THIS_MODULE(dhcp_relay_vty);
@@ -59,11 +58,11 @@ VLOG_DEFINE_THIS_MODULE(dhcp_relay_vty);
 | Responsibility : To show the dhcp-relay configuration.
 | Return         : Returns CMD_SUCCESS
 -----------------------------------------------------------------------------*/
-static int
+int32_t
 show_dhcp_relay_config (void)
 {
     const struct ovsrec_system *ovs_row = NULL;
-    char *dhcp_relay_disabled = NULL;
+    char *status = NULL;
 
     ovs_row = ovsrec_system_first(idl);
     if (ovs_row == NULL)
@@ -73,57 +72,1112 @@ show_dhcp_relay_config (void)
         return CMD_SUCCESS;
     }
 
-    vty_out (vty, "\n DHCP Relay Agent :");
-    dhcp_relay_disabled = (char *)smap_get(&ovs_row->other_config,
-                             SYSTEM_OTHER_CONFIG_MAP_DHCP_RELAY_DISABLED);
+    /* Display the dhcp-relay global configuration */
+    status = (char *)smap_get(&ovs_row->dhcp_config,
+                             SYSTEM_DHCP_CONFIG_MAP_V4RELAY_DISABLED);
 
-    if (!dhcp_relay_disabled)
-    {
-        dhcp_relay_disabled = "enabled";
-    }
+    if (status && !strcmp(status, "true"))
+        vty_out(vty, "\n DHCP Relay Agent                 : %s%s",
+                "disabled", VTY_NEWLINE);
     else
+        vty_out(vty, "\n DHCP Relay Agent                 : %s%s",
+                "enabled", VTY_NEWLINE);
+
+    /* Display the dhcp-relay hop-count increment configuration */
+    status = NULL;
+    status = (char *)smap_get(&ovs_row->dhcp_config,
+                SYSTEM_DHCP_CONFIG_MAP_V4RELAY_HOP_COUNT_INCREMENT_DISABLED);
+
+    if (status && !strcmp(status, "true"))
+        vty_out(vty, " DHCP Request Hop Count Increment : %s%s",
+                "disabled", VTY_NEWLINE);
+    else
+        vty_out(vty, " DHCP Request Hop Count Increment : %s%s",
+                "enabled", VTY_NEWLINE);
+
+    /* Display the dhcp-relay option 82 configuration */
+    status = NULL;
+    status = (char *)smap_get(&ovs_row->dhcp_config,
+                SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_ENABLED);
+
+    if (status && !strcmp(status, "true"))
+        vty_out(vty, " Option 82                        : %s%s",
+                "enabled", VTY_NEWLINE);
+    else
+        vty_out(vty, " Option 82                        : %s%s",
+                "disabled", VTY_NEWLINE);
+
+    /* Display the dhcp-relay option 82 response validation configuration */
+    status = NULL;
+    status = (char *)smap_get(&ovs_row->dhcp_config,
+                SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_VALIDATION_ENABLED);
+
+    if (status && !strcmp(status, "true"))
+        vty_out(vty, " Response validation              : %s%s",
+                "enabled", VTY_NEWLINE);
+    else
+        vty_out(vty, " Response validation              : %s%s",
+                "disabled", VTY_NEWLINE);
+
+    /* Display the dhcp-relay option 82 policy configuration */
+    status = NULL;
+    status = (char *)smap_get(&ovs_row->dhcp_config,
+                SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_POLICY);
+    if (!status)
     {
-        if (!strcmp(dhcp_relay_disabled, "false"))
-            dhcp_relay_disabled = "enabled";
-        else
-            dhcp_relay_disabled = "disabled";
+        status = policy_name[REPLACE];
     }
 
-    if (dhcp_relay_disabled)
+    if (status)
     {
-        vty_out(vty, "%s%s", dhcp_relay_disabled, VTY_NEWLINE);
+        vty_out(vty, " Option 82 handle policy          : %s%s",
+                status, VTY_NEWLINE);
+    }
+
+    /* Display the dhcp-relay option 82 remote ID configuration */
+    status = NULL;
+    status = (char *)smap_get(&ovs_row->dhcp_config,
+                SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_REMOTE_ID);
+    if (!status)
+    {
+        status = remote_id_name[REMOTE_ID_MAC];
+    }
+
+    if (status)
+    {
+        vty_out(vty, " Remote ID                        : %s%s",
+                status, VTY_NEWLINE);
     }
     return CMD_SUCCESS;
 }
 
 /*-----------------------------------------------------------------------------
-| Defun for dhcp-relay configuration
-| Responsibility: Enable dhcp-relay
+| Function          : update_feature_key
+| Responsibility    : Update the configuration status of a feature
+| Parameters        :
+|      value        : Pointer to configuration bit map
+|      status       : Config status of the feature
+| smap_status_value : Pointer to smap structure
+|      feature      : feature enum value
+| Return            : None
+-----------------------------------------------------------------------------*/
+void update_feature_key(FEATURE_STATUS status,
+                        struct smap *smap_status_value,
+                        UDPFWD_FEATURE feature)
+{
+    switch(feature)
+    {
+    case DHCP_RELAY:
+        if (ENABLE == status)
+            smap_replace(smap_status_value,
+                 SYSTEM_DHCP_CONFIG_MAP_V4RELAY_DISABLED, "true");
+        else
+            smap_replace(smap_status_value,
+                 SYSTEM_DHCP_CONFIG_MAP_V4RELAY_DISABLED, "false");
+    break;
+
+    case DHCP_RELAY_HOP_COUNT_INCREMENT:
+        if (ENABLE == status)
+            smap_replace(smap_status_value,
+                 SYSTEM_DHCP_CONFIG_MAP_V4RELAY_HOP_COUNT_INCREMENT_DISABLED,
+                 "true");
+        else
+            smap_replace(smap_status_value,
+                 SYSTEM_DHCP_CONFIG_MAP_V4RELAY_HOP_COUNT_INCREMENT_DISABLED,
+                 "false");
+    break;
+
+    case DHCP_RELAY_OPTION82:
+        if (ENABLE == status)
+            smap_replace(smap_status_value,
+                 SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_ENABLED, "true");
+        else
+            smap_replace(smap_status_value,
+                 SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_ENABLED, "false");
+    break;
+
+    case DHCP_RELAY_OPTION82_VALIDATE:
+        if (ENABLE == status)
+            smap_replace(smap_status_value,
+                 SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_VALIDATION_ENABLED,
+                 "true");
+        else
+            smap_replace(smap_status_value,
+                 SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_VALIDATION_ENABLED,
+                 "false");
+    break;
+
+    default:
+    break;
+    }
+    return;
+}
+
+/*-----------------------------------------------------------------------------
+| Function          : update_option_82_policy
+| Responsibility    : Update the forward policy of option 82
+| Parameters        :
+|      value        : Pointer to option 82 forward policy
+|      rid          : Policy enum value
+| smap_status_value : Pointer to smap structure
+| Return            : None
+-----------------------------------------------------------------------------*/
+void update_option_82_policy(DHCP_RELAY_OPTION82_POLICY policy,
+                             struct smap *smap_status_value)
+{
+    switch(policy)
+    {
+    case KEEP:
+        smap_replace(smap_status_value,
+             SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_POLICY,
+             policy_name[KEEP]);
+    break;
+
+    case DROP:
+        smap_replace(smap_status_value,
+             SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_POLICY,
+             policy_name[DROP]);
+    break;
+
+    case REPLACE:
+        smap_replace(smap_status_value,
+             SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_POLICY,
+             policy_name[REPLACE]);
+    break;
+
+    default:
+    break;
+    }
+    return;
+}
+
+/*-----------------------------------------------------------------------------
+| Function          : update_option_82_remote_id
+| Responsibility    : Update the remote ID of option 82
+| Parameters        :
+|      value        : Pointer to option 82 remote ID key
+|      rid          : remote id enum value
+| smap_status_value : Pointer to smap structure
+| Return            : None
+-----------------------------------------------------------------------------*/
+void update_option_82_remote_id(DHCP_RELAY_OPTION82_REMOTE_ID rid,
+                                struct smap *smap_status_value)
+{
+    switch(rid)
+    {
+    case REMOTE_ID_IP:
+        smap_replace(smap_status_value,
+             SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_REMOTE_ID,
+             remote_id_name[REMOTE_ID_IP]);
+    break;
+
+    case REMOTE_ID_MAC:
+        smap_replace(smap_status_value,
+             SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_REMOTE_ID,
+             remote_id_name[REMOTE_ID_MAC]);
+    break;
+
+    default:
+    break;
+    }
+    return;
+}
+/*-----------------------------------------------------------------------------
+| Function       : dhcp_relay_config
+| Responsibility : To configure dhcp-relay and option 82.
+| Parameters     :
+|     *dhcpRelay : Pointer containing user inputdhcp-relay details
+| Return         : On success returns CMD_SUCCESS,
+|                  On failure returns CMD_OVSDB_FAILURE
+-----------------------------------------------------------------------------*/
+int8_t
+dhcp_relay_config (uint16_t update_config, FEATURE_CONFIG *config_value)
+{
+    const struct ovsrec_system *ovs_row = NULL;
+    struct ovsdb_idl_txn *status_txn = cli_do_config_start();
+    struct smap smap_status_value;
+    enum ovsdb_idl_txn_status txn_status;
+    FEATURE_STATUS state;
+
+    if (status_txn == NULL)
+    {
+        VLOG_ERR(OVSDB_TXN_CREATE_ERROR);
+        cli_do_config_abort(status_txn);
+        return CMD_OVSDB_FAILURE;
+    }
+
+    ovs_row = ovsrec_system_first(idl);
+    if (!ovs_row) {
+        VLOG_ERR(OVSDB_ROW_FETCH_ERROR);
+        cli_do_config_abort(status_txn);
+        return CMD_OVSDB_FAILURE;
+    }
+
+    smap_clone(&smap_status_value, &ovs_row->dhcp_config);
+
+     /* Check if dhcp-relay configuration needs to be udpated. */
+    if (ENABLE == get_feature_status(update_config, DHCP_RELAY)) {
+        state = get_feature_status(config_value->config, DHCP_RELAY);
+
+        /*
+         * Pass the state as DISABLE for setting the key value to false to
+         * enable the dhcp-relay and pass ENABLE otherwise.
+         */
+        update_feature_key((state == ENABLE) ? DISABLE : ENABLE,
+                           &smap_status_value, DHCP_RELAY);
+    }
+
+    /*
+     * Check if dhcp-relay hop-count increment configuration
+     * needs to be udpated.
+     */
+    if (ENABLE == get_feature_status(update_config,
+                      DHCP_RELAY_HOP_COUNT_INCREMENT)) {
+        state = get_feature_status(config_value->config,
+                                   DHCP_RELAY_HOP_COUNT_INCREMENT);
+        /*
+         * Pass the state as DISABLE for setting the key value to false to
+         * enable the dhcp-relay hop-count increment and pass ENABLE
+         * otherwise.
+         */
+        update_feature_key((state == ENABLE) ? DISABLE : ENABLE,
+                           &smap_status_value,
+                           DHCP_RELAY_HOP_COUNT_INCREMENT);
+    }
+
+    /* Check if dhcp-relay option 82 configuration needs to be udpated. */
+    if (ENABLE == get_feature_status(update_config, DHCP_RELAY_OPTION82)) {
+        state = get_feature_status(config_value->config, DHCP_RELAY_OPTION82);
+        update_feature_key(state, &smap_status_value,
+                           DHCP_RELAY_OPTION82);
+    }
+
+    /*
+     * Check if dhcp-relay option 82 response validation configuration
+     * needs to be udpated.
+     */
+    if (ENABLE == get_feature_status(update_config,
+                      DHCP_RELAY_OPTION82_VALIDATE)) {
+        state = get_feature_status(config_value->config,
+                                   DHCP_RELAY_OPTION82_VALIDATE);
+        update_feature_key(state, &smap_status_value,
+                           DHCP_RELAY_OPTION82_VALIDATE);
+    }
+
+    /*
+     * Check if dhcp-relay option 82 forward policy configuration
+     * needs to be udpated.
+     */
+    if (config_value->policy < INVALID) {
+        update_option_82_policy(config_value->policy, &smap_status_value);
+    }
+    /*
+     * Check if dhcp-relay option 82 remote ID configuration
+     * needs to be udpated.
+     */
+    if (config_value->r_id < REMOTE_ID_INVALID) {
+        update_option_82_remote_id(config_value->r_id, &smap_status_value);
+    }
+
+    ovsrec_system_set_dhcp_config(ovs_row, &smap_status_value);
+    smap_destroy(&smap_status_value);
+    txn_status = cli_do_config_finish(status_txn);
+
+    if (txn_status == TXN_SUCCESS || txn_status == TXN_UNCHANGED)
+    {
+        return CMD_SUCCESS;
+    }
+    else
+    {
+        VLOG_ERR(OVSDB_TXN_COMMIT_ERROR);
+        return CMD_OVSDB_FAILURE;
+    }
+}
+
+/*-----------------------------------------------------------------------------
+| Defun for dhcp-relay and hop count increment configuration
+| Responsibility: Enable dhcp-relay or hop count increment
 -----------------------------------------------------------------------------*/
 DEFUN(dhcp_relay_configuration,
       dhcp_relay_configuration_cmd,
-      "dhcp-relay",
-      DHCP_RELAY_STR)
+      "dhcp-relay {hop-count-increment} ",
+      DHCP_RELAY_STR
+      HOP_COUNT_INCREMENT_STR)
 {
-    return udpfwd_globalconfig("false", DHCP_RELAY);
+    /* Features for which config update is required */
+    uint16_t update_features = 0;
+    /* New configuration data */
+    FEATURE_CONFIG config_value;
+
+    memset(&config_value, 0, sizeof(FEATURE_CONFIG));
+    config_value.config = 0;
+    config_value.policy = INVALID;
+    config_value.r_id = REMOTE_ID_INVALID;
+
+    if (argv[0])
+    {
+        /* Mark dhcp-relay hop count increment feature to be udpated */
+        set_feature_status(&update_features,
+                           DHCP_RELAY_HOP_COUNT_INCREMENT, ENABLE);
+
+        /* Set new configuration value */
+        set_feature_status(&(config_value.config),
+                           DHCP_RELAY_HOP_COUNT_INCREMENT, ENABLE);
+    }
+    else
+    {
+        /* Mark dhcp-relay feature to be udpated */
+        set_feature_status(&update_features, DHCP_RELAY, ENABLE);
+
+        /* Set new configuration value */
+        set_feature_status(&(config_value.config), DHCP_RELAY, ENABLE);
+    }
+
+    return dhcp_relay_config(update_features, &config_value);
 }
 
 /*-----------------------------------------------------------------------------
-| Defun for dhcp-relay unconfiguration
-| Responsibility: Disable dhcp-relay
+| Defun for dhcp-relay option 82 keep or drop or replace policy or
+| response validation configuration
+| Responsibility: Enable dhcp-relay option 82 keep or drop or replace policy or
+|                 response validation configuration
+-----------------------------------------------------------------------------*/
+DEFUN(dhcp_relay_options_configuration,
+      dhcp_relay_options_configuration_cmd,
+      "dhcp-relay option 82 (keep|validate|drop|replace)",
+      DHCP_RELAY_STR
+      OPTION_STR
+      OPTION_82_STR
+      KEEP_STR
+      VALIDATE_STR
+      DROP_STR
+      REPLACE_STR)
+{
+    /* Features for which config update is required */
+    uint16_t update_features = 0;
+    /* New configuration data */
+    FEATURE_CONFIG config_value;
+
+    memset(&config_value, 0, sizeof(FEATURE_CONFIG));
+    config_value.config = 0;
+    config_value.r_id = REMOTE_ID_INVALID;
+
+    /* Mark dhcp-relay option 82 feature to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
+
+    /* Set new configuration value */
+    set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
+
+    if (!strcmp((char*)argv[0], "validate"))
+    {
+       /* Mark dhcp-relay option 82 validation to be udpated */
+       set_feature_status(&update_features,
+                          DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+
+       /* Set new configuration values */
+       set_feature_status(&config_value.config,
+                          DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+       config_value.policy = INVALID;
+    }
+    else
+    {
+        /* Set new configuration value */
+        if (!strcmp((char*)argv[0], policy_name[KEEP]))
+        {
+            /* Mark dhcp-relay option 82 validation to be udpated */
+            set_feature_status(&update_features,
+                          DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+            /* Set new configuration values */
+            set_feature_status(&config_value.config,
+                          DHCP_RELAY_OPTION82_VALIDATE, DISABLE);
+            config_value.policy = KEEP;
+        }
+        else if(!strcmp((char*)argv[0], policy_name[REPLACE]))
+            config_value.policy = REPLACE;
+        else
+            config_value.policy = DROP;
+    }
+
+    return dhcp_relay_config(update_features, &config_value);
+}
+
+/*-----------------------------------------------------------------------------
+| Defun for dhcp-relay option 82 keep policy with ip or mac
+| remote id configuration
+| Responsibility: Enable dhcp-relay option 82 keep policy with ip or mac
+|                 remote id configuration
+-----------------------------------------------------------------------------*/
+DEFUN(dhcp_relay_keep_option_configuration,
+      dhcp_relay_keep_option_configuration_cmd,
+      "dhcp-relay option 82 keep (mac|ip)",
+      DHCP_RELAY_STR
+      OPTION_STR
+      OPTION_82_STR
+      KEEP_STR
+      MAC_STR
+      OPTION_IP_STR)
+{
+    /* Features for which config update is required */
+    uint16_t update_features = 0;
+    /* New configuration data */
+    FEATURE_CONFIG config_value;
+
+    memset(&config_value, 0, sizeof(FEATURE_CONFIG));
+    config_value.config = 0;
+    /* Mark dhcp-relay option 82 and validation feature to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
+    set_feature_status(&update_features,
+                          DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+
+    /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
+    set_feature_status(&config_value.config,
+                          DHCP_RELAY_OPTION82_VALIDATE, DISABLE);
+    config_value.policy = KEEP;
+    if(argv[0])
+    {
+        if (!strcmp((char*)argv[0], remote_id_name[REMOTE_ID_IP]))
+            config_value.r_id = REMOTE_ID_IP;
+        else
+            config_value.r_id = REMOTE_ID_MAC;
+    }
+    else
+    {
+        config_value.r_id = REMOTE_ID_INVALID;
+    }
+
+    return dhcp_relay_config(update_features, &config_value);
+}
+/*-----------------------------------------------------------------------------
+| Defun for dhcp-relay option 82 drop policy with response validation
+| or ip or mac remote id configuration
+| Responsibility: Enable dhcp-relay option 82 drop policy with response
+|                 validation or ip or mac remote id
+-----------------------------------------------------------------------------*/
+DEFUN(dhcp_relay_drop_option_configuration,
+      dhcp_relay_drop_option_configuration_cmd,
+      "dhcp-relay option 82 drop (validate|mac|ip)",
+      DHCP_RELAY_STR
+      OPTION_STR
+      OPTION_82_STR
+      DROP_STR
+      VALIDATE_STR
+      MAC_STR
+      OPTION_IP_STR)
+{
+    /* Features for which config update is required */
+    uint16_t update_features = 0;
+    /* New configuration data */
+    FEATURE_CONFIG config_value;
+
+    memset(&config_value, 0, sizeof(FEATURE_CONFIG));
+    config_value.config = 0;
+    /* Mark dhcp-relay option 82 feature to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
+
+    /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
+    config_value.policy = DROP;
+
+    if(argv[0])
+    {
+        if (!strcmp((char*)argv[0], "validate"))
+        {
+            /* Mark dhcp-relay option 82 feature to be udpated */
+            set_feature_status(&update_features,
+                               DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+
+            /* Set new configuration values */
+            set_feature_status(&config_value.config,
+                               DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+            config_value.r_id = REMOTE_ID_INVALID;
+        }
+        else
+        {
+            /* Set new configuration values */
+            if (!strcmp((char*)argv[0], remote_id_name[REMOTE_ID_IP]))
+                config_value.r_id = REMOTE_ID_IP;
+            else
+                config_value.r_id = REMOTE_ID_MAC;
+        }
+    }
+
+    return dhcp_relay_config(update_features, &config_value);
+}
+/*-----------------------------------------------------------------------------
+| Defun for dhcp-relay option 82 drop policy with response validation
+| mac or ip remote id configuration
+| Responsibility: Enable dhcp-relay option 82 with drop policy,
+|                 response validation and mac or ip remote id
+-----------------------------------------------------------------------------*/
+DEFUN(dhcp_relay_drop_validate_option_configuration,
+      dhcp_relay_drop_validate_option_configuration_cmd,
+      "dhcp-relay option 82 drop validate (mac|ip)",
+      DHCP_RELAY_STR
+      OPTION_STR
+      OPTION_82_STR
+      DROP_STR
+      VALIDATE_STR
+      MAC_STR
+      OPTION_IP_STR)
+{
+    /* Features for which config update is required */
+    uint16_t update_features = 0;
+    /* New configuration data */
+
+    FEATURE_CONFIG config_value;
+    memset(&config_value, 0, sizeof(FEATURE_CONFIG));
+    config_value.config = 0;
+
+    /* Mark dhcp-relay option 82 and validation features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
+    set_feature_status(&update_features,
+                       DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+
+    /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
+    set_feature_status(&config_value.config,
+                       DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+    config_value.policy = DROP;
+
+    if (argv[0])
+    {
+        if (!strcmp((char*)argv[0], remote_id_name[REMOTE_ID_IP]))
+            config_value.r_id = REMOTE_ID_IP;
+        else
+            config_value.r_id = REMOTE_ID_MAC;
+    }
+    else
+    {
+        config_value.r_id = REMOTE_ID_INVALID;
+    }
+
+    return dhcp_relay_config(update_features, &config_value);
+}
+/*-----------------------------------------------------------------------------
+| Defun for dhcp-relay option 82 drop policy with mac remote id and
+| response validation configuration
+| Responsibility: Enable dhcp-relay option 82 with replace policy,
+|                 mac remote id and response validation
+-----------------------------------------------------------------------------*/
+DEFUN(dhcp_relay_drop_remote_id_mac_option_configuration,
+      dhcp_relay_drop_remote_id_mac_option_configuration_cmd,
+      "dhcp-relay option 82 drop mac (validate)",
+      DHCP_RELAY_STR
+      OPTION_STR
+      OPTION_82_STR
+      DROP_STR
+      MAC_STR
+      VALIDATE_STR)
+{
+    /* Features for which config update is required */
+    uint16_t update_features = 0;
+    /* New configuration data */
+    FEATURE_CONFIG config_value;
+
+    memset(&config_value, 0, sizeof(FEATURE_CONFIG));
+    config_value.config = 0;
+
+    /* Mark dhcp-relay option 82 feature to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
+
+    /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
+    config_value.policy = DROP;
+    config_value.r_id = REMOTE_ID_MAC;
+
+    if (argv[0])
+    {
+        /* Mark dhcp-relay option 82 feature to be udpated */
+        set_feature_status(&update_features,
+                           DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+
+        /* Set new configuration value */
+        set_feature_status(&config_value.config,
+                           DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+    }
+
+    return dhcp_relay_config(update_features, &config_value);
+}
+
+/*-----------------------------------------------------------------------------
+| Defun for dhcp-relay option 82 drop policy with ip remote id and
+| response validation configuration
+| Responsibility: Enable dhcp-relay option 82 with drop policy,
+|                 ip remote id and response validation
+-----------------------------------------------------------------------------*/
+DEFUN(dhcp_relay_drop_remote_id_ip_option_configuration,
+      dhcp_relay_drop_remote_id_ip_option_configuration_cmd,
+      "dhcp-relay option 82 drop ip (validate)",
+      DHCP_RELAY_STR
+      OPTION_STR
+      OPTION_82_STR
+      DROP_STR
+      OPTION_IP_STR
+      VALIDATE_STR)
+{
+    /* Features for which config update is required */
+    uint16_t update_features = 0;
+    /* New configuration data */
+    FEATURE_CONFIG config_value;
+
+    memset(&config_value, 0, sizeof(FEATURE_CONFIG));
+    config_value.config = 0;
+
+    /* Mark dhcp-relay option 82 feature to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
+
+    /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
+    config_value.policy = DROP;
+    config_value.r_id = REMOTE_ID_IP;
+
+    if (argv[0])
+    {
+        /* Mark dhcp-relay option 82 feature to be udpated */
+        set_feature_status(&update_features,
+                           DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+
+        /* Set new configuration value */
+        set_feature_status(&config_value.config,
+                           DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+    }
+
+    return dhcp_relay_config(update_features, &config_value);
+}
+/*-----------------------------------------------------------------------------
+| Defun for dhcp-relay option 82 replace policy with response validation
+| or ip or mac remote id configuration
+| Responsibility: Enable dhcp-relay option 82 replace policy with response
+|                 validation or ip or mac remote id
+-----------------------------------------------------------------------------*/
+DEFUN(dhcp_relay_replace_option_configuration,
+      dhcp_relay_replace_option_configuration_cmd,
+      "dhcp-relay option 82 replace (validate|mac|ip)",
+      DHCP_RELAY_STR
+      OPTION_STR
+      OPTION_82_STR
+      REPLACE_STR
+      VALIDATE_STR
+      MAC_STR
+      OPTION_IP_STR)
+{
+    /* Features for which config update is required */
+    uint16_t update_features = 0;
+    /* New configuration data */
+    FEATURE_CONFIG config_value;
+
+    memset(&config_value, 0, sizeof(FEATURE_CONFIG));
+    config_value.config = 0;
+    /* Mark dhcp-relay option 82 feature to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
+
+    /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
+    config_value.policy = REPLACE;
+
+    if(argv[0])
+    {
+        if (!strcmp((char*)argv[0], "validate"))
+        {
+            /* Mark dhcp-relay option 82 validation feature to be udpated */
+            set_feature_status(&update_features,
+                               DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+
+            /* Set new configuration values */
+            set_feature_status(&config_value.config,
+                               DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+            config_value.r_id = REMOTE_ID_INVALID;
+        }
+        else
+        {
+            /* Set new configuration values */
+            if (!strcmp((char*)argv[0], remote_id_name[REMOTE_ID_IP]))
+                config_value.r_id = REMOTE_ID_IP;
+            else
+                config_value.r_id = REMOTE_ID_MAC;
+        }
+    }
+
+    return dhcp_relay_config(update_features, &config_value);
+}
+/*-----------------------------------------------------------------------------
+| Defun for dhcp-relay option 82 replace policy with response validation
+| mac or ip remote id configuration
+| Responsibility: Enable dhcp-relay option 82 with replace policy,
+|                 response validation and mac or ip remote id
+-----------------------------------------------------------------------------*/
+DEFUN(dhcp_relay_replace_validate_option_configuration,
+      dhcp_relay_replace_validate_option_configuration_cmd,
+      "dhcp-relay option 82 replace validate (mac|ip)",
+      DHCP_RELAY_STR
+      OPTION_STR
+      OPTION_82_STR
+      REPLACE_STR
+      VALIDATE_STR
+      MAC_STR
+      OPTION_IP_STR)
+{
+    /* Features for which config update is required */
+    uint16_t update_features = 0;
+    /* New configuration data */
+    FEATURE_CONFIG config_value;
+    memset(&config_value, 0, sizeof(FEATURE_CONFIG));
+    config_value.config = 0;
+
+    /* Mark dhcp-relay option 82 and validation features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
+    set_feature_status(&update_features,
+                       DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+
+    /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
+    set_feature_status(&config_value.config,
+                       DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+    config_value.policy = REPLACE;
+
+    if (argv[0])
+    {
+        if (!strcmp((char*)argv[0], remote_id_name[REMOTE_ID_IP]))
+            config_value.r_id = REMOTE_ID_IP;
+        else
+            config_value.r_id = REMOTE_ID_MAC;
+    }
+    else
+    {
+        config_value.r_id = REMOTE_ID_INVALID;
+    }
+
+    return dhcp_relay_config(update_features, &config_value);
+}
+/*-----------------------------------------------------------------------------
+| Defun for dhcp-relay option 82 replace policy with ip remote id and
+| response validation configuration
+| Responsibility: Enable dhcp-relay option 82 with replace policy,
+|                 ip remote id and response validation
+-----------------------------------------------------------------------------*/
+DEFUN(dhcp_relay_replace_remote_id_mac_option_configuration,
+      dhcp_relay_replace_remote_id_mac_option_configuration_cmd,
+      "dhcp-relay option 82 replace mac (validate)",
+      DHCP_RELAY_STR
+      OPTION_STR
+      OPTION_82_STR
+      REPLACE_STR
+      MAC_STR
+      VALIDATE_STR)
+{
+    /* Features for which config update is required */
+    uint16_t update_features = 0;
+    /* New configuration data */
+    FEATURE_CONFIG config_value;
+
+    memset(&config_value, 0, sizeof(FEATURE_CONFIG));
+    config_value.config = 0;
+
+    /* Mark dhcp-relay option 82 feature to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
+
+    /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
+    config_value.policy = REPLACE;
+    config_value.r_id = REMOTE_ID_MAC;
+
+    if (argv[0])
+    {
+        /* Mark dhcp-relay option 82 feature to be udpated */
+        set_feature_status(&update_features,
+                           DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+
+        /* Set new configuration value */
+        set_feature_status(&config_value.config,
+                           DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+    }
+
+    return dhcp_relay_config(update_features, &config_value);
+}
+
+/*-----------------------------------------------------------------------------
+| Defun for dhcp-relay option 82 replace policy with ip remote id and
+| response validation configuration
+| Responsibility: Enable dhcp-relay option 82 with replace policy,
+|                 ip remote id and response validation
+-----------------------------------------------------------------------------*/
+DEFUN(dhcp_relay_replace_remote_id_ip_option_configuration,
+      dhcp_relay_replace_remote_id_ip_option_configuration_cmd,
+      "dhcp-relay option 82 replace ip (validate)",
+      DHCP_RELAY_STR
+      OPTION_STR
+      OPTION_82_STR
+      REPLACE_STR
+      OPTION_IP_STR
+      VALIDATE_STR)
+{
+    /* Features for which config update is required */
+    uint16_t update_features = 0;
+    /* New configuration data */
+    FEATURE_CONFIG config_value;
+
+    memset(&config_value, 0, sizeof(FEATURE_CONFIG));
+    config_value.config = 0;
+
+    /* Mark dhcp-relay option 82 feature to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
+
+    /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
+    config_value.policy = REPLACE;
+    config_value.r_id = REMOTE_ID_IP;
+
+    if (argv[0])
+    {
+        /* Mark dhcp-relay option 82 validation feature to be udpated */
+        set_feature_status(&update_features,
+                           DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+
+        /* Set new configuration value */
+        set_feature_status(&config_value.config,
+                           DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+    }
+
+    return dhcp_relay_config(update_features, &config_value);
+}
+/*-----------------------------------------------------------------------------
+| Defun for dhcp-relay option 82 response validation with drop
+| or replace policy configuration
+| Responsibility: Enable dhcp-relay option 82 validation with
+|                 drop or replace policy
+-----------------------------------------------------------------------------*/
+DEFUN(dhcp_relay_validate_policy_option_configuration,
+      dhcp_relay_validate_policy_option_configuration_cmd,
+      "dhcp-relay option 82 validate (drop|replace)",
+      DHCP_RELAY_STR
+      OPTION_STR
+      OPTION_82_STR
+      VALIDATE_STR
+      DROP_STR
+      REPLACE_STR)
+{
+    /* Features for which config update is required */
+    uint16_t update_features = 0;
+    /* New configuration data */
+    FEATURE_CONFIG config_value;
+
+    memset(&config_value, 0, sizeof(FEATURE_CONFIG));
+    config_value.config = 0;
+    config_value.r_id = REMOTE_ID_INVALID;
+
+    /* Mark dhcp-relay option 82 and validation features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
+    set_feature_status(&update_features,
+                       DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+
+    /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
+    set_feature_status(&config_value.config,
+                       DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+    if (argv[0])
+    {
+        if(!strcmp((char*)argv[0], policy_name[REPLACE]))
+            config_value.policy = REPLACE;
+        else
+            config_value.policy = DROP;
+    }
+
+    return dhcp_relay_config(update_features, &config_value);
+}
+
+/*-----------------------------------------------------------------------------
+| Defun for dhcp-relay option 82 response validation with replace policy
+| and mac or ip remote ID configuration
+| Responsibility: Enable dhcp-relay option 82 validation with
+|                 replace policy and mac or ip remote ID
+-----------------------------------------------------------------------------*/
+DEFUN(dhcp_relay_validate_drop_option_configuration,
+      dhcp_relay_validate_drop_option_configuration_cmd,
+      "dhcp-relay option 82 validate drop (mac|ip)",
+      DHCP_RELAY_STR
+      OPTION_STR
+      OPTION_82_STR
+      VALIDATE_STR
+      DROP_STR
+      MAC_STR
+      OPTION_IP_STR)
+{
+    /* Features for which config update is required */
+    uint16_t update_features = 0;
+    /* New configuration data */
+    FEATURE_CONFIG config_value;
+
+    memset(&config_value, 0, sizeof(FEATURE_CONFIG));
+    config_value.config = 0;
+
+    /* Mark dhcp-relay option 82 and validation features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
+    set_feature_status(&update_features,
+                       DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+
+    /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
+    set_feature_status(&config_value.config,
+                       DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+    config_value.policy = DROP;
+    if (argv[0])
+    {
+        if (!strcmp((char*)argv[0], remote_id_name[REMOTE_ID_IP]))
+            config_value.r_id = REMOTE_ID_IP;
+        else
+            config_value.r_id = REMOTE_ID_MAC;
+    }
+    else
+    {
+        config_value.r_id = REMOTE_ID_INVALID;
+    }
+
+    return dhcp_relay_config(update_features, &config_value);
+}
+/*-----------------------------------------------------------------------------
+| Defun for dhcp-relay option 82 response validation with replace policy
+| and mac or ip remote ID configuration
+| Responsibility: Enable dhcp-relay option 82 validation with
+|                 replace policy and mac or ip remote ID
+-----------------------------------------------------------------------------*/
+DEFUN(dhcp_relay_validate_replace_option_configuration,
+      dhcp_relay_validate_replace_option_configuration_cmd,
+      "dhcp-relay option 82 validate replace (mac|ip)",
+      DHCP_RELAY_STR
+      OPTION_STR
+      OPTION_82_STR
+      VALIDATE_STR
+      REPLACE_STR
+      MAC_STR
+      OPTION_IP_STR)
+{
+    /* Features for which config update is required */
+    uint16_t update_features = 0;
+    /* New configuration data */
+    FEATURE_CONFIG config_value;
+
+    memset(&config_value, 0, sizeof(FEATURE_CONFIG));
+    config_value.config = 0;
+
+    /* Mark dhcp-relay option 82 and validation features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
+    set_feature_status(&update_features,
+                       DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+
+    /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
+    set_feature_status(&config_value.config,
+                       DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+    config_value.policy = DROP;
+    if (argv[0])
+    {
+        if (!strcmp((char*)argv[0], remote_id_name[REMOTE_ID_IP]))
+            config_value.r_id = REMOTE_ID_IP;
+        else
+            config_value.r_id = REMOTE_ID_MAC;
+    }
+    else
+    {
+        config_value.r_id = REMOTE_ID_INVALID;
+    }
+
+    return dhcp_relay_config(update_features, &config_value);
+}
+/*-----------------------------------------------------------------------------
+| Defun for dhcp-relay option 82 and dhcp-relay option 82 validation
+| unconfiguration
+| Responsibility: Disable dhcp-relay or hop-count-increment
+-----------------------------------------------------------------------------*/
+DEFUN(no_dhcp_relay_option_configuration,
+      no_dhcp_relay_option_configuration_cmd,
+      "no dhcp-relay option 82 {validate}",
+      NO_STR
+      DHCP_RELAY_STR
+      OPTION_STR
+      OPTION_82_STR
+      VALIDATE_STR)
+{
+    /* Features for which config update is required */
+    uint16_t update_features = 0;
+    /* New configuration data */
+    FEATURE_CONFIG config_value;
+    memset(&config_value, 0, sizeof(FEATURE_CONFIG));
+    config_value.config = 0;
+
+    if (argv[0])
+    {
+        /* Mark dhcp-relay option 82 feature to be udpated */
+        set_feature_status(&update_features,
+                           DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+
+        /* Set new configuration values */
+        set_feature_status(&config_value.config,
+                           DHCP_RELAY_OPTION82_VALIDATE, DISABLE);
+        config_value.r_id = REMOTE_ID_INVALID;
+        config_value.policy = INVALID;
+    }
+    else
+    {
+        /* Mark dhcp-relay option 82 and validation features to be udpated */
+        set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
+        set_feature_status(&update_features, DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+
+        /* Set new configuration values */
+        set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, DISABLE);
+        set_feature_status(&config_value.config, DHCP_RELAY_OPTION82_VALIDATE, DISABLE);
+        config_value.r_id = REMOTE_ID_MAC;
+        config_value.policy = REPLACE;
+    }
+
+    return dhcp_relay_config(update_features, &config_value);
+}
+/*-----------------------------------------------------------------------------
+| Defun for dhcp-relay and hop-count-increment unconfiguration
+| Responsibility: Disable dhcp-relay or hop-count-increment
 -----------------------------------------------------------------------------*/
 DEFUN(no_dhcp_relay_configuration,
       no_dhcp_relay_configuration_cmd,
-      "no dhcp-relay",
+      "no dhcp-relay {hop-count-increment}",
       NO_STR
-      DHCP_RELAY_STR)
+      DHCP_RELAY_STR
+      HOP_COUNT_INCREMENT_STR)
 {
-    return udpfwd_globalconfig("true", DHCP_RELAY);
+    /* Features for which config update is required */
+    uint16_t update_features = 0;
+    /* New configuration data */
+    FEATURE_CONFIG config_value;
+    memset(&config_value, 0, sizeof(FEATURE_CONFIG));
+    config_value.config = 0;
+    config_value.r_id = REMOTE_ID_INVALID;
+    config_value.policy = INVALID;
+
+    if (argv[0])
+    {
+        /* Mark dhcp-relay hop count increment feature to be udpated */
+        set_feature_status(&update_features,
+                           DHCP_RELAY_HOP_COUNT_INCREMENT, ENABLE);
+
+        /* Set new configuration value */
+        set_feature_status(&(config_value.config),
+                           DHCP_RELAY_HOP_COUNT_INCREMENT, DISABLE);
+    }
+    else
+    {
+        /* Mark dhcp-relay feature to be udpated */
+        set_feature_status(&update_features, DHCP_RELAY, ENABLE);
+
+        /* Set new configuration value */
+        set_feature_status(&(config_value.config), DHCP_RELAY, DISABLE);
+    }
+
+    return dhcp_relay_config(update_features, &config_value);
 }
+
 
 /*-----------------------------------------------------------------------------
 | Defun for show dhcp-relay
-| Responsibility: Displays the dhcp-relay configuration
+| Responsibility: Displays the dhcp-relay configurations
 -----------------------------------------------------------------------------*/
 DEFUN(show_dhcp_relay_configuration,
       show_dhcp_relay_configuration_cmd,

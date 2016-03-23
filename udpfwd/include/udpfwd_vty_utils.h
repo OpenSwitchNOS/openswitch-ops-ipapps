@@ -59,6 +59,14 @@ extern const struct ovsrec_udp_bcast_forwarder_server *
 udp_bcast_server_row_lookup (const char *, const char *, udpfwd_server *);
 extern const struct ovsrec_dhcp_relay *
 dhcp_relay_row_lookup(const char *, const char *);
+extern void
+update_feature_key(FEATURE_STATUS,
+                   struct smap *, UDPFWD_FEATURE);
+extern void
+update_option_82_policy(DHCP_RELAY_OPTION82_POLICY , struct smap *);
+extern void
+update_option_82_remote_id(DHCP_RELAY_OPTION82_REMOTE_ID,
+                           struct smap *);
 extern int8_t
 udpfwd_globalconfig (const char *, UDPFWD_FEATURE );
 extern void
@@ -69,6 +77,10 @@ extern int8_t
 udpfwd_helperaddressconfig (udpfwd_server *, bool);
 extern int8_t
 udpfwd_serverconfig (udpfwd_server *, bool);
+extern int32_t
+show_dhcp_relay_config (void);
+extern int8_t
+dhcp_relay_config (uint16_t, FEATURE_CONFIG *);
 extern int8_t
 show_ip_helper_address_config (const char *);
 extern int8_t
