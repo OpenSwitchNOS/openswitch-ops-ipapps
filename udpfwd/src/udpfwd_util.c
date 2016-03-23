@@ -30,7 +30,6 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <ifaddrs.h>
-
 #include "udpfwd_util.h"
 
 /* Feature to name mapping. There should be exact one-to-one mapping
@@ -324,6 +323,33 @@ uint32_t getIfIndexfromIpAddress(IP_ADDRESS ip)
 }
 
 /*
+ * Function      : getMacfromIfname
+ * Responsiblity : This function is used to get MAC address associated
+ *                 with a interface.
+ * Parameters    : ifName - interface name
+ * Return        : mac address
+ */
+
+uint8_t* getMacfromIfname(char *ifName)
+{
+    int32_t fd;
+    struct ifreq ifr;
+    uint8_t *mac;
+    fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+    ifr.ifr_addr.sa_family = AF_INET;
+
+    strncpy(ifr.ifr_name ,ifName, IF_NAMESIZE);
+
+    ioctl(fd, SIOCGIFHWADDR, &ifr);
+
+    close(fd);
+
+    mac = (uint8_t *)ifr.ifr_hwaddr.sa_data;
+    return mac;
+}
+
+/*
  * Function      : getIpAddressfromIfname
  * Responsiblity : This function is used to get IP address associated
  *                 with a interface.
@@ -335,6 +361,8 @@ IP_ADDRESS getIpAddressfromIfname(char *ifName)
     struct ifaddrs *ifaddr, *ifaddr_iter;
     struct sockaddr_in *res;
     IP_ADDRESS ip;
+    IP_ADDRESS lowest_ip = 4294967295; /*255.255.255.255.255 */
+    bool found = false;
 
     if (getifaddrs(&ifaddr) == -1)
         return 0;
@@ -349,14 +377,19 @@ IP_ADDRESS getIpAddressfromIfname(char *ifName)
             {
                 res = (struct sockaddr_in *)ifaddr_iter->ifa_addr;
                 ip = res->sin_addr.s_addr;
-                freeifaddrs(ifaddr);
-                return ip;
+                found = true;
+                if ( lowest_ip > ip)
+                    lowest_ip = ip;
             }
         }
     }
 
     freeifaddrs(ifaddr);
-    return 0; /* Failure case. */
+
+    if (found)
+        return lowest_ip;
+    else
+        return 0; /* Failure case. */
 }
 
 /*
@@ -397,4 +430,114 @@ in_cksum(const uint16_t *addr, register int32_t len, uint16_t csum)
     sum += (sum >> 16);            /* add carry */
     answer = ~sum;                /* truncate to 16 bits */
     return (answer);
+}
+
+/*
+ * Function: udpfwd_client_packet_type_received
+ * Responsibility: Increase the counter for the dhcp client request packet received.
+ * Parameters : ifIndex - IfIndex
+ *              dhcp_msg_type - dhcp msg type
+ * Returns:   None
+ */
+
+void udpfwd_client_packet_type_received(int32_t ifIndex, int32_t dhcp_msg_type)
+{
+   /* check the type of dhcp_msg_type is and increase the counter for them */
+   switch(dhcp_msg_type)
+   {
+    case DHCPDISCOVER:
+       INC_UDPF_DHCPRECV_DISCOVER_PKTS(ifIndex);
+       break;
+    case DHCPREQUEST:
+       INC_UDPF_DHCPRECV_REQUEST_PKTS(ifIndex);
+       break;
+    case DHCPINFORM:
+       INC_UDPF_DHCPRECV_INFORM_PKTS(ifIndex);
+       break;
+    case DHCPRELEASE:
+           INC_UDPF_DHCPRECV_RELEASE_PKTS(ifIndex);
+           break;
+    case DHCPDECLINE:
+           INC_UDPF_DHCPRECV_DECLINE_PKTS(ifIndex);
+           break;
+   }
+   return;
+}
+
+/*
+ * Function: udpfwd_client_packet_type_relayed
+ * Responsibility: Increase the counter for the dhcp client request packet relayed to server.
+ * Parameters : ifIndex - IfIndex
+ *              dhcp_msg_type - dhcp msg type
+ * Returns:   None
+ */
+void udpfwd_client_packet_type_relayed(int32_t ifIndex, int32_t dhcp_msg_type)
+{
+   switch(dhcp_msg_type)
+   {
+        case DHCPDISCOVER:
+           INC_UDPF_DHCPRELAY_DISCOVER_PKTS(ifIndex);
+           break;
+        case DHCPREQUEST:
+           INC_UDPF_DHCPRELAY_REQUEST_PKTS(ifIndex);
+           break;
+        case DHCPINFORM:
+           INC_UDPF_DHCPRELAY_INFORM_PKTS(ifIndex);
+           break;
+        case DHCPRELEASE:
+           INC_UDPF_DHCPRELAY_RELEASE_PKTS(ifIndex);
+           break;
+        case DHCPDECLINE:
+           INC_UDPF_DHCPRELAY_DECLINE_PKTS(ifIndex);
+           break;
+   }
+   return;
+}
+
+/*
+ * Function: udpfwd_server_packet_type_received
+ * Responsibility: Increase the counter for the dhcp server responce packet received.
+ * Parameters : ifIndex - IfIndex
+ *              dhcp_msg_type - dhcp msg type
+ * Returns:   None
+ */
+void udpfwd_server_packet_type_received(int32_t ifIndex, int32_t dhcp_msg_type)
+{
+   switch(dhcp_msg_type)
+   {
+    case DHCPOFFER:
+           INC_UDPF_DHCPRECV_OFFER_PKTS(ifIndex);
+           break;
+        case DHCPNAK:
+           INC_UDPF_DHCPRECV_NAK_PKTS(ifIndex);
+           break;
+        case DHCPACK:
+           INC_UDPF_DHCPRECV_ACK_PKTS(ifIndex);
+           break;
+   }
+   return;
+}
+
+/*
+ * Function: udpfwd_server_packet_type_relayed
+ * Responsibility: Increase the counter for the dhcp server responce packet relayed to client
+ * Parameters : ifIndex - IfIndex
+ *              dhcp_msg_type - dhcp msg type
+ * Returns:   None
+ */
+void udpfwd_server_packet_type_relayed(int32_t ifIndex, int32_t dhcp_msg_type)
+{
+   switch(dhcp_msg_type)
+   {
+        case DHCPOFFER:
+           INC_UDPF_DHCPRELAY_OFFER_PKTS(ifIndex);
+           break;
+        case DHCPNAK:
+           INC_UDPF_DHCPRELAY_NAK_PKTS(ifIndex);
+           break;
+        case DHCPACK:
+           INC_UDPF_DHCPRELAY_ACK_PKTS(ifIndex);
+           break;
+   }
+   return;
 }

@@ -54,10 +54,16 @@ typedef uint32_t IP_ADDRESS;     /* IP Address. */
 #define UDPHDR_LENGTH 8 /* UDP packet header length */
 
 #define RECV_BUFFER_SIZE 9228 /* Jumbo frame size */
+//#define   ETHERMTU    9198 /* FIXME : check with thimma once */
+
 #define IDL_POLL_INTERVAL 5
 
 #define IP_ADDRESS_NULL   ((IP_ADDRESS)0L)
 #define IP_ADDRESS_BCAST  ((IP_ADDRESS)0xffffffff)
+
+#define IPHL 	sizeof(struct ip)
+#define SIZEOF_ETHERHEADER  sizeof(struct ether_header)
+
 
 /* DHCP client and server port numbers. */
 #define DHCPS_PORT        67
@@ -66,6 +72,51 @@ typedef uint32_t IP_ADDRESS;     /* IP Address. */
 #define UDPFWD_DHCP_MAX_HOPS     16 /* RFC limit */
 
 #define UDPFWD_DHCP_BROADCAST_FLAG    0x8000
+
+/* structures needed for statistics */
+
+typedef struct UDPF_PKT_COUNTER
+{
+    uint32_t     dhcp_client_drops;
+    uint32_t     dhcp_client_out_pkts;
+    uint32_t     dhcp_serv_drops;
+    uint32_t     dhcp_serv_out_pkts;
+    uint32_t     bcast_fwd_drops;
+    uint32_t     bcast_fwd_out_pkts;
+} UDPF_PKT_COUNTER;
+
+typedef struct UDPF_RECV_PKT_COUNTER
+{
+   uint32_t h3c_dhcp_bad_pkts;
+   uint32_t h3c_dhcp_received_client_pkts;
+   uint32_t h3c_dhcp_received_server_pkts;
+   uint32_t h3c_dhcp_discover_pkts;
+   uint32_t h3c_dhcp_request_pkts;
+   uint32_t h3c_dhcp_inform_pkts;
+   uint32_t h3c_dhcp_release_pkts;
+   uint32_t h3c_dhcp_decline_pkts;
+   uint32_t h3c_dhcp_bootprequest_pkts;
+   uint32_t h3c_dhcp_offer_pkts;
+   uint32_t h3c_dhcp_ack_pkts;
+   uint32_t h3c_dhcp_nak_pkts;
+   uint32_t h3c_dhcp_bootpreply_pkts;
+} UDPF_RECV_PKT_COUNTER;
+
+typedef struct UDPF_RELAY_PKT_COUNTER
+{
+   uint32_t h3c_dhcp_relay_servers_pkts; /* DHCP packets relayed to servers */
+   uint32_t h3c_dhcp_relay_discover_pkts;
+   uint32_t h3c_dhcp_relay_request_pkts;
+   uint32_t h3c_dhcp_relay_inform_pkts;
+   uint32_t h3c_dhcp_relay_release_pkts;
+   uint32_t h3c_dhcp_relay_decline_pkts;
+   uint32_t h3c_dhcp_relay_bootprequest_pkts;
+   uint32_t h3c_dhcp_relay_clients_pkts; /* DHCP packets relayed to clients */
+   uint32_t h3c_dhcp_relay_offer_pkts;
+   uint32_t h3c_dhcp_relay_ack_pkts;
+   uint32_t h3c_dhcp_relay_nak_pkts;
+   uint32_t h3c_dhcp_relay_bootpreply_pkts;
+} UDPF_RELAY_PKT_COUNTER;
 
 /* UDP Forwarder Control Block. */
 typedef struct UDPF_CTRL_CB
@@ -76,7 +127,77 @@ typedef struct UDPF_CTRL_CB
     struct cmap serverHashMap;  /* server hash map handle */
     FEATURE_CONFIG feature_config;
     char *rcvbuff; /* Buffer which is used to store udp packet */
+    UDPF_PKT_COUNTER udp_counters; /* Packet counter for staticstics*/
+    UDPF_RECV_PKT_COUNTER udp_counters_recv;    /*counter for packet received from server and client */
+    UDPF_RELAY_PKT_COUNTER udp_counters_relay;  /*counter  packet relayed to server and client */
 } UDPFWD_CTRL_CB;
+
+/* The following macros will return pkt counters values  */
+#define UDPF_DHCPR_CLIENT_DROPS(ifIndex)  \
+            udpfwd_ctrl_cb_p->udp_counters.dhcp_client_drops
+#define UDPF_DHCPR_CLIENT_SENT(ifIndex)  \
+            udpfwd_ctrl_cb_p->udp_counters.dhcp_client_out_pkts
+#define UDPF_DHCPR_SERVER_DROPS(ifIndex)  \
+            udpfwd_ctrl_cb_p->udp_counters.dhcp_serv_drops
+#define UDPF_DHCPR_SERVER_SENT(ifIndex)  \
+            udpfwd_ctrl_cb_p->udp_counters.dhcp_serv_out_pkts
+#define UDPF_BCAST_FORWARD_DROPS(ifIndex)  \
+            udpfwd_ctrl_cb_p->udp_counters.bcast_fwd_drops
+#define UDPF_BCAST_FORWARD_SENT(ifIndex)  \
+            udpfwd_ctrl_cb_p->udp_counters.bcast_fwd_out_pkts
+
+#define UDPF_DHCPRECV_BAD_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_recv.h3c_dhcp_bad_pkts
+#define UDPF_DHCPRECV_CLIENT_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_recv.h3c_dhcp_received_client_pkts
+#define UDPF_DHCPRECV_SERVER_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_recv.h3c_dhcp_received_server_pkts
+#define UDPF_DHCPRECV_DISCOVER_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_recv.h3c_dhcp_discover_pkts
+#define UDPF_DHCPRECV_REQUEST_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_recv.h3c_dhcp_request_pkts
+#define UDPF_DHCPRECV_INFORM_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_recv.h3c_dhcp_inform_pkts
+#define UDPF_DHCPRECV_RELEASE_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_recv.h3c_dhcp_release_pkts
+#define UDPF_DHCPRECV_DECLINE_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_recv.h3c_dhcp_decline_pkts
+#define UDPF_DHCPRECV_BOOTPREQUEST_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_recv.h3c_dhcp_bootprequest_pkts
+#define UDPF_DHCPRECV_OFFER_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_recv.h3c_dhcp_offer_pkts
+#define UDPF_DHCPRECV_ACK_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_recv.h3c_dhcp_ack_pkts
+#define UDPF_DHCPRECV_NAK_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_recv.h3c_dhcp_nak_pkts
+#define UDPF_DHCPRECV_BOOTPREPLY_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_recv.h3c_dhcp_bootpreply_pkts
+
+#define UDPF_DHCPRELAY_SERVERS_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_relay.h3c_dhcp_relay_servers_pkts
+#define UDPF_DHCPRELAY_DISCOVER_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_relay.h3c_dhcp_relay_discover_pkts
+#define UDPF_DHCPRELAY_REQUEST_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_relay.h3c_dhcp_relay_request_pkts
+#define UDPF_DHCPRELAY_INFORM_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_relay.h3c_dhcp_relay_inform_pkts
+#define UDPF_DHCPRELAY_RELEASE_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_relay.h3c_dhcp_relay_release_pkts
+#define UDPF_DHCPRELAY_DECLINE_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_relay.h3c_dhcp_relay_decline_pkts
+#define UDPF_DHCPRELAY_BOOTPREQUEST_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_relay.h3c_dhcp_relay_bootprequest_pkts
+#define UDPF_DHCPRELAY_CLIENTS_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_relay.h3c_dhcp_relay_clients_pkts
+#define UDPF_DHCPRELAY_OFFER_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_relay.h3c_dhcp_relay_offer_pkts
+#define UDPF_DHCPRELAY_ACK_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_relay.h3c_dhcp_relay_ack_pkts
+#define UDPF_DHCPRELAY_NAK_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_relay.h3c_dhcp_relay_nak_pkts
+#define UDPF_DHCPRELAY_BOOTPREPLY_PKTS(ifIndex)  \
+        udpfwd_ctrl_cb_p->udp_counters_relay.h3c_dhcp_relay_bootpreply_pkts
+
 
 /* Server Address structure. */
 typedef struct UDPFWD_SERVER_T {
@@ -134,6 +255,5 @@ void udpfwd_handle_dhcp_relay_row_delete(struct ovsdb_idl *idl);
 void udpfwd_handle_udp_bcast_forwarder_row_delete(struct ovsdb_idl *idl);
 void udpfwd_handle_udp_bcast_forwarder_config_change(
               const struct ovsrec_udp_bcast_forwarder_server *rec);
-
 
 #endif /* udpfwd.h */

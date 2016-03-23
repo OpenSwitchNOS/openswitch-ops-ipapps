@@ -47,6 +47,10 @@ void udpfwd_ctrl(void *pkt, int32_t size,
     struct ip *iph;              /* ip header */
     struct udphdr *udph;            /* udp header */
     struct dhcp_packet *dhcp;       /* dhcp header */
+    uint32_t ifIndex = -1;
+    unsigned char *option = NULL; /* dhcp packet type options */
+    int dhcp_msg_type = 0;
+
 
     /* Input parameter validation */
     if ((NULL == pkt) || (NULL == pktInfo))
@@ -58,6 +62,7 @@ void udpfwd_ctrl(void *pkt, int32_t size,
 
     iph  = (struct ip *) pkt;
     udph = (struct udphdr *) ((char *)iph + (iph->ip_hl * 4));
+    ifIndex = pktInfo->ipi_ifindex;
 
     switch (ntohs(udph->dest)) {
     case DHCPS_PORT:
@@ -72,12 +77,56 @@ void udpfwd_ctrl(void *pkt, int32_t size,
             dhcp = (struct dhcp_packet *)
                         ((char *)iph + (iph->ip_hl * 4) + UDPHDR_LENGTH);
 
-            /* Packet must be relayed to DHCP servers. */
-            if(dhcp->op == BOOTREQUEST) {
-                udpfwd_relay_to_dhcp_server(pkt, size, pktInfo);
-            } else if(dhcp->op == BOOTREPLY) { /* Packet must be relayed to DHCP client. */
-                udpfwd_relay_to_dhcp_client(pkt, size, pktInfo);
-            } else {
+
+            /* Check what type of packet this is :
+            DHCPDICOVER/DHCPREQUEST/DHCPINFORM/DHCPRELEASE/DHCPDECLINE/
+            BOOTPREQUEST/DHCPOFFER/DHCPACK/DHCPNAK/BOOTPREPLY
+            */
+
+            option = dhcpPickupOpt(dhcp, DHCP_PKTLEN(udph), DHCP_MSGTYPE);
+            if(dhcp->op == BOOTREQUEST)
+            {
+                /* Packet must be relayed to DHCP servers. */
+                if (option != NULL)
+                {
+                    dhcp_msg_type = (*OPTBODY(option));
+                    /* increment the counter for type of client packet received */
+                    udpfwd_client_packet_type_received(ifIndex, dhcp_msg_type);
+                }
+                /* Increment the counter for the packets  received from client */
+                INC_UDPF_DHCPRECV_CLIENT_PKTS(ifIndex);
+
+                if (udpfwd_relay_to_dhcp_server(pkt, size, pktInfo) == false)
+                {
+                    /* increment the DHCP client request Drop counter    */
+                    INC_UDPF_DHCPR_CLIENT_DROPS(ifIndex);
+                    /* Increment the counter for the bad packets received */
+                    INC_UDPF_DHCPRECV_BAD_PKTS(ifIndex);
+                }
+            }
+            else if(dhcp->op == BOOTREPLY)
+            {
+                /* temporary fix */
+                if ( iph->ip_dst.s_addr != IP_ADDRESS_BCAST) {
+                    /* Packet must be relayed to DHCP client. */
+                    if (option != NULL)
+                    {
+                        dhcp_msg_type = (*OPTBODY(option));
+                        /* Increment the counter for the packets received from server */
+                        udpfwd_server_packet_type_received(ifIndex, dhcp_msg_type);
+                    }
+                    /* Increment the counter for the packets received from the server */
+                    INC_UDPF_DHCPRECV_SERVER_PKTS(ifIndex);
+                    if (udpfwd_relay_to_dhcp_client(pkt, size, pktInfo) == false)
+                    {
+                        INC_UDPF_DHCPR_SERVER_DROPS(ifIndex);
+                        /* Increment the counter for bad packets received */
+                        INC_UDPF_DHCPRECV_BAD_PKTS(ifIndex);
+                    }
+                }
+            }
+            else
+            {
                 VLOG_ERR("\n udpf_ctrl: Invalid DHCP operation type : %p", dhcp);
             }
             break;
