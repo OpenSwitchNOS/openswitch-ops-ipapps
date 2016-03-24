@@ -324,6 +324,34 @@ uint32_t getIfIndexfromIpAddress(IP_ADDRESS ip)
 }
 
 /*
+ * Function      : getMacfromIfname
+ * Responsiblity : This function is used to get MAC address associated
+ *                 with a interface.
+ * Parameters    : mac - variable to store mac address.
+ * Return        : void
+ */
+void getMacfromIfname(MAC_ADDRESS mac)
+{
+    int32_t fd;
+    struct ifreq ifr;
+	char *ifName = "1";
+    fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+    ifr.ifr_addr.sa_family = AF_INET;
+    strncpy(ifr.ifr_name, ifName, IF_NAMESIZE);
+    ioctl(fd, SIOCGIFHWADDR, &ifr);
+
+    close(fd);
+
+    mac[0] = ifr.ifr_hwaddr.sa_data[0];
+	mac[1] = ifr.ifr_hwaddr.sa_data[1];
+	mac[2] = ifr.ifr_hwaddr.sa_data[2];
+	mac[3] = ifr.ifr_hwaddr.sa_data[3];
+	mac[4] = ifr.ifr_hwaddr.sa_data[4];
+	mac[5] = ifr.ifr_hwaddr.sa_data[5];
+}
+
+/*
  * Function      : getIpAddressfromIfname
  * Responsiblity : This function is used to get IP address associated
  *                 with a interface.
@@ -335,6 +363,8 @@ IP_ADDRESS getIpAddressfromIfname(char *ifName)
     struct ifaddrs *ifaddr, *ifaddr_iter;
     struct sockaddr_in *res;
     IP_ADDRESS ip;
+    IP_ADDRESS lowest_ip = 4294967295; /*255.255.255.255.255 */
+    bool found = false;
 
     if (getifaddrs(&ifaddr) == -1)
         return 0;
@@ -349,14 +379,19 @@ IP_ADDRESS getIpAddressfromIfname(char *ifName)
             {
                 res = (struct sockaddr_in *)ifaddr_iter->ifa_addr;
                 ip = res->sin_addr.s_addr;
-                freeifaddrs(ifaddr);
-                return ip;
+                found = true;
+                if ( lowest_ip > ip)
+                    lowest_ip = ip;
             }
         }
     }
 
     freeifaddrs(ifaddr);
-    return 0; /* Failure case. */
+
+    if (found)
+        return lowest_ip;
+    else
+        return 0; /* Failure case. */
 }
 
 /*

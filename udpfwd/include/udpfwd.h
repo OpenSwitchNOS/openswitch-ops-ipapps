@@ -51,9 +51,15 @@
 
 typedef uint32_t IP_ADDRESS;     /* IP Address. */
 
+/* Mac address definition */
+typedef uint8_t MAC_ADDRESS[6];
+
 #define UDPHDR_LENGTH 8 /* UDP packet header length */
+#define IPHL 	sizeof(struct ip)
 
 #define RECV_BUFFER_SIZE 9228 /* Jumbo frame size */
+//#define   ETHERMTU    9198 /* FIXME : check with thimma once */
+
 #define IDL_POLL_INTERVAL 5
 
 #define IP_ADDRESS_NULL   ((IP_ADDRESS)0L)

@@ -75,8 +75,11 @@ void udpfwd_ctrl(void *pkt, int32_t size,
             /* Packet must be relayed to DHCP servers. */
             if(dhcp->op == BOOTREQUEST) {
                 udpfwd_relay_to_dhcp_server(pkt, size, pktInfo);
-            } else if(dhcp->op == BOOTREPLY) { /* Packet must be relayed to DHCP client. */
-                udpfwd_relay_to_dhcp_client(pkt, size, pktInfo);
+            } else if(dhcp->op == BOOTREPLY) {
+                if ( iph->ip_dst.s_addr != IP_ADDRESS_BCAST) {
+                    /* Packet must be relayed to DHCP client. */
+                    udpfwd_relay_to_dhcp_client(pkt, size, pktInfo);
+                }
             } else {
                 VLOG_ERR("\n udpf_ctrl: Invalid DHCP operation type : %p", dhcp);
             }

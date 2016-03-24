@@ -220,6 +220,7 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
     UDPFWD_SERVER_T **serverArray = NULL;
     UDPFWD_INTERFACE_NODE_T *intfNode = NULL;
     char ifName[IF_NAMESIZE + 1];
+    DHCP_OPTION_82_OPTIONS  option82_info;
 
     ifIndex = pktInfo->ipi_ifindex;
 
@@ -258,6 +259,29 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
         dhcp->giaddr.s_addr = interface_ip;
     }
 
+#if 0 /*FIXME */
+         {
+            /* Check if Bootp Gateway configured on this VLAN is valid one and if yes,
+             * use this for stamping the DHCP requests
+             */
+
+            struct   in_addr cmd_addr;
+            cmd_addr.s_addr = IP_ADDRESS_NULL;
+
+            if(udpf_getBootpGwAddr(vlan, &cmd_addr) == SW_SUCCESS)
+            {
+               cmd_addr.s_addr = htonl(cmd_addr.s_addr);
+
+               if(inaddrToVlan(cmd_addr))
+               {
+                  dhcp->giaddr.s_addr = cmd_addr.s_addr;
+               }
+            }
+         }
+
+#endif /* BOOTP_GATEWAY */
+
+
     /* ========================================================================
        Make the appropriate port correction
        http://www.ietf.org/internet-drafts/draft-ietf-dhc-implementation-02.txt
@@ -280,8 +304,23 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
     if (udph->uh_sport == DHCPC_PORT)
          udph->uh_sport = DHCPS_PORT;
 
+    if (ENABLE == get_feature_status(udpfwd_ctrl_cb_p->feature_config.config,
+                  DHCP_RELAY_HOP_COUNT_INCREMENT)) {
+        dhcp->hops++;
+    }
+
     /* RFC prefers to decrement time to live */
     iph->ip_ttl--;
+
+    memset(&option82_info, 0, sizeof(option82_info));
+    option82_info.ip_addr = interface_ip;
+    if (dhcpr_check_and_process_option82_message(pkt, &option82_info, ifIndex,
+                                         DHCPR_HANDLE_REQUEST) == false)
+      {
+         VLOG_ERR("Option 82 check failed when relaying packet to server."
+                  "Drop packet \n\n");
+         return;
+      }
 
     /* Acquire db lock */
     sem_wait(&udpfwd_ctrl_cb_p->waitSem);
@@ -353,6 +392,7 @@ void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
                                  struct in_pktinfo *pktInfo)
 {
     struct ip *iph;              /* ip header */
+	struct udphdr *udph;            /* udp header */
     struct dhcp_packet *dhcp;       /* dhcp header */
     struct arpreq arp_req;
     unsigned char *option = NULL; /* Dhcp options. */
@@ -361,8 +401,10 @@ void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
     uint32_t ifIndex = -1;
     char ifName[IF_NAMESIZE + 1];
     struct in_addr interface_ip_address; /* Interface IP address. */
+    DHCP_OPTION_82_OPTIONS  option82_info;
 
     iph  = (struct ip *) pkt;
+	udph = (struct udphdr *) ((char *)iph + (iph->ip_hl * 4));
     dhcp = (struct dhcp_packet *)
                               ((char *)iph + (iph->ip_hl * 4) + UDPHDR_LENGTH);
 
@@ -378,8 +420,20 @@ void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
         return;
     }
 
+    iph->ip_ttl--;
+
+    /* initialize option82_info struct */
+    memset(&option82_info, 0, sizeof(option82_info));
+    if (dhcpr_check_and_process_option82_message(pkt, &option82_info, ifIndex,
+                                         DHCPR_HANDLE_RESPONSE) == false)
+    {
+        VLOG_ERR("Option 82 check failed when relaying packet to client."
+                 "Drop packet \n\n");
+        return;
+    }
+
     /* Check whether this packet is a NAK. */
-    option = dhcpPickupOpt(dhcp, size, DHCP_MSGTYPE);
+    option = dhcpPickupOpt(dhcp, DHCP_PKTLEN(udph), DHCP_MSGTYPE);
     if (option != NULL)
         NAKReply = (*OPTBODY (option) == DHCPNAK);
 

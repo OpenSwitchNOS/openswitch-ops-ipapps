@@ -28,6 +28,7 @@
 
 #include "dhcp_relay.h"
 #include "udpfwd_common.h"
+#include "udpfwd.h"
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 
@@ -47,6 +48,9 @@ IP_ADDRESS getIpAddressfromIfname(char *ifName);
 
 /* Function to retrieve interface index from IP address. */
 uint32_t getIfIndexfromIpAddress(IP_ADDRESS ip);
+
+/* Function to retrieve mac address. */
+void getMacfromIfname(MAC_ADDRESS mac);
 
 /* Set get routines for feature configuration */
 FEATURE_STATUS get_feature_status(uint16_t value, UDPFWD_FEATURE feature);
