@@ -84,17 +84,6 @@ UDPFWD_CTRL_CB *udpfwd_ctrl_cb_p = &udpfwd_ctrl_cb;
 
 VLOG_DEFINE_THIS_MODULE(udpfwd);
 
-/* FIXME: Temporary addition. Once macro definitions are merged in idl, this shall shall be removed */
-#define SYSTEM_DHCP_CONFIG_MAP_DHCP_RELAY_DISABLED "dhcp_relay_disabled"
-#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_DISABLED    "v4relay_disabled"
-#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_ENABLED "v4relay_option82_enabled"
-#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_POLICY "v4relay_option82_policy"
-#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_VALIDATION_ENABLED "v4relay_option82_validation_enabled"
-#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_REMOTE_ID "v4relay_option82_remote_id"
-#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_HOP_COUNT_INCREMENT_DISABLED "v4relay_hop_count_increment_disabled"
-#define DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY    "bootp_gateway"
-
-
 /**
  * External Function Declarations
  */
@@ -358,7 +347,7 @@ void udpfwd_process_globalconfig_update(void)
         /* Check for dhcp-relay configuration update */
         state = ENABLE;
         value = (char *)smap_get(&system_row->dhcp_config,
-                                 SYSTEM_DHCP_CONFIG_MAP_DHCP_RELAY_DISABLED);
+                                 SYSTEM_DHCP_CONFIG_MAP_V4RELAY_DISABLED);
 
         if (value && (!strncmp(value, "true", strlen(value)))) {
             state = DISABLE;
@@ -455,7 +444,7 @@ void dhcp_relay_server_config_update(void)
     OVSREC_DHCP_RELAY_FOR_EACH (rec, idl) {
         if (OVSREC_IDL_IS_ROW_INSERTED(rec, idl_seqno)
             || OVSREC_IDL_IS_ROW_MODIFIED(rec, idl_seqno)) {
-            udpfwd_handle_dhcp_relay_config_change(rec);
+            udpfwd_handle_dhcp_relay_config_change(rec, idl_seqno);
         }
     }
 
@@ -838,6 +827,9 @@ bool udpfwd_init(const char *remote)
                         &ovsrec_dhcp_relay_col_vrf);
     ovsdb_idl_add_column(idl,
                         &ovsrec_dhcp_relay_col_ipv4_ucast_server);
+
+    ovsdb_idl_add_column(idl,
+                           &ovsrec_dhcp_relay_col_other_config);
 
     /* Register for UDP_Bcast_Forwarder table updates */
     ovsdb_idl_add_table(idl, &ovsrec_table_udp_bcast_forwarder_server);

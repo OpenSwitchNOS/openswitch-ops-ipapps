@@ -65,7 +65,6 @@ void udpfwd_ctrl(void *pkt, int32_t size,
         {
             if (ENABLE != get_feature_status(udpfwd_ctrl_cb_p->feature_config.config,
                           DHCP_RELAY)) {
-                VLOG_ERR("DHCP relay is disabled. Discard the packet\n");
                 return;
             }
 
@@ -75,8 +74,12 @@ void udpfwd_ctrl(void *pkt, int32_t size,
             /* Packet must be relayed to DHCP servers. */
             if(dhcp->op == BOOTREQUEST) {
                 udpfwd_relay_to_dhcp_server(pkt, size, pktInfo);
-            } else if(dhcp->op == BOOTREPLY) { /* Packet must be relayed to DHCP client. */
-                udpfwd_relay_to_dhcp_client(pkt, size, pktInfo);
+            } else if(dhcp->op == BOOTREPLY) {
+                if ( iph->ip_dst.s_addr != IP_ADDRESS_BCAST) {
+                    /* Process only unicast packets */
+                    /* Packet must be relayed to DHCP client. */
+                    udpfwd_relay_to_dhcp_client(pkt, size, pktInfo);
+                }
             } else {
                 VLOG_ERR("\n udpf_ctrl: Invalid DHCP operation type : %p", dhcp);
             }
@@ -84,7 +87,12 @@ void udpfwd_ctrl(void *pkt, int32_t size,
         }
     default:
         {
-            /* UDP Broadcast Forwarding Case. */
+            /* UDP Broadcast forwarding case. */
+            if (ENABLE != get_feature_status
+                          (udpfwd_ctrl_cb_p->feature_config.config,
+                           UDP_BCAST_FORWARDER)) {
+                return;
+            }
             udpfwd_forward_packet(pkt, ntohs(udph->dest), size, pktInfo);
             break;
         }

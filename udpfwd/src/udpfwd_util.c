@@ -30,7 +30,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <ifaddrs.h>
-
+#include <linux/if_packet.h>
 #include "udpfwd_util.h"
 
 /* Feature to name mapping. There should be exact one-to-one mapping
@@ -66,7 +66,7 @@ char *remote_id_name[] =
  * Return        : ENABLE - If the feature is enabled
  *                 DISABLE - otherwise
  */
-FEATURE_STATUS get_feature_status(feature_bmap value, UDPFWD_FEATURE feature)
+FEATURE_STATUS get_feature_status(uint16_t value, UDPFWD_FEATURE feature)
 {
     FEATURE_STATUS status = DISABLE;
 
@@ -112,7 +112,7 @@ FEATURE_STATUS get_feature_status(feature_bmap value, UDPFWD_FEATURE feature)
  *                 status - config status of the feature
  * Return        : none
  */
-void set_feature_status(feature_bmap *value, UDPFWD_FEATURE feature,
+void set_feature_status(uint16_t *value, UDPFWD_FEATURE feature,
                         FEATURE_STATUS status)
 {
     switch(feature)
@@ -324,6 +324,40 @@ uint32_t getIfIndexfromIpAddress(IP_ADDRESS ip)
 }
 
 /*
+ * Function      : getMacfromIfname
+ * Responsiblity : This function is used to get MAC address associated
+ *                 with a interface.
+ * Parameters    : mac - variable to store mac address.
+ * Return        : void
+ */
+void getMacfromIfname(MAC_ADDRESS mac, char * ifName)
+{
+    struct ifaddrs *ifaddr = NULL, *ifa = NULL;
+    int32_t i = 0;
+    struct sockaddr_ll *s = NULL;
+
+    if (getifaddrs(&ifaddr) == -1)
+        return;
+
+    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next)
+    {
+        if ((ifa->ifa_addr) && (ifa->ifa_addr->sa_family == AF_PACKET))
+        {
+            s = (struct sockaddr_ll*)ifa->ifa_addr;
+            if (strncmp(ifName, ifa->ifa_name, IF_NAMESIZE) == 0)
+            {
+                for (i = 0; i<s->sll_halen; i++)
+                {
+                  mac[i]= s->sll_addr[i];
+                }
+                break;
+            }
+        }
+    }
+    freeifaddrs(ifaddr);
+}
+
+/*
  * Function      : getIpAddressfromIfname
  * Responsiblity : This function is used to get IP address associated
  *                 with a interface.
@@ -335,6 +369,7 @@ IP_ADDRESS getIpAddressfromIfname(char *ifName)
     struct ifaddrs *ifaddr, *ifaddr_iter;
     struct sockaddr_in *res;
     IP_ADDRESS ip;
+    IP_ADDRESS lowest_ip = MAX_UINT32; /*255.255.255.255.255 */
 
     if (getifaddrs(&ifaddr) == -1)
         return 0;
@@ -349,14 +384,18 @@ IP_ADDRESS getIpAddressfromIfname(char *ifName)
             {
                 res = (struct sockaddr_in *)ifaddr_iter->ifa_addr;
                 ip = res->sin_addr.s_addr;
-                freeifaddrs(ifaddr);
-                return ip;
+                if ( lowest_ip > ip)
+                    lowest_ip = ip;
             }
         }
     }
 
     freeifaddrs(ifaddr);
-    return 0; /* Failure case. */
+
+    if (lowest_ip != MAX_UINT32)
+        return lowest_ip;
+    else
+        return 0; /* Failure case. */
 }
 
 /*
