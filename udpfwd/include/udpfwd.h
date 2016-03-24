@@ -51,9 +51,13 @@
 
 typedef uint32_t IP_ADDRESS;     /* IP Address. */
 
+/* Mac address definition */
+typedef uint8_t MAC_ADDRESS[6];
+
 #define UDPHDR_LENGTH 8 /* UDP packet header length */
 
 #define RECV_BUFFER_SIZE 9228 /* Jumbo frame size */
+
 #define IDL_POLL_INTERVAL 5
 
 #define IP_ADDRESS_NULL   ((IP_ADDRESS)0L)
@@ -93,6 +97,7 @@ typedef struct UDPFWD_INTERFACE_NODE_T
   char  *portName; /* Name of the Interface */
   uint8_t addrCount; /* Counts of configured servers */
   UDPFWD_SERVER_T **serverArray; /* Pointer to the array server configs */
+  IP_ADDRESS bootp_gw; /* store bootp gateway IP address */
 } UDPFWD_INTERFACE_NODE_T;
 
 typedef enum DB_OP_TYPE_t {
@@ -129,7 +134,7 @@ void udpfwd_forward_packet (void *pkt, uint16_t udp_dport, int size,
  * Function prototypes form udpfwd_config.c
  */
 void udpfwd_handle_dhcp_relay_config_change(
-              const struct ovsrec_dhcp_relay *rec);
+              const struct ovsrec_dhcp_relay *rec, uint32_t idl_seqno);
 void udpfwd_handle_dhcp_relay_row_delete(struct ovsdb_idl *idl);
 void udpfwd_handle_udp_bcast_forwarder_row_delete(struct ovsdb_idl *idl);
 void udpfwd_handle_udp_bcast_forwarder_config_change(
