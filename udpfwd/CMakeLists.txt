@@ -36,7 +36,8 @@ set (SOURCES ${SRC_DIR}/udpfwd.c
              ${SRC_DIR}/udpfwd_config.c
              ${SRC_DIR}/udpfwd_util.c
              ${SRC_DIR}/udpfwd_xmit.c
-             ${SRC_DIR}/udpfwd_recv.c)
+             ${SRC_DIR}/udpfwd_recv.c
+             ${SRC_DIR}/dhcp_options.c)
 
 # Rules to build ops-udpfwd
 add_executable (${UDPFWD} ${SOURCES})

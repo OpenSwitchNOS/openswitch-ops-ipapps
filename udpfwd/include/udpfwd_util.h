@@ -28,8 +28,11 @@
 
 #include "dhcp_relay.h"
 #include "udpfwd_common.h"
+#include "udpfwd.h"
 #include <netinet/ip.h>
 #include <netinet/udp.h>
+
+#define MAX_UINT32 4294967295 /*255.255.255.255.255 */
 
 /* Pseudo header for UDP checksum computation */
 struct ipovly {
@@ -41,12 +44,14 @@ struct ipovly {
     struct   in_addr ih_dst;   /* destination internet address */
 };
 
-
 /* Function to retrieve IP address from interface name. */
 IP_ADDRESS getIpAddressfromIfname(char *ifName);
 
 /* Function to retrieve interface index from IP address. */
 uint32_t getIfIndexfromIpAddress(IP_ADDRESS ip);
+
+/* Function to retrieve mac address. */
+void getMacfromIfname(MAC_ADDRESS mac, char*ifName);
 
 /* Set get routines for feature configuration */
 FEATURE_STATUS get_feature_status(uint16_t value, UDPFWD_FEATURE feature);
