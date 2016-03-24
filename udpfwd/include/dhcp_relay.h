@@ -34,17 +34,27 @@
 /*
  * DHCP-Relay macro definitions
  */
+#define BOOTPOPTLEN   64
 #define DHCPOPTLEN(TAGP) (*(((char *)TAGP) + 1)) /* Get DHCP option length */
 #define DFLTDHCPLEN      sizeof(struct dhcp_packet) /* Default DHCP message size */
 #define OPTBODY(TAGP)    (((char *)TAGP) + 2) /* Get contents of DHCP option */
-#define DHCP_PKTLEN      (ntohs(UDP->udp_length) - UDPHDR_LENGTH)
+#define DHCP_PKTLEN(UDP)      (ntohs(UDP->uh_ulen) - UDPHDR_LENGTH)
+#define DFLTBOOTPLEN  (DFLTDHCPLEN - DFLTOPTLEN + BOOTPOPTLEN)
 
+/*
+ * Min bootp len is the default dhcp pkt struct size, less the option buffer
+ * length, plus room for a cookie (4 bytes) and an end marker (1 byte).
+ */
+#define MINBOOTPLEN  (DFLTDHCPLEN - DFLTOPTLEN + 5)
 
+#define PAD                  ((uint8_t)   0)
+#define OPT_OVERLOAD         ((uint8_t)  52)
 #define DHCP_MSGTYPE         ((uint8_t)  53)
 #define DHCP_SERVER_ID       ((uint8_t)  54)
-#define PAD                  ((uint8_t)   0)
+#define DHCP_MAXMSGSIZE      ((uint8_t)  57)
+#define DHCP_AGENT_OPTIONS   ((uint8_t)  82)
 #define END                  ((uint8_t) 255)
-#define OPT_OVERLOAD         ((uint8_t)  52)
+
 #define NO_RELAY              3
 
 /* This flag indicate whether the module is enabled or disabled.*/
@@ -58,6 +68,37 @@
 #define DHCP_CHADDR_MAX          16
 #define DHCP_BOOT_FILENAME_LEN   128
 #define DHCP_SERVER_HOSTNAME_LEN 64
+#define RFC1048_MAGIC { 99, 130, 83, 99 }   /* magic cookie for RFC1048 */
+
+/* DHCP msg maximum size */
+#define MAX_DHCP_MESSAGE_SIZE 576
+
+#define MAC_HEADER_LENGTH        6
+
+typedef uint32_t CIRCUIT_ID_t;
+typedef IP_ADDRESS REMOTE_ID_IP_ADDR_t;
+
+typedef struct DHCP_OPTION_82_OPTIONS
+{
+   CIRCUIT_ID_t  circuit_id;
+   REMOTE_ID_IP_ADDR_t ip_addr;
+} DHCP_OPTION_82_OPTIONS;
+
+/* invalid message type or options */
+#define DHCPR_INVALID_PKT -1
+#define DHCP_RELAY_INVALID_OPTION_82 -1
+#define DHCP_RELAY_OPTION_82_MISMATCH 0
+#define DHCP_RELAY_OPTION_82_OK 1
+
+#define DHCP_OPTION_HEADER_LENGTH 2
+
+/* DHCP Relay Agent Information Sub Option Tag Values */
+
+/* Dhcp Relay Agent Circuit ID field */
+#define DHCP_RAI_CIRCUIT_ID   ((unsigned char) 1)
+
+/* Dhcp Relay Agent Remote ID field */
+#define DHCP_RAI_REMOTE_ID   ((unsigned char) 2)
 
 /* Option values for DHCP message type (DHCP_OPT_MESSAGE_TYPE). */
 typedef enum DHCP_MSG_TYPE_t {
@@ -100,6 +141,18 @@ struct ps_udph {
   int8_t  proto;
   int16_t ulen;
 };
+
+
+/* Function prototypes from dhcp_options.c */
+int32_t dhcp_relay_get_option82_len(DHCP_RELAY_OPTION82_REMOTE_ID remote_id);
+
+int32_t dhcp_relay_validate_agent_option(const uint8_t *buf, int32_t buflen,
+                               char* ifName, DHCP_OPTION_82_OPTIONS *pkt_info,
+                               DHCP_RELAY_OPTION82_REMOTE_ID remote_id);
+
+bool process_dhcp_relay_option82_message(void *pkt, DHCP_OPTION_82_OPTIONS *pkt_info,
+                               uint32_t ifIndex, char *ifName,
+                               IP_ADDRESS bootp_gw);
 
 /*
  * Function prototypes from udpfwd_xmit.c

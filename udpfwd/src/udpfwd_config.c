@@ -307,32 +307,37 @@ bool udpfwd_remove_address(UDPFWD_INTERFACE_NODE_T *intfNode,
      * for this interface. First entry NULL means, entire list is NULL.
      * because NULL entries are
      * always pushed to the end of the list */
-    if((NULL == serverArray[0]) && (intfNode->addrCount ==0))
+    if ((NULL == serverArray[0]) && (intfNode->addrCount ==0))
     {
         VLOG_INFO("All server configuration on the interface : %s are removed."
-                  " Freeing interface entry", intfNode->portName);
+                  " Freeing server array ", intfNode->portName);
+
         /* Delete the entire IP reference table */
         free(serverArray);
         /* Make interface table entry NULL, as no helper IP is configured */
         intfNode->serverArray = NULL;
-        node = shash_find(&udpfwd_ctrl_cb_p->intfHashTable,
+
+        if (intfNode->bootp_gw == 0)
+        {
+            VLOG_INFO("All configuration on the interface : %s are removed."
+                      " Freeing interface entry", intfNode->portName);
+            node = shash_find(&udpfwd_ctrl_cb_p->intfHashTable,
                           intfNode->portName);
-        if (NULL != node)
-        {
-            shash_delete(&udpfwd_ctrl_cb_p->intfHashTable, node);
-        }
-        else
-        {
-            VLOG_ERR("Interface node not found in hash table : %s",
+            if (NULL != node)
+            {
+                shash_delete(&udpfwd_ctrl_cb_p->intfHashTable, node);
+            }
+            else
+            {
+                VLOG_ERR("Interface node not found in hash table : %s",
                      intfNode->portName);
+            }
+            if (NULL != intfNode->portName)
+                free(intfNode->portName);
+
+            free(intfNode);
         }
-
-        if (NULL != intfNode->portName)
-            free(intfNode->portName);
-
-        free(intfNode);
     }
-
     sem_post(&udpfwd_ctrl_cb_p->waitSem);
     return true;
 }
@@ -369,6 +374,8 @@ UDPFWD_INTERFACE_NODE_T *udpfwd_create_intferface_node(char *pname)
     intfNode->serverArray = NULL;
     shash_add(&udpfwd_ctrl_cb_p->intfHashTable, pname, intfNode);
     VLOG_INFO("Allocated interface table record for port : %s", pname);
+
+    intfNode->bootp_gw = 0;
 
     return intfNode;
 }
@@ -473,14 +480,15 @@ void udpfwd_handle_dhcp_relay_row_delete(struct ovsdb_idl *idl)
  * Function      : udpfwd_handle_dhcp_relay_config_change
  * Responsiblity : Handle a record change in DHCP-Relay table
  * Parameters    : rec - DHCP-Relay OVSDB table record
+ *                 idl_seqno - idl change identifier
  * Return        : none
  */
 void udpfwd_handle_dhcp_relay_config_change(
-              const struct ovsrec_dhcp_relay *rec)
+              const struct ovsrec_dhcp_relay *rec, uint32_t idl_seqno)
 {
     struct in_addr id;
     IP_ADDRESS ipaddress;
-    char *portName = NULL;
+    char *portName = NULL, *bootp_gw = NULL;
     int iter, iter1;
     struct shash_node *node;
     UDPFWD_INTERFACE_NODE_T *intfNode = NULL;
@@ -509,6 +517,34 @@ void udpfwd_handle_dhcp_relay_config_change(
     else
     {
         intfNode = (UDPFWD_INTERFACE_NODE_T *) node->data;
+    }
+
+    if (OVSREC_IDL_IS_COLUMN_MODIFIED(ovsrec_dhcp_relay_col_other_config,
+                               idl_seqno)) {
+
+        /* Check for bootp gateway configuration */
+        bootp_gw = (char *)smap_get(&rec->other_config,
+        DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY);
+
+        if (bootp_gw == NULL) {
+            /* bootp gateway ip is deleted or not configured */
+            intfNode->bootp_gw = 0;
+        }
+        else {
+            retVal = inet_aton(bootp_gw, &id);
+            if (!retVal || id.s_addr == 0)
+                VLOG_ERR("Invalid IP address received"
+                        "set as bootp gateway address");
+            else
+                intfNode->bootp_gw = id.s_addr;
+
+        }
+    }
+
+    if (!OVSREC_IDL_IS_COLUMN_MODIFIED(ovsrec_dhcp_relay_col_ipv4_ucast_server,
+                               idl_seqno)) {
+        /* if no change in server ip column */
+        return;
     }
 
     memset(servers, 0, sizeof(servers));
