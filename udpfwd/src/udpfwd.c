@@ -433,6 +433,8 @@ void dhcp_relay_server_config_update(void)
     /* Check for server configuration changes */
     rec_first = ovsrec_dhcp_relay_first(idl);
     if (NULL == rec_first) {
+        /* Check if last entry from the table is deleted */
+        udpfwd_handle_dhcp_relay_row_delete(idl);
         return;
     }
 
@@ -478,6 +480,8 @@ void udp_bcast_forwarder_server_config_update(void)
     /* Check for server configuration changes */
     rec_first = ovsrec_udp_bcast_forwarder_server_first(idl);
     if (NULL == rec_first) {
+        /* Check if last entry from the table is deleted */
+        udpfwd_handle_udp_bcast_forwarder_row_delete(idl);
         return;
     }
 
