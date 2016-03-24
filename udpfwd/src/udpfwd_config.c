@@ -338,50 +338,6 @@ bool udpfwd_remove_address(UDPFWD_INTERFACE_NODE_T *intfNode,
 }
 
 /*
- * Function      : udpfwd_handle_dhcp_relay_row_delete
- * Responsiblity : Process delete event for one or more ports records from
- *                 DHCP-Relay table
- * Parameters    : idl - idl reference
- * Return        : none
- */
-void udpfwd_handle_dhcp_relay_row_delete(struct ovsdb_idl *idl)
-{
-    const struct ovsrec_dhcp_relay *rec = NULL;
-    UDPFWD_INTERFACE_NODE_T *intf;
-    struct shash_node *node, *next;
-    int iter, addrCount;
-    bool found;
-
-    /* Walk the server configuration hash table per "port" to
-     * see if the corresponding record is deleted */
-    SHASH_FOR_EACH_SAFE(node, next, &udpfwd_ctrl_cb_p->intfHashTable) {
-        found = false;
-        /* Iterate through dhcp relay table to find a match */
-        OVSREC_DHCP_RELAY_FOR_EACH(rec, idl) {
-            if ((NULL != rec->port) &&
-                !strncmp(rec->port->name, node->name,
-                         strlen(rec->port->name))) {
-                found = true;
-                break;
-            }
-        }
-
-        if (false == found) {
-            intf = (UDPFWD_INTERFACE_NODE_T *)node->data;
-            addrCount = intf->addrCount;
-            /* Delete the interface entry from hash table */
-            for (iter = 0; iter < addrCount; iter++) {
-                udpfwd_remove_address(intf,
-                            intf->serverArray[iter]->ip_address,
-                            intf->serverArray[iter]->udp_port);
-            }
-        }
-    }
-
-    return;
-}
-
-/*
  * Function      : udpfwd_create_intfnode
  * Responsiblity : Allocate memory for interface entry
  * Parameters    : pname - interface name
@@ -415,6 +371,102 @@ UDPFWD_INTERFACE_NODE_T *udpfwd_create_intferface_node(char *pname)
     VLOG_INFO("Allocated interface table record for port : %s", pname);
 
     return intfNode;
+}
+
+/*
+ * Function      : udpfwd_delete_servers_on_interface
+ * Responsiblity : Delete servers on an interface that are configured for
+ *                 a specific feature
+ * Parameters    : intf - interface node
+ *                 udp_dport - UDP destination port
+ * Return        : none
+ */
+void udpfwd_delete_servers_on_interface(UDPFWD_INTERFACE_NODE_T *intf,
+                                        UDPFWD_FEATURE feature)
+{
+    UDPFWD_SERVER_T servers[MAX_UDP_BCAST_SERVER_PER_INTERFACE];
+    UDPFWD_SERVER_T *arrayPtr;
+    int32_t iter;
+
+    memset(servers, 0, sizeof(servers));
+    arrayPtr = (UDPFWD_SERVER_T *)servers;
+
+    /* Delete the interface entry from hash table */
+    for (iter = 0; iter < intf->addrCount; iter++) {
+        /* Delete only non DHCP-Relay server entries from the intf */
+        if (DHCPS_PORT == intf->serverArray[iter]->udp_port)
+        {
+            *arrayPtr = *(intf->serverArray[iter]);
+            arrayPtr++;
+        }
+    }
+
+    /* Delete the servers maked for removal */
+    for (iter = 0; (servers[iter].ip_address) != 0; iter++)
+    {
+        udpfwd_remove_address(intf, servers[iter].ip_address,
+                              servers[iter].udp_port);
+    }
+
+    return;
+}
+
+/*
+ * Function      : udpfwd_handle_dhcp_relay_row_delete
+ * Responsiblity : Process delete event for one or more ports records from
+ *                 DHCP-Relay table
+ * Parameters    : idl - idl reference
+ * Return        : none
+ */
+void udpfwd_handle_dhcp_relay_row_delete(struct ovsdb_idl *idl)
+{
+    const struct ovsrec_dhcp_relay *rec = NULL;
+    UDPFWD_INTERFACE_NODE_T *intf = NULL;
+    struct shash_node *node = NULL, *next = NULL;
+    int iter = 0, addrCount = 0;
+    UDPFWD_SERVER_T servers[MAX_UDP_BCAST_SERVER_PER_INTERFACE];
+    UDPFWD_SERVER_T *arrayPtr = NULL;
+    bool found = false;
+
+    /* Walk the server configuration hash table per "port" to
+     * see if the corresponding record is deleted */
+    SHASH_FOR_EACH_SAFE(node, next, &udpfwd_ctrl_cb_p->intfHashTable) {
+        found = false;
+        /* Iterate through dhcp relay table to find a match */
+        OVSREC_DHCP_RELAY_FOR_EACH(rec, idl) {
+            if ((NULL != rec->port) &&
+                !strncmp(rec->port->name, node->name,
+                         strlen(rec->port->name))) {
+                found = true;
+                break;
+            }
+        }
+
+        if (false == found) {
+            intf = (UDPFWD_INTERFACE_NODE_T *)node->data;
+            memset(servers, 0, sizeof(servers));
+            arrayPtr = (UDPFWD_SERVER_T *)servers;
+            addrCount = intf->addrCount;
+            /* Delete the interface entry from hash table */
+            for (iter = 0; iter < addrCount; iter++) {
+                /* Delete only non DHCP-Relay server entries from the intf */
+                if (DHCPS_PORT == intf->serverArray[iter]->udp_port)
+                {
+                    *arrayPtr = *(intf->serverArray[iter]);
+                    arrayPtr++;
+                }
+            }
+
+            /* Delete the servers maked for removal */
+            for (iter = 0; (servers[iter].ip_address) != 0; iter++)
+            {
+                udpfwd_remove_address(intf, servers[iter].ip_address,
+                                      servers[iter].udp_port);
+            }
+        }
+    }
+
+    return;
 }
 
 /*
@@ -526,6 +578,40 @@ void udpfwd_handle_dhcp_relay_config_change(
 }
 
 /*
+ * Function      : server_ip_exists
+ * Responsiblity : Check if a server ip exists in a server array
+ * Parameters    : server_ip - IP address of the server
+ *                 servers - List of servers
+ *                 server_count - Number of servers in the list
+ * Return        : true - If the server ip exists in the list
+ *                 false - otherwise
+ */
+bool server_ip_exists(IP_ADDRESS server_ip, char **servers,
+                      uint32_t server_count)
+{
+    struct in_addr id;
+    bool found = false;
+    int iter = 0;
+
+    for ( ; iter < server_count; iter++)
+    {
+        if (!(inet_aton (servers[iter], &id)) ||
+            (id.s_addr == 0))
+        {
+            continue;
+        }
+
+        if (server_ip == (id.s_addr))
+        {
+            found = true;
+            break;
+        }
+    }
+
+    return found;
+}
+
+/*
  * Function      : udpfwd_handle_udp_bcast_forwarder_row_delete
  * Responsiblity : Process delete event for one or more ports records from
  *                 UDP_Bcast_forwarder table
@@ -535,35 +621,64 @@ void udpfwd_handle_dhcp_relay_config_change(
 void udpfwd_handle_udp_bcast_forwarder_row_delete(struct ovsdb_idl *idl)
 {
     const struct ovsrec_udp_bcast_forwarder_server *rec = NULL;
-    UDPFWD_INTERFACE_NODE_T *intf;
-    struct shash_node *node, *next;
-    int iter, addrCount;
-    bool found;
+    UDPFWD_INTERFACE_NODE_T *intf = NULL;
+    struct shash_node *node = NULL, *next = NULL;
+    int iter = 0;
+    UDPFWD_SERVER_T *server = NULL;
+    UDPFWD_SERVER_T servers[MAX_UDP_BCAST_SERVER_PER_INTERFACE];
+    UDPFWD_SERVER_T *arrayPtr = NULL;
+    bool found = false;
 
     /* Walk the server configuration hash table per "port" to
      * see if configuration related to an interface is completely deleted */
     SHASH_FOR_EACH_SAFE(node, next, &udpfwd_ctrl_cb_p->intfHashTable)
     {
-        found = false;
         intf = (UDPFWD_INTERFACE_NODE_T *)node->data;
-        /* Iterate through UDP_Bcast_forwarder table to find a match */
-        OVSREC_UDP_BCAST_FORWARDER_SERVER_FOR_EACH(rec, idl) {
-            if ((NULL != rec->src_port) &&
-                !strncmp(rec->src_port->name, intf->portName,
-                         strlen(rec->src_port->name))) {
-                found = true;
-                break;
+        memset(servers, 0, sizeof(servers));
+        arrayPtr = (UDPFWD_SERVER_T *)servers;
+
+        for (iter = 0; iter < intf->addrCount; iter++)
+        {
+            found = false;
+            server = intf->serverArray[iter];
+            if (DHCPS_PORT == server->udp_port)
+                continue;
+
+            /* Iterate through UDP_Bcast_forwarder table to find a match */
+            OVSREC_UDP_BCAST_FORWARDER_SERVER_FOR_EACH(rec, idl) {
+                /* Check if portname and udp_dport matches with rec entry */
+                if ((NULL != rec->src_port) &&
+                    (0 != strncmp(rec->src_port->name, intf->portName,
+                             strlen(rec->src_port->name)))) {
+                    continue;
+                }
+
+                if ((DHCPS_PORT == rec->udp_dport) ||
+                    (rec->udp_dport != server->udp_port)) {
+                    continue;
+                }
+
+                /* Check if server ip exists in the udp_bcast_forwarder_table
+                 * record */
+                if (false != server_ip_exists(server->ip_address,
+                                              rec->ipv4_ucast_server,
+                                              rec->n_ipv4_ucast_server)) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (false == found) {
+                *arrayPtr = *server;
+                arrayPtr++;
             }
         }
 
-        if (false == found) {
-            addrCount = intf->addrCount;
-            /* Delete the interface entry from hash table */
-            for (iter = 0; iter < addrCount; iter++) {
-                udpfwd_remove_address(intf,
-                        intf->serverArray[iter]->ip_address,
-                        intf->serverArray[iter]->udp_port);
-            }
+        /* Delete the servers maked for removal */
+        for (iter = 0; (servers[iter].ip_address) != 0; iter++)
+        {
+            udpfwd_remove_address(intf, servers[iter].ip_address,
+                                  servers[iter].udp_port);
         }
     }
 
