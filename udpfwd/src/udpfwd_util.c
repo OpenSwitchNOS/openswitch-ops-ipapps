@@ -66,7 +66,7 @@ char *remote_id_name[] =
  * Return        : ENABLE - If the feature is enabled
  *                 DISABLE - otherwise
  */
-FEATURE_STATUS get_feature_status(uint16_t value, UDPFWD_FEATURE feature)
+FEATURE_STATUS get_feature_status(feature_bmap value, UDPFWD_FEATURE feature)
 {
     FEATURE_STATUS status = DISABLE;
 
@@ -112,7 +112,7 @@ FEATURE_STATUS get_feature_status(uint16_t value, UDPFWD_FEATURE feature)
  *                 status - config status of the feature
  * Return        : none
  */
-void set_feature_status(uint16_t *value, UDPFWD_FEATURE feature,
+void set_feature_status(feature_bmap *value, UDPFWD_FEATURE feature,
                         FEATURE_STATUS status)
 {
     switch(feature)
