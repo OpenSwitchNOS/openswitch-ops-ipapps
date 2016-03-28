@@ -69,6 +69,8 @@ extern int8_t
 udpfwd_helperaddressconfig (udpfwd_server *, bool);
 extern int8_t
 udpfwd_serverconfig (udpfwd_server *, bool);
+extern int8_t
+dhcp_relay_bootp_gateway_config (const char *, bool);
 extern int32_t
 show_dhcp_relay_config (void);
 extern int8_t
@@ -77,4 +79,6 @@ extern int8_t
 show_ip_helper_address_config (const char *);
 extern int8_t
 show_udp_forwarder_configuration (const char *);
+extern int8_t
+show_dhcp_relay_bootp_gateway_config (const char *);
 #endif /* udpfwd_vty_utils.h */
