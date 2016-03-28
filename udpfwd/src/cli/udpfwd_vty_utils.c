@@ -48,7 +48,6 @@
 #include <string.h>
 #include "udpfwd_vty_utils.h"
 
-static const struct ovsrec_vrf* udp_bcast_config_vrf_lookup(const char *);
 extern struct ovsdb_idl *idl;
 VLOG_DEFINE_THIS_MODULE(udpfwd_vty_utils);
 
@@ -135,7 +134,7 @@ udpfwd_globalconfig (const char *status, UDPFWD_FEATURE type)
 | Return           : On success returns the VRF row,
 |                    On failure returns NULL
 -----------------------------------------------------------------------------*/
-static const struct
+const struct
 ovsrec_vrf* udp_bcast_config_vrf_lookup (const char *vrf_name)
 {
     const struct ovsrec_vrf *vrf_row = NULL;
@@ -558,6 +557,7 @@ udpfwd_helperaddressconfig (udpfwd_server *udpfwdServ, bool set)
     struct ovsdb_idl_txn *status_txn = cli_do_config_start();
     enum ovsdb_idl_txn_status txn_status;
     bool isAddrMatch = false;
+    char *buff = NULL;
     bool isMaxEntries;
     UDPFWD_FEATURE type = DHCP_RELAY;
 
@@ -645,7 +645,22 @@ udpfwd_helperaddressconfig (udpfwd_server *udpfwdServ, bool set)
 
             if (row_serv->n_ipv4_ucast_server == 1)
             {
-                ovsrec_dhcp_relay_delete(row_serv);
+                buff = (char *)smap_get(&row_serv->other_config,
+                                DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY);
+                if (buff == NULL)
+                {
+                    /*
+                     * Delete the row if the bootp-gateway configuration
+                     * is not present on the interface.
+                     */
+                    ovsrec_dhcp_relay_delete(row_serv);
+                }
+                else
+                {
+                    /* Update the protocol server IP. */
+                    udpfwd_serverupdate((void *)row_serv, false,
+                                        udpfwdServ, type);
+                }
             }
             else
             {

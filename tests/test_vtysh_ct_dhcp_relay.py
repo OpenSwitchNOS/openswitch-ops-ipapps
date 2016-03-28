@@ -815,7 +815,6 @@ def relay_option82_keepRunningConfigTest(dut01):
     return True
 
 
-
 def relay_option82_replaceRunningConfigTest(dut01):
     if (enterConfigShell(dut01) is False):
         return False
@@ -870,6 +869,7 @@ def relay_option82_drop_with_validationRunningConfigTest(dut01):
         "validation running config failed"
 
     return True
+
 
 def relay_option82_keep_with_ip_ridRunningConfigTest(dut01):
     if (enterConfigShell(dut01) is False):
@@ -1317,6 +1317,34 @@ def show_helper_address_status(dut01):
     return True
 
 
+def showHelperAddress_and_bootpGatewayConfig_onInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 2) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip helper-address \
+    192.168.90.1")
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    10.0.0.1/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    10.0.0.1")
+    devIntReturn = dut01.DeviceInteract(command="no ip bootp-gateway \
+    10.0.0.1")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to show helper-address configuration " \
+        "when the bootp-gateway is unconfigured on an interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show ip helper-address")
+    assert 'Interface: 2' and '192.168.90.1' in cmdOut, \
+        "Test to show helper-address configuration " \
+        "when the bootp-gateway is unconfigured on an interface failed"
+
+    return True
+
+
 def show_helper_address_statusOnSpecifiedInterface(dut01):
     if (enterConfigShell(dut01) is False):
         return False
@@ -1380,6 +1408,342 @@ def helper_address_interface_runningConfigTest(dut01):
         'ip helper-address 192.168.90.78' in cmdOut, "Test to show " \
         "helper-address configuration in running config failed"
 
+    return True
+
+
+def bootpGateway_configFor_configIP_onInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 18) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    10.0.80.1/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    10.0.80.1")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to set bootp-gateway configuration " \
+        "for configured IP address on an interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
+    assert '18                    10.0.80.1' in cmdOut, \
+        "Test to set bootp-gateway configuration " \
+        "for configured IP address on an interface failed"
+
+    return True
+
+
+def bootpGateway_configFor_configIP_onSubInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 10.1) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    20.0.80.1/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    20.0.80.1")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to set bootp-gateway configuration " \
+        "for configured IP address on a sub interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
+    assert '10.1                    20.0.80.1' in cmdOut, \
+        "Test to set bootp-gateway configuration " \
+        "for configured IP address on a sub interface failed"
+
+    return True
+
+
+def bootpGateway_configFor_configSecondaryIP_onInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 14) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    50.0.80.1/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    50.0.80.1")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to set bootp-gateway configuration " \
+        "for configured secondary IP address on an interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
+    assert '14                    50.0.80.1' in cmdOut, \
+        "Test to set bootp-gateway configuration " \
+        "for configured secondary IP address on an interface failed"
+
+    return True
+
+
+def bootpGateway_configFor_configSecondaryIP_onSubInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 5.2) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    30.0.80.1/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    30.0.80.1")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to set bootp-gateway configuration " \
+        "for configured secondary IP address on a sub interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
+    assert '5.2                    30.0.80.1' in cmdOut, \
+        "Test to set bootp-gateway configuration " \
+        "for configured secondary IP address on a sub interface failed"
+
+    return True
+
+
+def bootpGateway_configFor_unconfigIP_onInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 19) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    10.0.10.1")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to set bootp-gateway configuration " \
+        "for unconfigured IP address on an interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = devIntReturn.get('buffer')
+    assert 'The BOOTP Gateway 10.0.10.1 is not configured on ' \
+        'this interface.' in cmdOut, "Test to set bootp-gateway " \
+        "configuration for unconfigured IP address on an interface failed"
+
+    return True
+
+
+def bootpGateway_configFor_invalidIP(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 20) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    275.255.255.255")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode != 0, "Test to set bootp-gateway configuration " \
+        "for invalid IP address interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = devIntReturn.get('buffer')
+    assert '% Unknown command.' in cmdOut, "Test to set bootp-gateway " \
+        "configuration for invalid IP address interface failed"
+
+    return True
+
+
+def bootpGateway_unconfigFor_configbootpGateway_onInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 21) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    10.0.20.1/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    10.0.20.1")
+    devIntReturn = dut01.DeviceInteract(command="no ip bootp-gateway \
+    10.0.20.1")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to unset bootp-gateway configuration " \
+        "for configured bootp-gateway on an interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
+    assert '21                    10.0.20.1' not in cmdOut, \
+        "Test to unset bootp-gateway unconfiguration " \
+        "for configured bootp-gateway on an interface failed"
+
+    return True
+
+
+def bootpGateway_unconfigFor_configIP_onInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 22) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    10.0.30.1/24")
+    devIntReturn = dut01.DeviceInteract(command="no ip bootp-gateway \
+    10.0.30.1")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to unset bootp-gateway configuration " \
+        "for configured IP address on an interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = devIntReturn.get('buffer')
+
+    assert 'The BOOTP Gateway 10.0.30.1 is not ' \
+        'found on this interface.' in cmdOut, "Test" \
+        " to unset bootp-gateway configuration for unconfigured" \
+        " IP address on an interface failed"
+
+    return True
+
+
+def bootpGateway_unconfigFor_unconfigIP_onInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 23) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="no ip bootp-gateway \
+    10.0.40.1")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to unset bootp-gateway configuration " \
+        "for unconfigured IP address on an interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = devIntReturn.get('buffer')
+    assert 'The BOOTP Gateway 10.0.40.1 is not ' \
+        'found on this interface.' in cmdOut, "Test" \
+        " to unset bootp-gateway configuration for unconfigured" \
+        " IP address on an interface failed"
+
+    return True
+
+
+def show_bootp_gateway_status(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 17) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    10.0.10.2/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    10.0.10.2")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to show bootp-gateway configuration failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
+    assert '17                    10.0.10.2' in cmdOut, \
+        "Test to show bootp-gateway configuration failed"
+    return True
+
+
+def showBootpGateway_and_helperAddressConfig_onInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 15) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip helper-address \
+    192.168.90.1")
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    10.0.20.2/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    10.0.20.2")
+    devIntReturn = dut01.DeviceInteract(command="no ip helper-address \
+    192.168.90.1")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to show bootp-gateway configuration " \
+        "when the helper-address is unconfigured on an interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
+    assert '15                    10.0.20.2' in cmdOut, \
+        "Test to set bootp-gateway configuration " \
+        "for configured IP address on an interface failed"
+
+    return True
+
+
+def show_bootp_gateway_statusOnSpecifiedInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 26) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    10.0.0.2/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    10.0.0.2")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to show bootp-gateway configuration " \
+        "on specified interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway \
+    interface 26")
+    assert '26                    10.0.0.2' in cmdOut, \
+        "Test to show bootp-gateway configuration on " \
+        "specified interface failed"
+    return True
+
+
+def bootp_gateway_runningConfigTest(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 27) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    10.0.0.3/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    10.0.0.3")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to show bootp-gateway configuration " \
+        "in running config failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show running-config")
+    assert 'Interface: 27' and \
+        'ip bootp-gateway 10.0.0.3' in cmdOut, "Test to " \
+        "show bootp-gateway configuration " \
+        "in running config failed"
+    return True
+
+
+def bootp_gateway_interface_runningConfigTest(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 28) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    10.0.0.6/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    10.0.0.6")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to show bootp-gateway configuration " \
+        "in interface running config failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show running-config \
+    interface 28")
+    assert 'Interface: 28' and \
+        'ip bootp-gateway 10.0.0.6' in cmdOut, "Test to " \
+        "show bootp-gateway configuration " \
+        "in interface running config failed"
     return True
 
 
@@ -1467,10 +1831,10 @@ class Test_dhcp_relay_configuration:
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = dhcp_relay_hop_count_increment_enable(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay hop count " \
+            LogOutput('info', "Enable DHCP-Relay hop count "
                               "increment - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay hop count " \
+            LogOutput('error', "Enable DHCP-Relay hop count "
                                "increment - failed")
 
     def test_dhcp_relay_option_82_enable(self):
@@ -1485,238 +1849,240 @@ class Test_dhcp_relay_configuration:
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = dhcp_relay_option_82_validation_enable(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 hop count " \
+            LogOutput('info', "Enable DHCP-Relay option 82 hop count "
                               "validation - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 hop count " \
+            LogOutput('error', "Enable DHCP-Relay option 82 hop count "
                                "validation - failed")
 
     def test_relay_option_82_with_validation_and_replace(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_validation_and_replace(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 validation with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 validation with "
                               "replace policy - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 validation with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 validation with "
                                "replace policy - failed")
 
     def test_relay_option_82_with_validation_replace_and_mac_rid(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
-        retValue = relay_option_82_with_validation_replace_and_mac_rid(dut01Obj)
+        retValue = \
+            relay_option_82_with_validation_replace_and_mac_rid(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 validation with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 validation with "
                               "replace policy and mac remote ID - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 validation with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 validation with "
                                "replace policy and mac remote ID - failed")
 
     def test_relay_option_82_with_validation_replace_and_ip_rid(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_validation_replace_and_ip_rid(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 validation with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 validation with "
                               "replace policy and ip remote ID - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 validation with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 validation with "
                                "replace policy and ip remote ID - failed")
 
     def test_relay_option_82_with_validation_and_drop(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_validation_and_drop(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 validation with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 validation with "
                               "drop policy - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 validation with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 validation with "
                                "drop policy - failed")
 
     def test_relay_option_82_with_validation_drop_and_mac_rid(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_validation_drop_and_mac_rid(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 validation with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 validation with "
                               "drop policy and mac remote ID - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 validation with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 validation with "
                                "drop policy and mac remote ID - failed")
 
     def test_relay_option_82_with_validation_drop_and_ip_rid(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_validation_drop_and_ip_rid(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 validation with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 validation with "
                               "drop policy and ip remote ID - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 validation with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 validation with "
                                "drop policy and ip remote ID - failed")
 
     def test_relay_option_82_with_keep_policy(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_keep_policy(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 with "
                               "keep policy - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 with "
                                "keep policy - failed")
 
     def test_relay_option_82_with_keep_and_mac_rid(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_keep_and_mac_rid(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 with "
                               "keep policy and mac remote ID - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 with "
                                "keep policy and mac remote ID - failed")
 
     def test_relay_option_82_with_keep_and_ip_rid(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_keep_and_ip_rid(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 with "
                               "keep policy and ip remote ID - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 with "
                                "keep policy and ip remote ID - failed")
 
     def test_relay_option_82_with_replace_policy(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_replace_policy(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 with "
                               "replace policy - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 with "
                                "replace policy - failed")
 
     def test_relay_option_82_with_replace_and_mac_rid(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_replace_and_mac_rid(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 with "
                               "replace policy and mac remote ID - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 with "
                                "replace policy and mac remote ID - failed")
 
     def test_relay_option_82_with_replace_and_ip_rid(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_replace_and_ip_rid(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 with "
                               "replace policy and ip remote ID - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 with "
                                "replace policy and ip remote ID - failed")
 
     def test_relay_option_82_with_replace_and_validation(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_replace_and_validation(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 with "
                               "replace policy and validation - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 with "
                                "replace policy and validation - failed")
 
     def test_relay_option_82_with_replace_validation_and_mac_rid(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
-        retValue = relay_option_82_with_replace_validation_and_mac_rid(dut01Obj)
+        retValue = \
+            relay_option_82_with_replace_validation_and_mac_rid(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 with " \
-                              "replace policy, validation and mac " \
+            LogOutput('info', "Enable DHCP-Relay option 82 with "
+                              "replace policy, validation and mac "
                               "remote ID - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 with " \
-                               "replace policy, validation and mac " \
+            LogOutput('error', "Enable DHCP-Relay option 82 with "
+                               "replace policy, validation and mac "
                                " remote ID - failed")
 
     def test_relay_option_82_with_replace_validation_and_ip_rid(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_replace_validation_and_ip_rid(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 with " \
-                              "replace policy, validation and ip " \
+            LogOutput('info', "Enable DHCP-Relay option 82 with "
+                              "replace policy, validation and ip "
                               "remote ID - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 with " \
-                               "replace policy, validation and ip " \
+            LogOutput('error', "Enable DHCP-Relay option 82 with "
+                               "replace policy, validation and ip "
                                " remote ID - failed")
 
     def test_relay_option_82_with_drop_policy(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_drop_policy(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 with "
                               "drop policy - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 with "
                                "drop policy - failed")
 
     def test_relay_option_82_with_drop_and_mac_rid(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_keep_and_mac_rid(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 with "
                               "drop policy and mac remote ID - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 with "
                                "drop policy and mac remote ID - failed")
 
     def test_relay_option_82_with_drop_and_ip_rid(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_drop_and_ip_rid(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 with "
                               "drop policy and ip remote ID - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 with "
                                "drop policy and ip remote ID - failed")
 
     def test_relay_option_82_with_drop_and_validation(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_drop_and_validation(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 with " \
+            LogOutput('info', "Enable DHCP-Relay option 82 with "
                               "drop policy and validation - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 with " \
+            LogOutput('error', "Enable DHCP-Relay option 82 with "
                                "drop policy and validation - failed")
 
     def test_relay_option_82_with_drop_validation_and_mac_rid(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_drop_validation_and_mac_rid(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 with " \
-                              "drop policy, validation and mac " \
+            LogOutput('info', "Enable DHCP-Relay option 82 with "
+                              "drop policy, validation and mac "
                               "remote ID - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 with " \
-                               "drop policy, validation and mac " \
+            LogOutput('error', "Enable DHCP-Relay option 82 with "
+                               "drop policy, validation and mac "
                                " remote ID - failed")
 
     def test_relay_option_82_with_drop_validation_and_ip_rid(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = relay_option_82_with_drop_validation_and_ip_rid(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 with " \
-                              "drop policy, validation and ip " \
+            LogOutput('info', "Enable DHCP-Relay option 82 with "
+                              "drop policy, validation and ip "
                               "remote ID - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 with " \
-                               "drop policy, validation and ip " \
+            LogOutput('error', "Enable DHCP-Relay option 82 with "
+                               "drop policy, validation and ip "
                                " remote ID - failed")
 
     def test_dhcp_relay_hop_count_increment_disable(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = dhcp_relay_hop_count_increment_disable(dut01Obj)
         if(retValue):
-            LogOutput('info', "Disable DHCP-Relay option 82 hop count " \
+            LogOutput('info', "Disable DHCP-Relay option 82 hop count "
                               "validation - passed")
         else:
-            LogOutput('error', "Disable DHCP-Relay option 82 hop count " \
+            LogOutput('error', "Disable DHCP-Relay option 82 hop count "
                                "validation - failed")
 
     def test_dhcp_relay_option_82_disable(self):
@@ -1731,10 +2097,10 @@ class Test_dhcp_relay_configuration:
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = dhcp_relay_option_82_validation_disable(dut01Obj)
         if(retValue):
-            LogOutput('info', "Disable DHCP-Relay option 82 hop count " \
+            LogOutput('info', "Disable DHCP-Relay option 82 hop count "
                               "validation - passed")
         else:
-            LogOutput('error', "Disable DHCP-Relay option 82 hop count " \
+            LogOutput('error', "Disable DHCP-Relay option 82 hop count "
                                "validation - failed")
 
     def test_show_dhcp_relay(self):
@@ -2026,6 +2392,19 @@ class Test_dhcp_relay_configuration:
             LogOutput('error', "Test to show helper-address "
                                "configuration - failed")
 
+    def test_showHelperAddress_and_bootpGatewayConfig_onInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = \
+            showHelperAddress_and_bootpGatewayConfig_onInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to show helper-address configuration "
+                              "when the bootp-gateway is unconfigured "
+                              "on specified interface - passed")
+        else:
+            LogOutput('error', "Test to show helper-address configuration "
+                               "when the bootp-gateway is unconfigured "
+                               "on specified interface - failed")
+
     def test_show_helper_address_statusOnSpecifiedInterface(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = show_helper_address_statusOnSpecifiedInterface(dut01Obj)
@@ -2059,6 +2438,181 @@ class Test_dhcp_relay_configuration:
                               "running config - passed")
         else:
             LogOutput('error', "Test to show helper-address "
+                               "configuration in interface "
+                               "running config - failed")
+
+    def test_bootpGateway_configFor_configIP_onInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = \
+            bootpGateway_configFor_configIP_onInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to set bootp-gateway configuration "
+                              "for configured IP address on an "
+                              "interface - passed")
+        else:
+            LogOutput('error', "Test to set bootp-gateway configuration "
+                               "for configured IP address on an "
+                               "interface - failed")
+
+    def test_bootpGateway_configFor_configIP_onSubInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = \
+            bootpGateway_configFor_configIP_onSubInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to set bootp-gateway configuration "
+                              "for configured IP address on a "
+                              "sub interface - passed")
+        else:
+            LogOutput('error', "Test to set bootp-gateway configuration "
+                               "for configured IP address on a "
+                               "sub interface - failed")
+
+    def test_bootpGateway_configFor_configSecondaryIP_onInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = \
+            bootpGateway_configFor_configSecondaryIP_onInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to set bootp-gateway configuration "
+                              "for configured secondary IP address on an "
+                              "interface - passed")
+        else:
+            LogOutput('error', "Test to set bootp-gateway configuration "
+                               "for configured secondary IP address on an "
+                               "interface - failed")
+
+    def test_bootpGateway_configFor_configSecondaryIP_onSubInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = \
+            bootpGateway_configFor_configSecondaryIP_onSubInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to set bootp-gateway configuration "
+                              "for configured secondary IP address on a "
+                              "sub interface - passed")
+        else:
+            LogOutput('error', "Test to set bootp-gateway configuration "
+                               "for configured secondary IP address on a "
+                               "sub interface - failed")
+
+    def test_bootpGateway_configFor_unconfigIP_onInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = \
+            bootpGateway_configFor_unconfigIP_onInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to set bootp-gateway configuration "
+                              "for unconfigured IP address on an "
+                              "interface - passed")
+        else:
+            LogOutput('error', "Test to set bootp-gateway configuration "
+                               "for unconfigured IP address on an "
+                               "interface - failed")
+
+    def test_bootpGateway_configFor_invalidIP(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = bootpGateway_configFor_invalidIP(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to set bootp-gateway configuration "
+                              "for configured IP address on an "
+                              "interface - passed")
+        else:
+            LogOutput('error', "Test to set bootp-gateway configuration "
+                               "for configured IP address on an "
+                               "interface - failed")
+
+    def test_bootpGateway_unconfigFor_configbootpGateway_onInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = \
+            bootpGateway_unconfigFor_configbootpGateway_onInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to unset bootp-gateway configuration "
+                              "for configured bootp-gateway on an "
+                              "interface - passed")
+        else:
+            LogOutput('error', "Test to unset bootp-gateway configuration "
+                               "for configured bootp-gateway on an "
+                               "interface - failed")
+
+    def test_bootpGateway_unconfigFor_configIP_onInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = \
+            bootpGateway_unconfigFor_configIP_onInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to unset bootp-gateway configuration "
+                              "for configured IP address on an "
+                              "interface - passed")
+        else:
+            LogOutput('error', "Test to unset bootp-gateway configuration "
+                               "for configured IP address on an "
+                               "interface - failed")
+
+    def test_bootpGateway_unconfigFor_unconfigIP_onInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = \
+            bootpGateway_unconfigFor_unconfigIP_onInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to unset bootp-gateway configuration "
+                              "for unconfigured IP address on an "
+                              "interface - passed")
+        else:
+            LogOutput('error', "Test to unset bootp-gateway configuration "
+                               "for unconfigured IP address on an "
+                               "interface - failed")
+
+    def test_show_bootp_gateway_status(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = show_bootp_gateway_status(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to show bootp-gateway "
+                              "configuration - passed")
+        else:
+            LogOutput('error', "Test to show bootp-gateway "
+                               "configuration - failed")
+
+    def test_showBootpGateway_and_helperAddressConfig_onInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = \
+            showBootpGateway_and_helperAddressConfig_onInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to show bootp-gateway configuration "
+                              "when the helper-address is unconfigured "
+                              "on specified interface - passed")
+        else:
+            LogOutput('error', "Test to show bootp-gateway configuration "
+                               "when the helper-address is unconfigured "
+                               "on specified interface - failed")
+
+    def test_show_bootp_gateway_statusOnSpecifiedInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = show_bootp_gateway_statusOnSpecifiedInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to show bootp-gateway "
+                              "configuration on specified "
+                              "interface - passed")
+        else:
+            LogOutput('error', "Test to show bootp-gateway "
+                               "configuration on specified "
+                               "interface - failed")
+
+    def test_bootp_gateway_runningConfigTest(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = bootp_gateway_runningConfigTest(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to show bootp-gateway "
+                              "configuration in running "
+                              "config - passed")
+        else:
+            LogOutput('error', "Test to show bootp-gateway "
+                               "configuration in running "
+                               "config - failed")
+
+    def test_bootp_gateway_interface_runningConfigTest(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = bootp_gateway_interface_runningConfigTest(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to show bootp-gateway"
+                              "configuration in interface "
+                              "running config - passed")
+        else:
+            LogOutput('error', "Test to show bootp-gateway "
                                "configuration in interface "
                                "running config - failed")
 
