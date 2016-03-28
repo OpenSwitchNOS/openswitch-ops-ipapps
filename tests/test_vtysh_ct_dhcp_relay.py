@@ -815,7 +815,6 @@ def relay_option82_keepRunningConfigTest(dut01):
     return True
 
 
-
 def relay_option82_replaceRunningConfigTest(dut01):
     if (enterConfigShell(dut01) is False):
         return False
@@ -1380,6 +1379,240 @@ def helper_address_interface_runningConfigTest(dut01):
         'ip helper-address 192.168.90.78' in cmdOut, "Test to show " \
         "helper-address configuration in running config failed"
 
+    return True
+
+
+def bootpGateway_configFor_configIP_onInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 1) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    192.168.10.1/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    192.168.10.1")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to set bootp-gateway configuration " \
+        "for configured IP address on an interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
+    assert '1                    192.168.10.1' in cmdOut, \
+        "Test to set bootp-gateway configuration " \
+        "for configured IP address on an interface failed"
+
+    return True
+
+
+def bootpGateway_configFor_unconfigIP_onInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 1) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    192.168.10.24")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to set bootp-gateway configuration " \
+        "for unconfigured IP address on an interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = devIntReturn.get('buffer')
+    assert 'The BOOTP Gateway 192.168.10.24 is not configured on ' \
+        'this interface.' in cmdOut, "Test to set bootp-gateway " \
+        "configuration for unconfigured IP address on an interface failed"
+
+    return True
+
+
+def bootpGateway_configFor_invalidIP(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 1) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    275.255.255.255")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode != 0, "Test to set bootp-gateway configuration " \
+        "for invalid IP address interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = devIntReturn.get('buffer')
+    assert '% Unknown command.' in cmdOut, "Test to set bootp-gateway " \
+        "configuration for invalid IP address interface failed"
+
+    return True
+
+
+def bootpGateway_unconfigFor_configbootpGateway_onInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 8) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    192.168.10.1/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    192.168.10.1")
+    devIntReturn = dut01.DeviceInteract(command="no ip bootp-gateway \
+    192.168.10.1")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to unset bootp-gateway configuration " \
+        "for configured bootp-gateway on an interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
+    assert '8                    192.168.10.1' not in cmdOut, \
+        "Test to unset bootp-gateway unconfiguration " \
+        "for configured bootp-gateway on an interface failed"
+
+    return True
+
+
+def bootpGateway_unconfigFor_configIP_onInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 6) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    192.168.20.1/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    192.168.20.1")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to unset bootp-gateway configuration " \
+        "for configured IP address on an interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
+    assert 'The BOOTP Gateway 192.168.10.26 is not ' \
+        'found on this interface.' in cmdOut, "Test" \
+        " to unset bootp-gateway configuration for configured" \
+        " IP address on an interface failed"
+
+    return True
+
+
+def bootpGateway_unconfigFor_unconfigIP_onInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 5) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="no ip bootp-gateway \
+    192.168.10.26")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to unset bootp-gateway configuration " \
+        "for unconfigured IP address on an interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = devIntReturn.get('buffer')
+    assert 'The BOOTP Gateway 192.168.10.26 is not ' \
+        'found on this interface.' in cmdOut, "Test" \
+        " to unset bootp-gateway configuration for unconfigured" \
+        " IP address on an interface failed"
+
+    return True
+
+
+def show_bootp_gateway_status(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 3) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    10.0.0.1/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    10.0.0.1")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to show bootp-gateway configuration failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
+    assert '3                    10.0.0.1' in cmdOut, \
+        "Test to show bootp-gateway configuration failed"
+    return True
+
+
+def show_bootp_gateway_statusOnSpecifiedInterface(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 2) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    10.0.0.2/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    10.0.0.2")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to show bootp-gateway configuration " \
+        "on specified interface failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
+    assert '2                    10.0.0.2' in cmdOut, \
+        "Test to show bootp-gateway configuration on " \
+        "specified interface failed"
+    return True
+
+
+def bootp_gateway_runningConfigTest(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 4) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    10.0.0.3/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    10.0.0.3")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to show bootp-gateway configuration " \
+        "in running config failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show running-config")
+    assert 'Interface: 4' and \
+        'ip bootp-gateway 10.0.0.3' in cmdOut, "Test to " \
+        "show bootp-gateway configuration " \
+        "in running config failed"
+    return True
+
+
+def bootp_gateway_interface_runningConfigTest(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    if (enterInterfaceContext(dut01, 4) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="ip address \
+    10.0.0.6/24")
+    devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
+    10.0.0.6")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to show bootp-gateway configuration " \
+        "in interface running config failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show running-config \
+    interface 4")
+    assert 'Interface: 4' and \
+        'ip bootp-gateway 10.0.0.6' in cmdOut, "Test to " \
+        "show bootp-gateway configuration " \
+        "in interface running config failed"
     return True
 
 
@@ -2059,6 +2292,129 @@ class Test_dhcp_relay_configuration:
                               "running config - passed")
         else:
             LogOutput('error', "Test to show helper-address "
+                               "configuration in interface "
+                               "running config - failed")
+
+    def test_bootpGateway_configFor_configIP_onInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = \
+            bootpGateway_configFor_configIP_onInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to set bootp-gateway configuration "
+                              "for configured IP address on an "
+                              "interface - passed")
+        else:
+            LogOutput('error', "Test to set bootp-gateway configuration "
+                               "for configured IP address on an "
+                               "interface - failed")
+
+    def test_bootpGateway_configFor_unconfigIP_onInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = \
+            bootpGateway_configFor_unconfigIP_onInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to set bootp-gateway configuration "
+                              "for unconfigured IP address on an "
+                              "interface - passed")
+        else:
+            LogOutput('error', "Test to set bootp-gateway configuration "
+                               "for unconfigured IP address on an "
+                               "interface - failed")
+
+    def test_bootpGateway_configFor_invalidIP(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = bootpGateway_configFor_invalidIP(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to set bootp-gateway configuration "
+                              "for configured IP address on an "
+                              "interface - passed")
+        else:
+            LogOutput('error', "Test to set bootp-gateway configuration "
+                               "for configured IP address on an "
+                               "interface - failed")
+
+    def test_bootpGateway_unconfigFor_configbootpGateway_onInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = \
+            bootpGateway_unconfigFor_configbootpGateway_onInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to unset bootp-gateway configuration "
+                              "for configured bootp-gateway on an "
+                              "interface - passed")
+        else:
+            LogOutput('error', "Test to unset bootp-gateway configuration "
+                               "for configured bootp-gateway on an "
+                               "interface - failed")
+
+    def test_bootpGateway_unconfigFor_configIP_onInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = \
+            bootpGateway_unconfigFor_configIP_onInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to unset bootp-gateway configuration "
+                              "for configured IP address on an "
+                              "interface - passed")
+        else:
+            LogOutput('error', "Test to unset bootp-gateway configuration "
+                               "for configured IP address on an "
+                               "interface - failed")
+
+    def test_bootpGateway_unconfigFor_unconfigIP_onInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = \
+            bootpGateway_unconfigFor_unconfigIP_onInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to unset bootp-gateway configuration "
+                              "for unconfigured IP address on an "
+                              "interface - passed")
+        else:
+            LogOutput('error', "Test to unset bootp-gateway configuration "
+                               "for unconfigured IP address on an "
+                               "interface - failed")
+
+    def test_show_bootp_gateway_status(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = show_bootp_gateway_status(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to show bootp-gateway "
+                              "configuration - passed")
+        else:
+            LogOutput('error', "Test to show bootp-gateway "
+                               "configuration - failed")
+
+    def test_show_bootp_gateway_statusOnSpecifiedInterface(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = show_bootp_gateway_statusOnSpecifiedInterface(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to show bootp-gateway "
+                              "configuration on specified "
+                              "interface - passed")
+        else:
+            LogOutput('error', "Test to show bootp-gateway "
+                               "configuration on specified "
+                               "interface - failed")
+
+    def test_bootp_gateway_runningConfigTest(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = bootp_gateway_runningConfigTest(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to show bootp-gateway "
+                              "configuration in running "
+                              "config - passed")
+        else:
+            LogOutput('error', "Test to show bootp-gateway "
+                               "configuration in running "
+                               "config - failed")
+
+    def test_bootp_gateway_interface_runningConfigTest(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = bootp_gateway_interface_runningConfigTest(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Test to show bootp-gateway"
+                              "configuration in interface "
+                              "running config - passed")
+        else:
+            LogOutput('error', "Test to show bootp-gateway "
                                "configuration in interface "
                                "running config - failed")
 

@@ -77,4 +77,6 @@ extern int8_t
 show_ip_helper_address_config (const char *);
 extern int8_t
 show_udp_forwarder_configuration (const char *);
+extern const struct
+ovsrec_vrf* udp_bcast_config_vrf_lookup(const char *);
 #endif /* udpfwd_vty_utils.h */

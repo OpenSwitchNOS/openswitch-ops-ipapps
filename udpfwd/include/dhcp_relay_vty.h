@@ -32,10 +32,16 @@
 "Configure dhcp-relay\n"
 #define HELPER_ADDRESS_STR \
 "Configure the helper-address for dhcp-relay\n"
+#define BOOTP_GATEWAY_STR \
+"Set the gateway address to be used for stamping incoming DHCP requests\n"
 #define SHOW_DHCP_RELAY_STR \
 "Show dhcp-relay configuration\n"
 #define SHOW_HELPER_ADDRESS_STR \
 "Show the helper-address for dhcp-relay configuration\n"
+#define SHOW_BOOTP_GATEWAY_STR \
+"Show the BOOTP gateway address configuration"
+#define BOOTP_GATEWAY_INPUT_STR \
+"IPv4 address of the BOOTP gateway\n"
 #define HELPER_ADDRESS_INPUT_STR \
 "Enter helper address\n"
 
@@ -60,15 +66,6 @@
 #define MAC_STR \
 "Use the MAC address of the router as the option 82 remote ID (this is the default)\n"
 
-/* FIXME: Temporary addition. Once macro definitions are merged in idl, this shall shall be removed */
-#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_DISABLED    "v4relay_disabled"
-#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_ENABLED "v4relay_option82_enabled"
-#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_POLICY "v4relay_option82_policy"
-#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_VALIDATION_ENABLED "v4relay_option82_validation_enabled"
-#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_REMOTE_ID "v4relay_option82_remote_id"
-#define SYSTEM_DHCP_CONFIG_MAP_V4RELAY_HOP_COUNT_INCREMENT_DISABLED "v4relay_hop_count_increment_disabled"
-#define DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY    "bootp_gateway"
-
 /* Defuns for dhcp-relay */
 extern struct cmd_element dhcp_relay_configuration_cmd;
 extern struct cmd_element dhcp_relay_options_configuration_cmd;
@@ -90,6 +87,9 @@ extern struct cmd_element show_dhcp_relay_configuration_cmd;
 extern struct cmd_element ip_helper_address_configuration_cmd;
 extern struct cmd_element no_ip_helper_address_configuration_cmd;
 extern struct cmd_element show_ip_helper_address_configuration_cmd;
+extern struct cmd_element ip_bootp_gateway_configuration_cmd;
+extern struct cmd_element no_ip_bootp_gateway_configuration_cmd;
+extern struct cmd_element show_dhcp_relay_bootp_gateway_configuration_cmd;
 
 
 #endif /* dhcp_relay_vty.h */
