@@ -811,6 +811,141 @@ udpfwd_serverconfig (udpfwd_server *udpfwdServ, bool set)
 }
 
 /*-----------------------------------------------------------------------------
+| Function         : dhcp_relay_bootp_gateway_config
+| Responsibility   : Set/unset dhcp-relay bootp-gateway.
+| Parameters       :
+|  *gatewayAddress : Pointer containing bootp-gateway
+|      set         : Flag to set or unset
+| Return           : On success returns CMD_SUCCESS,
+|                    On failure returns CMD_OVSDB_FAILURE
+-----------------------------------------------------------------------------*/
+int8_t
+dhcp_relay_bootp_gateway_config (const char *gatewayAddress, bool set)
+{
+    const struct ovsrec_dhcp_relay *row = NULL;
+    const struct ovsrec_port *port_row = NULL;
+    struct smap smap_status_value;
+    struct ovsdb_idl_txn *status_txn = cli_do_config_start();
+    enum ovsdb_idl_txn_status txn_status;
+    bool isAddrMatch = false;
+    char *mask = NULL;
+    size_t maskPosition, i;
+
+    if (status_txn == NULL)
+    {
+        VLOG_ERR(OVSDB_TXN_CREATE_ERROR);
+        cli_do_config_abort(status_txn);
+        return CMD_OVSDB_FAILURE;
+    }
+
+    OVSREC_PORT_FOR_EACH (port_row, idl)
+    {
+        if(!strcmp(port_row->name, (char *)vty->index))
+        {
+            mask = strchr(port_row->ip4_address, '/');
+            maskPosition = mask - (port_row->ip4_address);
+            if(!strncmp(gatewayAddress, port_row->ip4_address, maskPosition))
+            {
+                isAddrMatch = true;
+                break;
+            }
+
+            for (i = 0; i < port_row->n_ip4_address_secondary; i++) {
+                mask = strchr(port_row->ip4_address_secondary[i], '/');
+                maskPosition = mask - (port_row->ip4_address_secondary[i]);
+                if(!strncmp(gatewayAddress,
+                   port_row->ip4_address_secondary[i], maskPosition))
+                {
+                    isAddrMatch = true;
+                    break;
+                }
+            if (isAddrMatch)
+                break;
+
+            }
+        }
+    }
+
+    if (set)
+    {
+        if(NULL == row)
+        {
+            row = ovsrec_dhcp_relay_insert(status_txn);
+            /* Update the dhcp-relay table. */
+            if (!udpfwd_setcommoncolumn((void *)row, DHCP_RELAY))
+            {
+                cli_do_config_abort(status_txn);
+                return CMD_OVSDB_FAILURE;
+            }
+
+            if (isAddrMatch)
+            {
+                /* Update the bootp-gateway IP. */
+                smap_clone(&smap_status_value, &row->other_config);
+                smap_replace(&smap_status_value,
+                DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY, gatewayAddress);
+                ovsrec_dhcp_relay_set_other_config(row, &smap_status_value);
+                smap_destroy(&smap_status_value);
+            }
+            else
+            {
+               /* Unconfigured IP address on the interface. */
+                vty_out(vty, "The BOOTP Gateway %s is not configured on " \
+                        "this interface.%s",gatewayAddress, VTY_NEWLINE);
+                cli_do_config_abort(status_txn);
+                return CMD_SUCCESS;
+            }
+
+        }
+        else
+        {
+            if (isAddrMatch)
+            {
+                /* Update the bootp-gateway IP. */
+                smap_clone(&smap_status_value, &row->other_config);
+                smap_replace(&smap_status_value,
+                DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY, gatewayAddress);
+                ovsrec_dhcp_relay_set_other_config(row, &smap_status_value);
+                smap_destroy(&smap_status_value);
+            }
+            else
+            {
+                /* Unconfigured IP address on the interface. */
+                vty_out(vty, "The BOOTP Gateway %s is not configured on " \
+                        "this interface.%s",gatewayAddress, VTY_NEWLINE);
+                cli_do_config_abort(status_txn);
+                return CMD_SUCCESS;
+            }
+        }
+    }
+    else
+    {
+        if (NULL == row || (!isAddrMatch))
+        {
+            vty_out(vty, "The BOOTP Gateway %s is not configured on " \
+                        "this interface.%s",gatewayAddress, VTY_NEWLINE);
+            cli_do_config_abort(status_txn);
+            return CMD_SUCCESS;
+        }
+        else
+        {
+            ovsrec_dhcp_relay_delete(row);
+        }
+    }
+
+    txn_status = cli_do_config_finish(status_txn);
+
+    if (txn_status == TXN_SUCCESS || txn_status == TXN_UNCHANGED)
+    {
+        return CMD_SUCCESS;
+    }
+    else
+    {
+        VLOG_ERR(OVSDB_TXN_COMMIT_ERROR);
+        return CMD_OVSDB_FAILURE;
+    }
+}
+/*-----------------------------------------------------------------------------
 | Responsibility : To show the dhcp-relay helper-address configurations.
 | Parameters     :
 |      *portname : Name of the Port
@@ -1001,5 +1136,74 @@ show_udp_forwarder_configuration (const char *ifname)
         }
     }
 
+    return CMD_SUCCESS;
+}
+
+/*-----------------------------------------------------------------------------
+| Responsibility : To show the dhcp-relay bootp-gateway configurations.
+| Parameters     :
+|      *portname : Name of the Port
+| Return         : On success returns CMD_SUCCESS,
+|                  On failure returns CMD_OVSDB_FAILURE
+-----------------------------------------------------------------------------*/
+int8_t
+show_dhcp_relay_bootp_gateway_config (const char *portname)
+{
+    const struct ovsrec_dhcp_relay *row = NULL;
+    char *buff = NULL;
+
+    vty_out(vty, " BOOTP Gateway Entries%s", VTY_NEWLINE);
+    vty_out(vty, "%s Interface            BOOTP Gateway%s",
+            VTY_NEWLINE, VTY_NEWLINE);
+    vty_out(vty, " -------------------- ---------------%s",
+            VTY_NEWLINE);
+
+    row = ovsrec_dhcp_relay_first(idl);
+    if (!row)
+    {
+        return CMD_SUCCESS;
+    }
+
+    OVSREC_DHCP_RELAY_FOR_EACH (row, idl)
+    {
+        /* Get the interface details. */
+        if (row->port)
+        {
+            if (portname)
+            {
+                if (strcmp(row->port->name, portname) == 0)
+                {
+                    buff = (char *)smap_get(&row->other_config,
+                             DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY);
+                    if(buff)
+                    {
+                        vty_out(vty, " %s%20s%s%s", row->port->name, "",
+                                buff, VTY_NEWLINE);
+
+                    }
+                    else
+                    {
+                        return CMD_SUCCESS;
+                    }
+
+                }
+            }
+            else
+            {
+                buff = (char *)smap_get(&row->other_config,
+                             DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY);
+                if(buff)
+                {
+                    vty_out(vty, " %s%20s%s%s", row->port->name, "",
+                            buff, VTY_NEWLINE);
+
+                }
+                else
+                {
+                    return CMD_SUCCESS;
+                }
+            }
+        }
+    }
     return CMD_SUCCESS;
 }

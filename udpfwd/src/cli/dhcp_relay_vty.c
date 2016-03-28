@@ -1198,6 +1198,39 @@ DEFUN(ip_helper_address_configuration,
 }
 
 /*-----------------------------------------------------------------------------
+| Defun ip bootp-gateway configuration
+| Responsibility: Set a bootp-gateway for a dhcp-relay
+-----------------------------------------------------------------------------*/
+DEFUN(ip_bootp_gateway_configuration,
+      ip_bootp_gateway_configuration_cmd,
+      "ip bootp-gateway A.B.C.D ",
+      IP_STR
+      BOOTP_GATEWAY_STR
+      BOOTP_GATEWAY_INPUT_STR)
+{
+    struct in_addr addr;
+    memset (&addr, 0, sizeof (struct in_addr));
+
+    /* Validate bootp-gateway address. */
+    if (inet_pton (AF_INET, (char*)argv[0], &addr)<= 0)
+    {
+        vty_out(vty, "Invalid IPv4 address.%s", VTY_NEWLINE);
+        return CMD_SUCCESS;
+    }
+
+    if (!IS_VALID_IPV4(htonl(addr.s_addr)))
+    {
+        vty_out(vty,
+                "Broadcast, multicast and loopback addresses "
+                "are not allowed.%s",
+                VTY_NEWLINE);
+        return CMD_SUCCESS;
+    }
+
+        return dhcp_relay_bootp_gateway_config(argv[0], SET);
+
+}
+/*-----------------------------------------------------------------------------
 | Defun ip helper-address unconfiguration
 | Responsibility: Unset a helper-addresses for a dhcp-relay
 -----------------------------------------------------------------------------*/
@@ -1224,6 +1257,40 @@ DEFUN(no_ip_helper_address_configuration,
 }
 
 /*-----------------------------------------------------------------------------
+| Defun ip bootp-gateway unconfiguration
+| Responsibility: Unset a bootp-gateway for a dhcp-relay
+-----------------------------------------------------------------------------*/
+DEFUN(no_ip_bootp_gateway_configuration,
+      no_ip_bootp_gateway_configuration_cmd,
+      "no ip bootp-gateway A.B.C.D ",
+      NO_STR
+      IP_STR
+      BOOTP_GATEWAY_STR
+      BOOTP_GATEWAY_INPUT_STR)
+{
+    struct in_addr addr;
+    memset (&addr, 0, sizeof (struct in_addr));
+
+    /* Validate bootp-gateway address. */
+    if (inet_pton (AF_INET, (char*)argv[0], &addr)<= 0)
+    {
+        vty_out(vty, "Invalid IPv4 address.%s", VTY_NEWLINE);
+        return CMD_SUCCESS;
+    }
+
+    if (!IS_VALID_IPV4(htonl(addr.s_addr)))
+    {
+        vty_out(vty,
+                "Broadcast, multicast and loopback addresses "
+                "are not allowed.%s",
+                VTY_NEWLINE);
+        return CMD_SUCCESS;
+    }
+
+        return dhcp_relay_bootp_gateway_config(argv[0], UNSET);
+
+}
+/*-----------------------------------------------------------------------------
 | Defun for show ip helper-address
 | Responsibility: Displays the helper-addresses of a dhcp-relay
 -----------------------------------------------------------------------------*/
@@ -1238,4 +1305,21 @@ DEFUN(show_ip_helper_address_configuration,
       SUBIFNAME_STR)
 {
     return show_ip_helper_address_config(argv[0]);
+}
+
+/*-----------------------------------------------------------------------------
+| Defun for show dhcp-relay bootp-gateway
+| Responsibility: Displays the gateways of a dhcp-relay
+-----------------------------------------------------------------------------*/
+DEFUN(show_dhcp_relay_bootp_gateway_configuration,
+      show_dhcp_relay_bootp_gateway_configuration_cmd,
+      "show dhcp-relay bootp-gateway {interface (IFNAME | A.B )} ",
+      SHOW_STR
+      SHOW_DHCP_RELAY_STR
+      BOOTP_GATEWAY_STR
+      INTERFACE_STR
+      IFNAME_STR
+      SUBIFNAME_STR)
+{
+    return show_dhcp_relay_bootp_gateway_config(argv[0]);
 }

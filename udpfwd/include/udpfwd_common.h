@@ -26,6 +26,7 @@
 
 #include "openvswitch/types.h"
 
+#define DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY    "bootp_gateway"
 /* Feature bit map */
 typedef uint16_t feature_bmap;
 

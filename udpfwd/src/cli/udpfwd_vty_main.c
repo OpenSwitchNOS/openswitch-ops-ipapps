@@ -142,8 +142,15 @@ cli_post_init(void)
     install_element (SUB_INTERFACE_NODE, &ip_helper_address_configuration_cmd);
     install_element (SUB_INTERFACE_NODE,
                      &no_ip_helper_address_configuration_cmd);
+    install_element(INTERFACE_NODE, &ip_bootp_gateway_configuration_cmd);
+    install_element(INTERFACE_NODE, &no_ip_bootp_gateway_configuration_cmd);
+    install_element(SUB_INTERFACE_NODE, &ip_bootp_gateway_configuration_cmd);
+    install_element(SUB_INTERFACE_NODE,
+                     &no_ip_bootp_gateway_configuration_cmd);
     install_element (ENABLE_NODE, &show_dhcp_relay_configuration_cmd);
     install_element (ENABLE_NODE, &show_ip_helper_address_configuration_cmd);
+    install_element(ENABLE_NODE,
+                    &show_dhcp_relay_bootp_gateway_configuration_cmd);
 
     /* UDP Forwarder */
     install_element(CONFIG_NODE, &cli_udp_bcast_fwd_enable_cmd);
