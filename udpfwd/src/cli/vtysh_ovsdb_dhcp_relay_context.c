@@ -81,10 +81,11 @@ vtysh_dhcp_relay_context_clientcallback (void *p_private)
                  SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_VALIDATION_ENABLED);
     policy = (char *)smap_get(&ovs_row->dhcp_config,
                  SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_POLICY);
+    if (policy == NULL)
+        policy = "replace";
     remote_id = (char *)smap_get(&ovs_row->dhcp_config,
                  SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_REMOTE_ID);
     if (status && !strcmp(status, "true")) {
-
         if (policy != NULL) {
             if (validation_status && !strcmp(validation_status, "true")) {
                 if (remote_id && !strcmp(remote_id, "ip")) {

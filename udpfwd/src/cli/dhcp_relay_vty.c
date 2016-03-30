@@ -496,7 +496,7 @@ dhcp_relay_bootp_gateway_config(const char *gatewayAddress, bool set)
             buff = (char *)smap_get(&row->other_config,
                                 DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY);
 
-            if (strcmp(buff, gatewayAddress) == 0)
+            if (buff && strcmp(buff, gatewayAddress) == 0)
             {
                 if (row->n_ipv4_ucast_server)
                 {
@@ -560,7 +560,7 @@ show_dhcp_relay_bootp_gateway_config(const char *portname)
     const struct ovsrec_dhcp_relay *row = NULL;
     char *buff = NULL;
 
-    vty_out(vty, " BOOTP Gateway Entries%s", VTY_NEWLINE);
+    vty_out(vty, "%s BOOTP Gateway Entries%s", VTY_NEWLINE, VTY_NEWLINE);
     vty_out(vty, "%s Interface            BOOTP Gateway%s",
             VTY_NEWLINE, VTY_NEWLINE);
     vty_out(vty, " -------------------- ---------------%s",
@@ -585,7 +585,7 @@ show_dhcp_relay_bootp_gateway_config(const char *portname)
                              DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY);
                     if (buff)
                     {
-                        vty_out(vty, " %s%20s%s%s", row->port->name, "",
+                        vty_out(vty, " %-20s %s%s", row->port->name,
                                 buff, VTY_NEWLINE);
 
                     }
@@ -599,7 +599,7 @@ show_dhcp_relay_bootp_gateway_config(const char *portname)
                              DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY);
                 if (buff)
                 {
-                    vty_out(vty, " %s%20s%s%s", row->port->name, "",
+                    vty_out(vty, " %-20s %s%s", row->port->name,
                             buff, VTY_NEWLINE);
                 }
 

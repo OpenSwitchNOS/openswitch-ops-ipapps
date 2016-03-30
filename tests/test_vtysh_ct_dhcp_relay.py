@@ -1088,7 +1088,7 @@ def helper_addressConfigurationFor_multicastServerIp(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = devIntReturn.get('buffer')
-    assert 'Broadcast, multicast and loopback addresses are not allowed.' \
+    assert 'Multicast and loopback addresses are not allowed.' \
         in cmdOut, "Test to validate helper-address configuration " \
         "for multicast server IP failed"
 
@@ -1110,9 +1110,8 @@ def helper_addressConfigurationFor_broadcastServerIp(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = devIntReturn.get('buffer')
-    assert 'Broadcast, multicast and loopback addresses are not allowed.' \
-        in cmdOut, "Test to validate helper-address configuration " \
-        "for broadcast server IP failed"
+    assert 'Interface: 1' and '225.255.255.255' in cmdOut, "Test to " \
+        "validate helper-address configuration for broadcast server IP failed"
 
     return True
 
@@ -1132,7 +1131,7 @@ def helper_addressConfigurationFor_loopbackServerIp(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = devIntReturn.get('buffer')
-    assert 'Broadcast, multicast and loopback addresses are not allowed.' \
+    assert 'Multicast and loopback addresses are not allowed.' \
         in cmdOut, "Test to validate helper-address configuration " \
         "for loopback server IP failed"
 
@@ -1428,7 +1427,7 @@ def bootpGateway_configFor_configIP_onInterface(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
-    assert '18                    10.0.80.1' in cmdOut, \
+    assert '18                   10.0.80.1' in cmdOut, \
         "Test to set bootp-gateway configuration " \
         "for configured IP address on an interface failed"
 
@@ -1452,7 +1451,7 @@ def bootpGateway_configFor_configIP_onSubInterface(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
-    assert '10.1                    20.0.80.1' in cmdOut, \
+    assert '10.1                 20.0.80.1' in cmdOut, \
         "Test to set bootp-gateway configuration " \
         "for configured IP address on a sub interface failed"
 
@@ -1476,7 +1475,7 @@ def bootpGateway_configFor_configSecondaryIP_onInterface(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
-    assert '14                    50.0.80.1' in cmdOut, \
+    assert '14                   50.0.80.1' in cmdOut, \
         "Test to set bootp-gateway configuration " \
         "for configured secondary IP address on an interface failed"
 
@@ -1500,7 +1499,7 @@ def bootpGateway_configFor_configSecondaryIP_onSubInterface(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
-    assert '5.2                    30.0.80.1' in cmdOut, \
+    assert '5.2                  30.0.80.1' in cmdOut, \
         "Test to set bootp-gateway configuration " \
         "for configured secondary IP address on a sub interface failed"
 
@@ -1641,7 +1640,7 @@ def show_bootp_gateway_status(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
-    assert '17                    10.0.10.2' in cmdOut, \
+    assert '17                   10.0.10.2' in cmdOut, \
         "Test to show bootp-gateway configuration failed"
     return True
 
@@ -1650,7 +1649,7 @@ def showBootpGateway_and_helperAddressConfig_onInterface(dut01):
     if (enterConfigShell(dut01) is False):
         return False
 
-    if (enterInterfaceContext(dut01, 15) is False):
+    if (enterInterfaceContext(dut01, 16) is False):
         return False
 
     devIntReturn = dut01.DeviceInteract(command="ip helper-address \
@@ -1667,7 +1666,7 @@ def showBootpGateway_and_helperAddressConfig_onInterface(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
-    assert '15                    10.0.20.2' in cmdOut, \
+    assert '16                   10.0.20.2' in cmdOut, \
         "Test to set bootp-gateway configuration " \
         "for configured IP address on an interface failed"
 
@@ -1692,7 +1691,7 @@ def show_bootp_gateway_statusOnSpecifiedInterface(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway \
     interface 26")
-    assert '26                    10.0.0.2' in cmdOut, \
+    assert '26                   10.0.0.2' in cmdOut, \
         "Test to show bootp-gateway configuration on " \
         "specified interface failed"
     return True
