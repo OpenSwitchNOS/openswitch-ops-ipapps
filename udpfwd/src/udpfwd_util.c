@@ -361,11 +361,13 @@ void getMacfromIfname(MAC_ADDRESS mac, char * ifName)
 /*
  * Function      : getIpAddressfromIfname
  * Responsiblity : This function is used to get IP address associated
- *                 with a interface.
+ *                 with a interface and also check if ip address exists on
+ *                 an interface.
  * Parameters    : ifName - interface name
+ *                 address - ip address
  * Return        : ip address if found otherwise 0
  */
-IP_ADDRESS getIpAddressfromIfname(char *ifName)
+IP_ADDRESS getIpAddressfromIfname(char *ifName, IP_ADDRESS address)
 {
     struct ifaddrs *ifaddr, *ifaddr_iter;
     struct sockaddr_in *res;
@@ -385,7 +387,13 @@ IP_ADDRESS getIpAddressfromIfname(char *ifName)
             {
                 res = (struct sockaddr_in *)ifaddr_iter->ifa_addr;
                 ip = res->sin_addr.s_addr;
-                if ( lowest_ip > ip)
+                if (address)
+                    if (ip == address)
+                    {
+                        lowest_ip = ip;
+                        break;
+                    }
+                if (lowest_ip > ip)
                     lowest_ip = ip;
             }
         }

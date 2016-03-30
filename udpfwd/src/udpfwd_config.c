@@ -434,7 +434,6 @@ void udpfwd_handle_dhcp_relay_row_delete(struct ovsdb_idl *idl)
     UDPFWD_SERVER_T servers[MAX_UDP_BCAST_SERVER_PER_INTERFACE];
     UDPFWD_SERVER_T *arrayPtr = NULL;
     bool found = false;
-
     /* Walk the server configuration hash table per "port" to
      * see if the corresponding record is deleted */
     SHASH_FOR_EACH_SAFE(node, next, &udpfwd_ctrl_cb_p->intfHashTable) {
@@ -451,6 +450,34 @@ void udpfwd_handle_dhcp_relay_row_delete(struct ovsdb_idl *idl)
 
         if (false == found) {
             intf = (UDPFWD_INTERFACE_NODE_T *)node->data;
+            intf->bootp_gw = 0;
+            if ((NULL == intf->serverArray[0]) && (intf->addrCount ==0))
+            {
+                VLOG_INFO("All configuration on the interface : %s are removed."
+                      " Freeing interface entry", intf->portName);
+
+                /* Delete the entire IP reference table */
+                free(intf->serverArray);
+                /* Make interface table entry NULL, as no helper IP is configured */
+                intf->serverArray = NULL;
+
+                node = shash_find(&udpfwd_ctrl_cb_p->intfHashTable,
+                          intf->portName);
+                if (NULL != node)
+                {
+                    shash_delete(&udpfwd_ctrl_cb_p->intfHashTable, node);
+                }
+                else
+                {
+                    VLOG_ERR("Interface node not found in hash table : %s",
+                     intf->portName);
+                }
+                if (NULL != intf->portName)
+                free(intf->portName);
+
+                free(intf);
+                continue;
+            }
             memset(servers, 0, sizeof(servers));
             arrayPtr = (UDPFWD_SERVER_T *)servers;
             addrCount = intf->addrCount;
@@ -464,7 +491,7 @@ void udpfwd_handle_dhcp_relay_row_delete(struct ovsdb_idl *idl)
                 }
             }
 
-            /* Delete the servers maked for removal */
+            /* Delete the servers marked for removal */
             for (iter = 0; (servers[iter].ip_address) != 0; iter++)
             {
                 udpfwd_remove_address(intf, servers[iter].ip_address,
