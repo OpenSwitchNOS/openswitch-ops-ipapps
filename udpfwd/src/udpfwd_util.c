@@ -33,6 +33,16 @@
 #include <linux/if_packet.h>
 #include "udpfwd_util.h"
 
+/* Macros to iterate through ifaddrs structure */
+
+#define GET_NEXT_IP_ON_INTERFACE(IFA_ITER, IFADDR, IFNAME) \
+    for ((IFA_ITER) = IFADDR; \
+        (IFA_ITER); \
+        (IFA_ITER) = IFA_ITER->ifa_next) \
+            if (ifaddr_iter->ifa_addr \
+                && ifaddr_iter->ifa_addr->sa_family == AF_INET) \
+                if (strncmp(IFNAME, ifaddr_iter->ifa_name, IF_NAMESIZE) == 0)
+
 /* Feature to name mapping. There should be exact one-to-one mapping
  * between UDPFWD_FEATURE enum and feature_name array */
 char *feature_name[] =
@@ -359,15 +369,15 @@ void getMacfromIfname(MAC_ADDRESS mac, char * ifName)
 }
 
 /*
- * Function      : getIpAddressfromIfname
- * Responsiblity : This function is used to get IP address associated
- *                 with a interface.
+ * Function      : getLowestIpOnInterface
+ * Responsiblity : This function is used to get lowest IP address
+ *                 associated with a interface.
  * Parameters    : ifName - interface name
  * Return        : ip address if found otherwise 0
  */
-IP_ADDRESS getIpAddressfromIfname(char *ifName)
+IP_ADDRESS getLowestIpOnInterface(char *ifName)
 {
-    struct ifaddrs *ifaddr, *ifaddr_iter;
+    struct ifaddrs *ifaddr_iter = NULL, *ifaddr = NULL;
     struct sockaddr_in *res;
     IP_ADDRESS ip;
     IP_ADDRESS lowest_ip = MAX_UINT32; /*255.255.255.255.255 */
@@ -375,20 +385,12 @@ IP_ADDRESS getIpAddressfromIfname(char *ifName)
     if (getifaddrs(&ifaddr) == -1)
         return 0;
 
-    for (ifaddr_iter = ifaddr; ifaddr_iter;
-        (ifaddr_iter = ifaddr_iter->ifa_next))
+    GET_NEXT_IP_ON_INTERFACE(ifaddr_iter, ifaddr, ifName)
     {
-        if (ifaddr_iter->ifa_addr
-            && ifaddr_iter->ifa_addr->sa_family == AF_INET)
-        {
-            if (strncmp(ifName, ifaddr_iter->ifa_name, IF_NAMESIZE) == 0)
-            {
-                res = (struct sockaddr_in *)ifaddr_iter->ifa_addr;
-                ip = res->sin_addr.s_addr;
-                if ( lowest_ip > ip)
-                    lowest_ip = ip;
-            }
-        }
+        res = (struct sockaddr_in *)ifaddr_iter->ifa_addr;
+        ip = res->sin_addr.s_addr;
+        if (lowest_ip > ip)
+            lowest_ip = ip;
     }
 
     freeifaddrs(ifaddr);
@@ -397,6 +399,38 @@ IP_ADDRESS getIpAddressfromIfname(char *ifName)
         return lowest_ip;
     else
         return 0; /* Failure case. */
+}
+
+/*
+ * Function      : ipExistsOnInterface
+ * Responsiblity : This function is used to check if IP address
+ *                 exists on an interface.
+ * Parameters    : ifName - interface name
+ *                 address - ip address
+ * Return        : true if ip address exists else false.
+ */
+bool ipExistsOnInterface(char *ifName, IP_ADDRESS address)
+{
+    struct ifaddrs *ifaddr_iter = NULL, *ifaddr = NULL;
+    struct sockaddr_in *res;
+    IP_ADDRESS ip;
+
+    if (getifaddrs(&ifaddr) == -1)
+        return false;
+
+    GET_NEXT_IP_ON_INTERFACE(ifaddr_iter, ifaddr, ifName)
+    {
+        res = (struct sockaddr_in *)ifaddr_iter->ifa_addr;
+        ip = res->sin_addr.s_addr;
+        if (ip == address)
+        {
+            freeifaddrs(ifaddr);
+            return true;
+        }
+    }
+
+    freeifaddrs(ifaddr);
+    return false;
 }
 
 /*

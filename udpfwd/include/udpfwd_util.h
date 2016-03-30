@@ -44,8 +44,11 @@ struct ipovly {
     struct   in_addr ih_dst;   /* destination internet address */
 };
 
-/* Function to retrieve IP address from interface name. */
-IP_ADDRESS getIpAddressfromIfname(char *ifName);
+/* Function to retrieve lowest IP address from interface name. */
+IP_ADDRESS getLowestIpOnInterface(char *ifName);
+
+/* Function to check if ip address exists on an interface. */
+bool ipExistsOnInterface(char *ifName, IP_ADDRESS ip);
 
 /* Function to retrieve interface index from IP address. */
 uint32_t getIfIndexfromIpAddress(IP_ADDRESS ip);

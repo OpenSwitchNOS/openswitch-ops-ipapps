@@ -134,7 +134,7 @@ void udpfwd_forward_packet (void *pkt, uint16_t udp_dport, int32_t size,
     }
 
     /* Get IP address associated with the Interface. */
-    interface_ip = getIpAddressfromIfname(ifName);
+    interface_ip = getLowestIpOnInterface(ifName);
 
     /* If there is no IP address on the input interface do not proceed. */
     if(interface_ip == 0) {
@@ -231,7 +231,7 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
     }
 
     /* Get IP address associated with the Interface. */
-    interface_ip = getIpAddressfromIfname(ifName);
+    interface_ip = getLowestIpOnInterface(ifName);
 
     /* If there is no IP address on the input interface do not proceed. */
     if(interface_ip == 0) {
@@ -248,15 +248,6 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
         VLOG_ERR("Hops field exceeds %d as a result packet is discarded\n",
                  UDPFWD_DHCP_MAX_HOPS);
         return;
-    }
-
-    /*
-     * we need to preserve the giaddr in case of multi hop relays
-     * so setting a giaddr should be done only when giaddr is zero.
-     */
-
-    if(dhcp->giaddr.s_addr == 0) {
-        dhcp->giaddr.s_addr = interface_ip;
     }
 
     /* ========================================================================
@@ -300,13 +291,6 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
 
     intfNode = (UDPFWD_INTERFACE_NODE_T *)node->data;
 
-    /* Check if Bootp Gateway configured on this interface is valid one and if yes,
-     * use this for stamping the DHCP requests
-     */
-
-    if (intfNode->bootp_gw)
-        dhcp->giaddr.s_addr = intfNode->bootp_gw;
-
     memset(&option82_info, 0, sizeof(option82_info));
     option82_info.ip_addr = interface_ip;
 
@@ -321,8 +305,27 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
          return;
     }
 
+    /*
+     * we need to preserve the giaddr in case of multi hop relays
+     * so setting a giaddr should be done only when giaddr is zero.
+     */
+
+    if (dhcp->giaddr.s_addr == 0) {
+
+        /* Check if Bootp Gateway configured on this interface is valid one
+         * and if yes, use this for stamping the DHCP requests
+         */
+
+        if (intfNode->bootp_gw &&
+            (ipExistsOnInterface(ifName, intfNode->bootp_gw))) {
+                dhcp->giaddr.s_addr = intfNode->bootp_gw;
+        }
+        else
+            dhcp->giaddr.s_addr = interface_ip;
+    }
+
     /* update value of size */
-    size= ntohs(iph->ip_len);
+    size = ntohs(iph->ip_len);
     serverArray = intfNode->serverArray;
 
     /* Relay DHCP-Request to each of the configured server. */
@@ -478,9 +481,6 @@ void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
 
     pktInfo->ipi_ifindex = ifIndex;
     pktInfo->ipi_spec_dst.s_addr = 0;
-
-    /* update value of size */
-    size= ntohs(iph->ip_len);
 
     if (udpfwd_send_pkt_through_socket((void*)pkt, size,
                                 pktInfo, &dest) != true) {
