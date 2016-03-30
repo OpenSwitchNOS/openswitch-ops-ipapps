@@ -296,6 +296,10 @@ bool process_dhcp_relay_option82_message(void *pkt, DHCP_OPTION_82_OPTIONS *pkt_
             {
                break;
             }
+            if (dhcp->giaddr.s_addr == 0)
+                /* drop packets with giaddr field set to NULL and option 82 !=NULL */
+                return false;
+
             end_pad = 0;
             if (dhcp->op == BOOTREPLY)
             {
@@ -329,7 +333,6 @@ bool process_dhcp_relay_option82_message(void *pkt, DHCP_OPTION_82_OPTIONS *pkt_
                 * relay agent information within the packet.  The relay agent
                 * will process the packet based on the policy defined in the
                 * switch.  The policies are:
-                *  append  - add the relay agent information
                 *  keep    - keep the existing relay agent information
                 *  drop    - drop the packet
                 *  replace - replace the existing relay agent info with our info
