@@ -1088,7 +1088,7 @@ def helper_addressConfigurationFor_multicastServerIp(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = devIntReturn.get('buffer')
-    assert 'Broadcast, multicast and loopback addresses are not allowed.' \
+    assert 'Multicast and loopback addresses are not allowed.' \
         in cmdOut, "Test to validate helper-address configuration " \
         "for multicast server IP failed"
 
@@ -1110,9 +1110,8 @@ def helper_addressConfigurationFor_broadcastServerIp(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = devIntReturn.get('buffer')
-    assert 'Broadcast, multicast and loopback addresses are not allowed.' \
-        in cmdOut, "Test to validate helper-address configuration " \
-        "for broadcast server IP failed"
+    assert 'Interface: 1' and '225.255.255.255' in cmdOut, "Test to " \
+        "validate helper-address configuration for broadcast server IP failed"
 
     return True
 
@@ -1132,7 +1131,7 @@ def helper_addressConfigurationFor_loopbackServerIp(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = devIntReturn.get('buffer')
-    assert 'Broadcast, multicast and loopback addresses are not allowed.' \
+    assert 'Multicast and loopback addresses are not allowed.' \
         in cmdOut, "Test to validate helper-address configuration " \
         "for loopback server IP failed"
 
@@ -1428,7 +1427,7 @@ def bootpGateway_configFor_configIP_onInterface(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
-    assert '18                    10.0.80.1' in cmdOut, \
+    assert '18                   10.0.80.1' in cmdOut, \
         "Test to set bootp-gateway configuration " \
         "for configured IP address on an interface failed"
 
@@ -1452,7 +1451,7 @@ def bootpGateway_configFor_configIP_onSubInterface(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
-    assert '10.1                    20.0.80.1' in cmdOut, \
+    assert '10.1                 20.0.80.1' in cmdOut, \
         "Test to set bootp-gateway configuration " \
         "for configured IP address on a sub interface failed"
 
@@ -1476,7 +1475,7 @@ def bootpGateway_configFor_configSecondaryIP_onInterface(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
-    assert '14                    50.0.80.1' in cmdOut, \
+    assert '14                   50.0.80.1' in cmdOut, \
         "Test to set bootp-gateway configuration " \
         "for configured secondary IP address on an interface failed"
 
@@ -1500,7 +1499,7 @@ def bootpGateway_configFor_configSecondaryIP_onSubInterface(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
-    assert '5.2                    30.0.80.1' in cmdOut, \
+    assert '5.2                  30.0.80.1' in cmdOut, \
         "Test to set bootp-gateway configuration " \
         "for configured secondary IP address on a sub interface failed"
 
@@ -1641,7 +1640,7 @@ def show_bootp_gateway_status(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
-    assert '17                    10.0.10.2' in cmdOut, \
+    assert '17                   10.0.10.2' in cmdOut, \
         "Test to show bootp-gateway configuration failed"
     return True
 
@@ -1650,7 +1649,7 @@ def showBootpGateway_and_helperAddressConfig_onInterface(dut01):
     if (enterConfigShell(dut01) is False):
         return False
 
-    if (enterInterfaceContext(dut01, 15) is False):
+    if (enterInterfaceContext(dut01, 16) is False):
         return False
 
     devIntReturn = dut01.DeviceInteract(command="ip helper-address \
@@ -1667,7 +1666,7 @@ def showBootpGateway_and_helperAddressConfig_onInterface(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
-    assert '15                    10.0.20.2' in cmdOut, \
+    assert '16                   10.0.20.2' in cmdOut, \
         "Test to set bootp-gateway configuration " \
         "for configured IP address on an interface failed"
 
@@ -1692,7 +1691,7 @@ def show_bootp_gateway_statusOnSpecifiedInterface(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway \
     interface 26")
-    assert '26                    10.0.0.2' in cmdOut, \
+    assert '26                   10.0.0.2' in cmdOut, \
         "Test to show bootp-gateway configuration on " \
         "specified interface failed"
     return True
@@ -1849,10 +1848,10 @@ class Test_dhcp_relay_configuration:
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = dhcp_relay_option_82_validation_enable(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 hop count "
+            LogOutput('info', "Enable DHCP-Relay option 82 "
                               "validation - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 hop count "
+            LogOutput('error', "Enable DHCP-Relay option 82 "
                                "validation - failed")
 
     def test_relay_option_82_with_validation_and_replace(self):
@@ -2080,10 +2079,10 @@ class Test_dhcp_relay_configuration:
         retValue = dhcp_relay_hop_count_increment_disable(dut01Obj)
         if(retValue):
             LogOutput('info', "Disable DHCP-Relay option 82 hop count "
-                              "validation - passed")
+                              "increment - passed")
         else:
             LogOutput('error', "Disable DHCP-Relay option 82 hop count "
-                               "validation - failed")
+                               "increment - failed")
 
     def test_dhcp_relay_option_82_disable(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
@@ -2097,10 +2096,10 @@ class Test_dhcp_relay_configuration:
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = dhcp_relay_option_82_validation_disable(dut01Obj)
         if(retValue):
-            LogOutput('info', "Disable DHCP-Relay option 82 hop count "
+            LogOutput('info', "Disable DHCP-Relay option 82 "
                               "validation - passed")
         else:
-            LogOutput('error', "Disable DHCP-Relay option 82 hop count "
+            LogOutput('error', "Disable DHCP-Relay option 82 "
                                "validation - failed")
 
     def test_show_dhcp_relay(self):
@@ -2125,7 +2124,7 @@ class Test_dhcp_relay_configuration:
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = dhcp_relay_hopCountIncrementRunningConfigTest(dut01Obj)
         if(retValue):
-            LogOutput('info', "Show DHCP-Relay hop count increment"
+            LogOutput('info', "Show DHCP-Relay hop count increment "
                               "running configuration - passed")
         else:
             LogOutput('error', "DHCP-Relay hop count increment "
@@ -2433,7 +2432,7 @@ class Test_dhcp_relay_configuration:
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = helper_address_interface_runningConfigTest(dut01Obj)
         if(retValue):
-            LogOutput('info', "Test to show helper-address"
+            LogOutput('info', "Test to show helper-address "
                               "configuration in interface "
                               "running config - passed")
         else:

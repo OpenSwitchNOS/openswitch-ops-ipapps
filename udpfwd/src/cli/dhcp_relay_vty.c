@@ -67,9 +67,8 @@ show_dhcp_relay_config (void)
     ovs_row = ovsrec_system_first(idl);
     if (ovs_row == NULL)
     {
-        VLOG_ERR("%s SYSTEM table did not have any rows.%s",
-                 VTY_NEWLINE, VTY_NEWLINE);
-        return CMD_SUCCESS;
+        VLOG_ERR(OVSDB_ROW_FETCH_ERROR);
+        return CMD_OVSDB_FAILURE;
     }
 
     /* Display the dhcp-relay global configuration */
@@ -496,7 +495,7 @@ dhcp_relay_bootp_gateway_config(const char *gatewayAddress, bool set)
             buff = (char *)smap_get(&row->other_config,
                                 DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY);
 
-            if (strcmp(buff, gatewayAddress) == 0)
+            if (buff && strcmp(buff, gatewayAddress) == 0)
             {
                 if (row->n_ipv4_ucast_server)
                 {
@@ -559,18 +558,9 @@ show_dhcp_relay_bootp_gateway_config(const char *portname)
 {
     const struct ovsrec_dhcp_relay *row = NULL;
     char *buff = NULL;
-
-    vty_out(vty, " BOOTP Gateway Entries%s", VTY_NEWLINE);
-    vty_out(vty, "%s Interface            BOOTP Gateway%s",
-            VTY_NEWLINE, VTY_NEWLINE);
-    vty_out(vty, " -------------------- ---------------%s",
-            VTY_NEWLINE);
+    bool entry_found = false;
 
     row = ovsrec_dhcp_relay_first(idl);
-    if (!row)
-    {
-        return CMD_SUCCESS;
-    }
 
     OVSREC_DHCP_RELAY_FOR_EACH (row, idl)
     {
@@ -585,9 +575,19 @@ show_dhcp_relay_bootp_gateway_config(const char *portname)
                              DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY);
                     if (buff)
                     {
-                        vty_out(vty, " %s%20s%s%s", row->port->name, "",
-                                buff, VTY_NEWLINE);
+                        if (entry_found == false)
+                        {
+                            entry_found = true;
+                            vty_out(vty, "%s BOOTP Gateway Entries%s",
+                                    VTY_NEWLINE, VTY_NEWLINE);
+                            vty_out(vty, "%s Interface            BOOTP "
+                                    "Gateway%s", VTY_NEWLINE, VTY_NEWLINE);
+                            vty_out(vty, " -------------------- ---------"
+                                    "------%s", VTY_NEWLINE);
+                        }
 
+                        vty_out(vty, " %-20s %s%s", row->port->name,
+                                buff, VTY_NEWLINE);
                     }
 
                     return CMD_SUCCESS;
@@ -599,13 +599,35 @@ show_dhcp_relay_bootp_gateway_config(const char *portname)
                              DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY);
                 if (buff)
                 {
-                    vty_out(vty, " %s%20s%s%s", row->port->name, "",
+                    if (entry_found == false)
+                    {
+                        entry_found = true;
+                        vty_out(vty, "%s BOOTP Gateway Entries%s",
+                                    VTY_NEWLINE, VTY_NEWLINE);
+                        vty_out(vty, "%s Interface            BOOTP "
+                                "Gateway%s", VTY_NEWLINE, VTY_NEWLINE);
+                        vty_out(vty, " -------------------- ---------"
+                                "------%s", VTY_NEWLINE);
+                    }
+
+                    vty_out(vty, " %-20s %s%s", row->port->name,
                             buff, VTY_NEWLINE);
                 }
 
             }
         }
     }
+
+    if (entry_found == false)
+    {
+        if (portname)
+            vty_out(vty, "No bootp-gateway configuration found on "
+                    "the interface : %s.%s", portname, VTY_NEWLINE);
+        else
+            vty_out(vty, "No bootp-gateway configuration found.%s",
+                    VTY_NEWLINE);
+    }
+
     return CMD_SUCCESS;
 }
 
@@ -615,7 +637,7 @@ show_dhcp_relay_bootp_gateway_config(const char *portname)
 -----------------------------------------------------------------------------*/
 DEFUN(dhcp_relay_configuration,
       dhcp_relay_configuration_cmd,
-      "dhcp-relay {hop-count-increment} ",
+      "dhcp-relay {hop-count-increment}",
       DHCP_RELAY_STR
       HOP_COUNT_INCREMENT_STR)
 {
@@ -685,14 +707,33 @@ DEFUN(dhcp_relay_options_configuration,
 
     if (!strcmp((char*)argv[0], "validate"))
     {
-       /* Mark dhcp-relay option 82 validation to be udpated */
-       set_feature_status(&update_features,
+        const struct ovsrec_system *ovs_row = NULL;
+        char *policy = NULL;
+        ovs_row = ovsrec_system_first(idl);
+        if (ovs_row == NULL)
+        {
+            VLOG_ERR(OVSDB_ROW_FETCH_ERROR);
+            return CMD_OVSDB_FAILURE;
+        }
+        policy = (char *)smap_get(&ovs_row->dhcp_config,
+                         SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_POLICY);
+        if (policy && strcmp(policy, policy_name[KEEP]) == 0)
+        {
+            vty_out(vty, "Keep and validate options cannot be configured "
+                    "together.%s", VTY_NEWLINE);
+            return CMD_SUCCESS;
+        }
+        else
+        {
+            /* Mark dhcp-relay option 82 validation to be udpated */
+            set_feature_status(&update_features,
                           DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
 
-       /* Set new configuration values */
-       set_feature_status(&config_value.config,
-                          DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
-       config_value.policy = INVALID;
+            /* Set new configuration values */
+            set_feature_status(&config_value.config,
+                           DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
+            config_value.policy = INVALID;
+        }
     }
     else
     {

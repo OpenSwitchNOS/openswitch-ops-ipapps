@@ -193,11 +193,15 @@ decode_server_param (udpfwd_server *udpfwdServer, const char *argv[],
         }
         else if (type == DHCP_RELAY)
         {
-            vty_out(vty,
-                "Broadcast, multicast and loopback addresses "
-                "are not allowed.%s",
-                VTY_NEWLINE);
+            if ((!IS_BROADCAST_IPV4(htonl(addr.s_addr))) ||
+                (!IS_SUBNET_BROADCAST(htonl(addr.s_addr))))
+            {
+                vty_out(vty,
+                        "Multicast and loopback addresses "
+                        "are not allowed.%s",
+                        VTY_NEWLINE);
                 return validParams;
+            }
         }
     }
 
@@ -837,21 +841,10 @@ show_ip_helper_address_config (const char *portname)
 {
     const struct ovsrec_dhcp_relay *row_serv = NULL;
     size_t i = 0;
+    bool entry_found = false;
 
-    vty_out(vty, " IP Helper Addresses%s", VTY_NEWLINE);
-    if (portname)
-    {
-        vty_out(vty, "%s Interface: %s%s", VTY_NEWLINE,
-                     portname, VTY_NEWLINE);
-        vty_out(vty, "%2sIP Helper Address%s", "", VTY_NEWLINE);
-        vty_out(vty, "%2s-----------------%s", "", VTY_NEWLINE);
-    }
 
     row_serv = ovsrec_dhcp_relay_first(idl);
-    if (!row_serv)
-    {
-        return CMD_SUCCESS;
-    }
 
     OVSREC_DHCP_RELAY_FOR_EACH (row_serv, idl)
     {
@@ -864,34 +857,58 @@ show_ip_helper_address_config (const char *portname)
                 {
                     if(row_serv->n_ipv4_ucast_server)
                     {
+                        vty_out(vty, "%s IP Helper Addresses%s", VTY_NEWLINE,
+                                VTY_NEWLINE);
+                        vty_out(vty, "%s Interface: %s%s", VTY_NEWLINE,
+                                portname, VTY_NEWLINE);
+                        vty_out(vty, "%2sIP Helper Address%s", "", VTY_NEWLINE);
+                        vty_out(vty, "%2s-----------------%s", "", VTY_NEWLINE);
                         for (i = 0; i < row_serv->n_ipv4_ucast_server; i++)
                         {
                             vty_out(vty, "%2s%s%s", "",
                                     row_serv->ipv4_ucast_server[i],
                                     VTY_NEWLINE);
                         }
-                    }
-                    else
-                    {
-                        return CMD_SUCCESS;
+                        entry_found = true;
                     }
 
+                    break;
                 }
             }
             else
             {
-                vty_out(vty, "%s Interface: %s%s", VTY_NEWLINE,
-                             row_serv->port->name, VTY_NEWLINE);
-                vty_out(vty, "%2sIP Helper Address%s", "", VTY_NEWLINE);
-                vty_out(vty, "%2s-----------------%s", "", VTY_NEWLINE);
-                for (i = 0; i < row_serv->n_ipv4_ucast_server; i++)
+                if(row_serv->n_ipv4_ucast_server)
                 {
-                    vty_out(vty, "%2s%s%s", "",
-                            row_serv->ipv4_ucast_server[i], VTY_NEWLINE);
+                    if (entry_found == false) {
+                        entry_found = true;
+                        vty_out(vty, "%s IP Helper Addresses%s", VTY_NEWLINE,
+                                VTY_NEWLINE);
+                    }
+
+                    vty_out(vty, "%s Interface: %s%s", VTY_NEWLINE,
+                            row_serv->port->name, VTY_NEWLINE);
+                    vty_out(vty, "%2sIP Helper Address%s", "", VTY_NEWLINE);
+                    vty_out(vty, "%2s-----------------%s", "", VTY_NEWLINE);
+                    for (i = 0; i < row_serv->n_ipv4_ucast_server; i++)
+                    {
+                        vty_out(vty, "%2s%s%s", "",
+                                row_serv->ipv4_ucast_server[i], VTY_NEWLINE);
+                    }
                 }
             }
         }
     }
+
+    if (entry_found == false)
+    {
+        if (portname)
+            vty_out(vty, "No helper-address configuration found on "
+                    "the interface %s.%s", portname, VTY_NEWLINE);
+        else
+            vty_out(vty, "No helper-address configuration found.%s",
+                    VTY_NEWLINE);
+    }
+
     return CMD_SUCCESS;
 }
 
@@ -911,13 +928,13 @@ show_udp_forwarder_configuration (const char *ifname)
     char *udp_status = NULL ;
     int index = 0;
     size_t i = 0;
+    bool entry_found = false;
 
     ovs_row = ovsrec_system_first(idl);
     if (ovs_row == NULL)
     {
-        VLOG_ERR("%s SYSTEM table did not have any rows. Ideally it "
-                 "should have just one entry.", __func__);
-        return CMD_SUCCESS;
+        VLOG_ERR(OVSDB_ROW_FETCH_ERROR);
+        return CMD_OVSDB_FAILURE;
     }
 
     udp_status = (char *)smap_get(&ovs_row->other_config,
@@ -934,29 +951,11 @@ show_udp_forwarder_configuration (const char *ifname)
             udp_status = "disabled";
     }
 
-    vty_out(vty, "%sIP Forwarder Addresses%s",
-                 VTY_NEWLINE, VTY_NEWLINE);
-    vty_out(vty, "%sUDP Broadcast Forwarder%s",
-                 VTY_NEWLINE, VTY_NEWLINE);
-    vty_out(vty, "-------------------------%s",
-                 VTY_NEWLINE);
-    vty_out(vty, "UDP Bcast Forwarder : %s%s", udp_status, VTY_NEWLINE);
+    vty_out(vty, "%sUDP Broadcast Forwarder : %s%s", VTY_NEWLINE,
+            udp_status, VTY_NEWLINE);
     vty_out(vty, "%s", VTY_NEWLINE);
 
-    if (ifname)
-    {
-        vty_out(vty, "Interface: %s%s", ifname, VTY_NEWLINE);
-        vty_out(vty, "%2sIP Forward Addresses%4sUDP Port %s", "", "",
-                     VTY_NEWLINE);
-        vty_out(vty, "%2s------------------------------- %s", "",
-                     VTY_NEWLINE);
-    }
-
     row_serv = ovsrec_udp_bcast_forwarder_server_first(idl);
-    if (!row_serv)
-    {
-        return CMD_SUCCESS;
-    }
 
     OVSREC_UDP_BCAST_FORWARDER_SERVER_FOR_EACH (row_serv, idl)
     {
@@ -969,6 +968,11 @@ show_udp_forwarder_configuration (const char *ifname)
                 {
                     if(row_serv->n_ipv4_ucast_server)
                     {
+                        vty_out(vty, "Interface: %s%s", ifname, VTY_NEWLINE);
+                        vty_out(vty, "%2sIP Forward Addresses%4sUDP Port %s", "", "",
+                                VTY_NEWLINE);
+                        vty_out(vty, "%2s------------------------------- %s", "",
+                                VTY_NEWLINE);
                         for (i = 0; i < row_serv->n_ipv4_ucast_server; i++)
                         {
                             /* get the UDP port number. */
@@ -983,11 +987,10 @@ show_udp_forwarder_configuration (const char *ifname)
                                     row_serv->ipv4_ucast_server[i], "",
                                     index, VTY_NEWLINE);
                         }
+                        entry_found = true;
                     }
-                    else
-                    {
-                       return CMD_SUCCESS;
-                    }
+
+                    break;
                 }
             }
             else
@@ -1012,8 +1015,19 @@ show_udp_forwarder_configuration (const char *ifname)
                                  row_serv->ipv4_ucast_server[i], "",
                                  index, VTY_NEWLINE);
                 }
+                entry_found = true;
             }
         }
+    }
+
+    if (entry_found == false)
+    {
+        if (ifname)
+            vty_out(vty, "No forward address configuration found on "
+                    "the interface %s.%s", ifname, VTY_NEWLINE);
+        else
+            vty_out(vty, "No forward address configuration found.%s",
+                    VTY_NEWLINE);
     }
 
     return CMD_SUCCESS;
