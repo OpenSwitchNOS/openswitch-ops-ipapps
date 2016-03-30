@@ -343,6 +343,7 @@ def dhcp_relay_option_82_status_when_relay_disabled(dut01):
 
     LogOutput('info', "Test to check status of DHCP relay option 82"
               " when DHCP-Relay is disabled")
+    devIntReturn = dut01.DeviceInteract(command="dhcp-relay option 82 keep")
     devIntReturn = dut01.DeviceInteract(command="no dhcp-relay")
     retCode = devIntReturn.get('returnCode')
     assert retCode == 0, "Failed to execute no dhcp-relay command "
@@ -351,8 +352,8 @@ def dhcp_relay_option_82_status_when_relay_disabled(dut01):
         return False
 
     output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump")
-    assert 'DHCP Relay Option82 : 0' not in output, "Test to disable"
-    " dhcp-relay option 82 replace policy failed"
+    assert 'DHCP Relay Option82 : 0' in output, "Test to disable"
+    " dhcp-relay option 82 failed"
 
     return True
 
@@ -590,6 +591,10 @@ def configure_bootp_gateway_address(dut01):
 
     if (exitContext(dut01) is False):
         return False
+
+    # After unconfiguring also check value in daemon
+    retBuffer = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 1")
+    assert '9.0.0.1' not in retBuffer, "Failed to set ip bootp gateway"
 
     return True
 
@@ -875,6 +880,90 @@ def delete_helper_addresses(dut01):
 
     dut01.DeviceInteract(command="exit")
 
+    #enter interface 17
+    devIntReturn = dut01.DeviceInteract(command="interface 17")
+
+    for k in range(48, 56):
+        cmd = " no ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " deletion command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 18
+    devIntReturn = dut01.DeviceInteract(command="interface 18")
+
+    for k in range(56, 64):
+        cmd = " no ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " deletion command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 19
+    devIntReturn = dut01.DeviceInteract(command="interface 19")
+
+    for k in range(64, 72):
+        cmd = " no ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " deletion command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 20
+    devIntReturn = dut01.DeviceInteract(command="interface 20")
+
+    for k in range(72, 80):
+        cmd = " no ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " deletion command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 21
+    devIntReturn = dut01.DeviceInteract(command="interface 21")
+
+    for k in range(80, 88):
+        cmd = " no ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " deletion command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 22
+    devIntReturn = dut01.DeviceInteract(command="interface 22")
+
+    for k in range(88, 96):
+        cmd = " no ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " deletion command"
+
+    dut01.DeviceInteract(command="exit")
+
+    #enter interface 23
+    devIntReturn = dut01.DeviceInteract(command="interface 23")
+
+    for k in range(96, 100):
+        cmd = " no ip helper-address " + ipPool[k]
+        devIntReturn = dut01.DeviceInteract(command=cmd)
+        retCode = devIntReturn.get('returnCode')
+        assert retCode == 0, "Failed to execute helper-address"
+        " deletion command"
+
+    dut01.DeviceInteract(command="exit")
+
     if (exitContext(dut01) is False):
         return False
 
@@ -901,6 +990,34 @@ def delete_helper_addresses(dut01):
     output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 16")
     assert 'No servers are configured on this interface :16' in output, "Helper"
     " address deletion on interface 16 failed"
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 17")
+    assert 'No servers are configured on this interface :17' in output, "Helper"
+    " address deletion on interface 17 failed"
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 18")
+    assert 'No servers are configured on this interface :18' in output, "Helper"
+    " address deletion on interface 18 failed"
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 19")
+    assert 'No servers are configured on this interface :19' in output, "Helper"
+    " address deletion on interface 19 failed"
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 20")
+    assert 'No servers are configured on this interface :20' in output, "Helper"
+    " address deletion on interface 20 failed"
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 21")
+    assert 'No servers are configured on this interface :21' in output, "Helper"
+    " address deletion on interface 21 failed"
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 22")
+    assert 'No servers are configured on this interface :22' in output, "Helper"
+    " address deletion on interface 22 failed"
+
+    output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 23")
+    assert 'No servers are configured on this interface :23' in output, "Helper"
+    " address deletion on interface 22 failed"
 
     return True
 
@@ -974,20 +1091,20 @@ class Test_dhcp_relay_configuration:
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = dhcp_relay_option_82_validation_enable(dut01Obj)
         if(retValue):
-            LogOutput('info', "Enable DHCP-Relay option 82 hop count "
+            LogOutput('info', "Enable DHCP-Relay option 82 "
                       "validation - passed")
         else:
-            LogOutput('error', "Enable DHCP-Relay option 82 hop count "
+            LogOutput('error', "Enable DHCP-Relay option 82 "
                       "validation - failed")
 
     def test_dhcp_relay_option_82_validation_disable(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
         retValue = dhcp_relay_option_82_validation_disable(dut01Obj)
         if(retValue):
-            LogOutput('info', "Disable DHCP-Relay option 82 hop count "
+            LogOutput('info', "Disable DHCP-Relay option 82 "
                       "validation - passed")
         else:
-            LogOutput('error', "Disable DHCP-Relay option 82 hop count "
+            LogOutput('error', "Disable DHCP-Relay option 82 "
                       "validation - failed")
 
     def test_dhcp_relay_option_82_drop_policy_enable(self):
@@ -1001,7 +1118,7 @@ class Test_dhcp_relay_configuration:
 
     def test_dhcp_relay_option_82_drop_policy_disable(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
-        retValue = dhcp_relay_option_82_validation_disable(dut01Obj)
+        retValue = dhcp_relay_option_82_drop_policy_disable(dut01Obj)
         if(retValue):
             LogOutput('info', "Disable DHCP-Relay option 82 drop policy "
                       "passed")
@@ -1030,12 +1147,12 @@ class Test_dhcp_relay_configuration:
 
     def test_dhcp_relay_option_82_keep_policy_disable(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
-        retValue = dhcp_relay_replace_82_validation_disable(dut01Obj)
+        retValue = dhcp_relay_option_82_keep_policy_disable(dut01Obj)
         if(retValue):
-            LogOutput('info', "Disable DHCP-Relay option 82 replace policy "
+            LogOutput('info', "Disable DHCP-Relay option 82 keep policy "
                       "passed")
         else:
-            LogOutput('error', "Disable DHCP-Relay option 82 replace policy "
+            LogOutput('error', "Disable DHCP-Relay option 82 keep policy "
                       "failed")
 
     def test_dhcp_relay_option_82_status_when_relay_disabled(self):

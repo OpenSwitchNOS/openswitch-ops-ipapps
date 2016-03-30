@@ -451,6 +451,7 @@ void udpfwd_handle_dhcp_relay_row_delete(struct ovsdb_idl *idl)
 
         if (false == found) {
             intf = (UDPFWD_INTERFACE_NODE_T *)node->data;
+            intf->bootp_gw = 0;
             memset(servers, 0, sizeof(servers));
             arrayPtr = (UDPFWD_SERVER_T *)servers;
             addrCount = intf->addrCount;
