@@ -658,7 +658,7 @@ DEFUN(dhcp_relay_configuration,
                            DHCP_RELAY_HOP_COUNT_INCREMENT, ENABLE);
 
         /* Set new configuration value */
-        set_feature_status(&(config_value.config),
+        set_feature_status(&config_value.config,
                            DHCP_RELAY_HOP_COUNT_INCREMENT, ENABLE);
     }
     else
@@ -667,7 +667,7 @@ DEFUN(dhcp_relay_configuration,
         set_feature_status(&update_features, DHCP_RELAY, ENABLE);
 
         /* Set new configuration value */
-        set_feature_status(&(config_value.config), DHCP_RELAY, ENABLE);
+        set_feature_status(&config_value.config, DHCP_RELAY, ENABLE);
     }
 
     return dhcp_relay_config(update_features, &config_value);
@@ -699,10 +699,12 @@ DEFUN(dhcp_relay_options_configuration,
     config_value.config = 0;
     config_value.r_id = REMOTE_ID_INVALID;
 
-    /* Mark dhcp-relay option 82 feature to be udpated */
+    /* Mark dhcp-relay and option 82 features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY, ENABLE);
     set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
 
-    /* Set new configuration value */
+    /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY, ENABLE);
     set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
 
     if (!strcmp((char*)argv[0], "validate"))
@@ -780,12 +782,14 @@ DEFUN(dhcp_relay_keep_option_configuration,
 
     memset(&config_value, 0, sizeof(FEATURE_CONFIG));
     config_value.config = 0;
-    /* Mark dhcp-relay option 82 and validation feature to be udpated */
+    /* Mark dhcp-relay, option 82 and validation features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY, ENABLE);
     set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
     set_feature_status(&update_features,
                           DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
 
     /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY, ENABLE);
     set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
     set_feature_status(&config_value.config,
                           DHCP_RELAY_OPTION82_VALIDATE, DISABLE);
@@ -828,10 +832,12 @@ DEFUN(dhcp_relay_drop_option_configuration,
 
     memset(&config_value, 0, sizeof(FEATURE_CONFIG));
     config_value.config = 0;
-    /* Mark dhcp-relay option 82 feature to be udpated */
+    /* Mark dhcp-relay and option 82 features to be udpated */
     set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
+    set_feature_status(&config_value.config, DHCP_RELAY, ENABLE);
 
     /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY, ENABLE);
     set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
     config_value.policy = DROP;
 
@@ -885,12 +891,14 @@ DEFUN(dhcp_relay_drop_validate_option_configuration,
     memset(&config_value, 0, sizeof(FEATURE_CONFIG));
     config_value.config = 0;
 
-    /* Mark dhcp-relay option 82 and validation features to be udpated */
+    /* Mark dhcp-relay, option 82 and validation features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY, ENABLE);
     set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
     set_feature_status(&update_features,
                        DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
 
     /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY, ENABLE);
     set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
     set_feature_status(&config_value.config,
                        DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
@@ -934,10 +942,13 @@ DEFUN(dhcp_relay_drop_remote_id_mac_option_configuration,
     memset(&config_value, 0, sizeof(FEATURE_CONFIG));
     config_value.config = 0;
 
-    /* Mark dhcp-relay option 82 feature to be udpated */
+    /* Mark dhcp-relay and option 82 features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY, ENABLE);
     set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
 
+
     /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY, ENABLE);
     set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
     config_value.policy = DROP;
     config_value.r_id = REMOTE_ID_MAC;
@@ -980,10 +991,12 @@ DEFUN(dhcp_relay_drop_remote_id_ip_option_configuration,
     memset(&config_value, 0, sizeof(FEATURE_CONFIG));
     config_value.config = 0;
 
-    /* Mark dhcp-relay option 82 feature to be udpated */
+    /* Mark dhcp-relay and option 82 features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY, ENABLE);
     set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
 
     /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY, ENABLE);
     set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
     config_value.policy = DROP;
     config_value.r_id = REMOTE_ID_IP;
@@ -1025,10 +1038,12 @@ DEFUN(dhcp_relay_replace_option_configuration,
 
     memset(&config_value, 0, sizeof(FEATURE_CONFIG));
     config_value.config = 0;
-    /* Mark dhcp-relay option 82 feature to be udpated */
+    /* Mark dhcp-relay and option 82 features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY, ENABLE);
     set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
 
     /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY, ENABLE);
     set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
     config_value.policy = REPLACE;
 
@@ -1081,12 +1096,14 @@ DEFUN(dhcp_relay_replace_validate_option_configuration,
     memset(&config_value, 0, sizeof(FEATURE_CONFIG));
     config_value.config = 0;
 
-    /* Mark dhcp-relay option 82 and validation features to be udpated */
+    /* Mark dhcp-relay, option 82 and validation features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY, ENABLE);
     set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
     set_feature_status(&update_features,
                        DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
 
     /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY, ENABLE);
     set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
     set_feature_status(&config_value.config,
                        DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
@@ -1130,10 +1147,12 @@ DEFUN(dhcp_relay_replace_remote_id_mac_option_configuration,
     memset(&config_value, 0, sizeof(FEATURE_CONFIG));
     config_value.config = 0;
 
-    /* Mark dhcp-relay option 82 feature to be udpated */
+    /* Mark dhcp-relay and option 82 features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY, ENABLE);
     set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
 
     /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY, ENABLE);
     set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
     config_value.policy = REPLACE;
     config_value.r_id = REMOTE_ID_MAC;
@@ -1176,10 +1195,12 @@ DEFUN(dhcp_relay_replace_remote_id_ip_option_configuration,
     memset(&config_value, 0, sizeof(FEATURE_CONFIG));
     config_value.config = 0;
 
-    /* Mark dhcp-relay option 82 feature to be udpated */
+    /* Mark dhcp-relay and option 82 features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY, ENABLE);
     set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
 
     /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY, ENABLE);
     set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
     config_value.policy = REPLACE;
     config_value.r_id = REMOTE_ID_IP;
@@ -1222,12 +1243,14 @@ DEFUN(dhcp_relay_validate_policy_option_configuration,
     config_value.config = 0;
     config_value.r_id = REMOTE_ID_INVALID;
 
-    /* Mark dhcp-relay option 82 and validation features to be udpated */
+    /* Mark dhcp-relay, option 82 and validation features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY, ENABLE);
     set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
     set_feature_status(&update_features,
                        DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
 
     /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY, ENABLE);
     set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
     set_feature_status(&config_value.config,
                        DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
@@ -1267,12 +1290,14 @@ DEFUN(dhcp_relay_validate_drop_option_configuration,
     memset(&config_value, 0, sizeof(FEATURE_CONFIG));
     config_value.config = 0;
 
-    /* Mark dhcp-relay option 82 and validation features to be udpated */
+    /* Mark dhcp-relay, option 82 and validation features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY, ENABLE);
     set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
     set_feature_status(&update_features,
                        DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
 
     /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY, ENABLE);
     set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
     set_feature_status(&config_value.config,
                        DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
@@ -1316,12 +1341,14 @@ DEFUN(dhcp_relay_validate_replace_option_configuration,
     memset(&config_value, 0, sizeof(FEATURE_CONFIG));
     config_value.config = 0;
 
-    /* Mark dhcp-relay option 82 and validation features to be udpated */
+    /* Mark dhcp-relay, option 82 and validation features to be udpated */
+    set_feature_status(&update_features, DHCP_RELAY, ENABLE);
     set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
     set_feature_status(&update_features,
                        DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
 
     /* Set new configuration values */
+    set_feature_status(&config_value.config, DHCP_RELAY, ENABLE);
     set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, ENABLE);
     set_feature_status(&config_value.config,
                        DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
@@ -1405,8 +1432,6 @@ DEFUN(no_dhcp_relay_configuration,
     FEATURE_CONFIG config_value;
     memset(&config_value, 0, sizeof(FEATURE_CONFIG));
     config_value.config = 0;
-    config_value.r_id = REMOTE_ID_INVALID;
-    config_value.policy = INVALID;
 
     if (argv[0])
     {
@@ -1415,16 +1440,24 @@ DEFUN(no_dhcp_relay_configuration,
                            DHCP_RELAY_HOP_COUNT_INCREMENT, ENABLE);
 
         /* Set new configuration value */
-        set_feature_status(&(config_value.config),
+        set_feature_status(&config_value.config,
                            DHCP_RELAY_HOP_COUNT_INCREMENT, DISABLE);
+        config_value.r_id = REMOTE_ID_INVALID;
+        config_value.policy = INVALID;
     }
     else
     {
-        /* Mark dhcp-relay feature to be udpated */
+        /* Mark dhcp-relay, option 82 and validation features to be udpated */
         set_feature_status(&update_features, DHCP_RELAY, ENABLE);
+        set_feature_status(&update_features, DHCP_RELAY_OPTION82, ENABLE);
+        set_feature_status(&update_features, DHCP_RELAY_OPTION82_VALIDATE, ENABLE);
 
-        /* Set new configuration value */
-        set_feature_status(&(config_value.config), DHCP_RELAY, DISABLE);
+        /* Set new configuration values */
+        set_feature_status(&config_value.config, DHCP_RELAY, DISABLE);
+        set_feature_status(&config_value.config, DHCP_RELAY_OPTION82, DISABLE);
+        set_feature_status(&config_value.config, DHCP_RELAY_OPTION82_VALIDATE, DISABLE);
+        config_value.r_id = REMOTE_ID_MAC;
+        config_value.policy = REPLACE;
     }
 
     return dhcp_relay_config(update_features, &config_value);
