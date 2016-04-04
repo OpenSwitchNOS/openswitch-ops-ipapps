@@ -15,11 +15,23 @@
 
 cmake_minimum_required (VERSION 2.8)
 
-project ("ops-ipapps")
+project ("ops_diagtools")
+set (NWDIAG nwdiag)
 
-# Build ops-udpfwd daemon.
-add_subdirectory(udpfwd)
-# Build diagtools libraries.
-add_subdirectory(diagtools/src/cli)
-# Build nwdiag
-add_subdirectory(diagtools)
+# Define compile flags
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -Wall -Werror")
+
+include_directories (${PROJECT_SOURCE_DIR})
+
+# Source files
+set (SOURCES ${PROJECT_SOURCE_DIR}/nwdiag.c)
+
+# Rules to build nwdiag
+add_executable (${NWDIAG} ${SOURCES})
+
+# Rules to install nwdiag binary in rootfs
+install(TARGETS ${NWDIAG}
+    PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
+    GROUP_READ GROUP_EXECUTE
+    WORLD_READ WORLD_EXECUTE SETUID
+    RUNTIME DESTINATION bin)
