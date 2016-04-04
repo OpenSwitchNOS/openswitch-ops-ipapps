@@ -39,7 +39,7 @@ VLOG_DEFINE_THIS_MODULE(traceroute_handler);
 ----------------------------------------------------------------------------------------*/
 bool traceroute_handler(tracerouteEntry *p, void (*fPtr)(char *buff))
 {
-    char output[BUFSIZ],buffer[BUFSIZ];
+    char buffer[BUFSIZ];
     char *target = buffer;
     int len = 0;
     FILE *fp = NULL;
@@ -55,9 +55,9 @@ bool traceroute_handler(tracerouteEntry *p, void (*fPtr)(char *buff))
         return false;
     }
 
-    /* Executing the command in the "swns" namespace, as the \
-    interfaces visible in vtysh are from "swns" */
-    len += sprintf(target+len, "%s ", SWNS_EXEC);
+    /* Append path and namespace name */
+    len += sprintf(target+len, "%s ", EXE_PATH);
+    len += sprintf(target+len, "%s ", DEFAULT_VRF_NAME);
 
     /* Append default cmd either traceroute4 or traceroute6 */
     if(p->isIpv4)
@@ -69,6 +69,7 @@ bool traceroute_handler(tracerouteEntry *p, void (*fPtr)(char *buff))
         len += sprintf(target+len, "%s ", TRACEROUTE6_DEF_CMD);
     }
 
+    len += sprintf(target+len," \" ");
     /* Append Target address */
     if(p->tracerouteTarget)
     {
@@ -118,16 +119,19 @@ bool traceroute_handler(tracerouteEntry *p, void (*fPtr)(char *buff))
             len += sprintf(target+len, " -g %s", p->tracerouteLoosesourceIp);
         }
     }
+
+    len += sprintf(target+len, " \" ");
     fp = popen(buffer,"w");
 
     if(fp)
     {
-        while ( fgets( output, BUFSIZ, fp ) != NULL )
-            (*fPtr)(output);
+        while (fgets(buffer, BUFSIZ, fp ) != NULL)
+            (*fPtr)(buffer);
     }
     else
     {
         VLOG_ERR("Failed to open pipe stream");
+        (*fPtr)("Internal error");
         return false;
     }
     pclose(fp);

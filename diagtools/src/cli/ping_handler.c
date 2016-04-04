@@ -39,7 +39,7 @@ VLOG_DEFINE_THIS_MODULE(ping_handler);
 ----------------------------------------------------------------------------------------*/
 bool ping_main (pingEntry *p, void (*fPtr)(char *buff))
 {
-    char output[BUFSIZ], buffer[BUFSIZ];
+    char buffer[BUFSIZ];
     char *target = buffer;
     int len = 0;
     FILE *fp = NULL;
@@ -55,15 +55,21 @@ bool ping_main (pingEntry *p, void (*fPtr)(char *buff))
         return false;
     }
 
-    /* Executing the command in the "swns" namespace, as the
-                interfaces visible in vtysh are from "swns" */
-    len += sprintf(target+len, "%s ", SWNS_EXEC);
+    /* Append path and namespace name */
+    len += sprintf(target+len, "%s ", EXE_PATH);
+    len += sprintf(target+len, "%s ", DEFAULT_VRF_NAME);
 
     /* Append default cmd either ping4 or ping6 */
     if (p->isIpv4)
         len += sprintf(target+len, "%s ", PING4_DEF_CMD);
     else
         len += sprintf(target+len, "%s ", PING6_DEF_CMD);
+
+    len += sprintf(target+len," \" ");
+
+    /* if broadcast address, append broadcast option */
+    if (p->isBcast)
+        len += sprintf(target+len, "-b ");
 
     /* Append Target address */
     if (p->pingTarget)
@@ -110,15 +116,17 @@ bool ping_main (pingEntry *p, void (*fPtr)(char *buff))
             len += sprintf(target+len, " -R ");
     }
 
-    fp = popen(buffer,"w");
+    len += sprintf(target+len, " \" ");
+    fp = popen(buffer, "w");
     if (fp)
     {
-        while ( fgets( output, BUFSIZ, fp ) != NULL )
-            (*fPtr)(output);
+        while (fgets(buffer, BUFSIZ, fp ) != NULL)
+            (*fPtr)(buffer);
     }
     else
     {
         VLOG_ERR("Failed to open pipe stream");
+        (*fPtr)("Internal error");
         return false;
     }
     pclose(fp);

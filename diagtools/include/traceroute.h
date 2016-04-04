@@ -73,11 +73,15 @@
 #define TRACE_DEF_MAXTTL                30
 #define TRACE_DEF_WAIT                  3
 
-#define SWNS_EXEC                       "/sbin/ip netns exec swns"
-
 /* default traceroute cmd */
 #define TRACEROUTE4_DEF_CMD             "traceroute"
 #define TRACEROUTE6_DEF_CMD             "traceroute6"
+
+/* path of file which executes comamnd in a particular namespace */
+#define EXE_PATH    "/usr/bin/./nwdiag"
+
+/* default vrf */
+#define DEFAULT_VRF_NAME "swns"
 
 /*defining the type of arguments passing through the cli*/
 typedef enum {

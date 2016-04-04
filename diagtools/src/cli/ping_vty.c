@@ -78,6 +78,12 @@ int decodeParam (const char* value, pingArguments type, pingEntry* p)
             }
             else
             {
+                if (IS_BROADCAST_IPV4(htonl(addr.s_addr)) ||
+                    IS_SUBNET_BROADCAST(htonl(addr.s_addr)))
+                    p->isBcast = true;
+                else
+                    p->isBcast = false;
+
                 p->isIpv4 = true;
                 p->pingTarget = (char*)value;
             }
