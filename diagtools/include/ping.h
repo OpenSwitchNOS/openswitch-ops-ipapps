@@ -77,9 +77,6 @@
 /* default ping6 cmd */
 #define PING6_DEF_CMD       "ping6"
 
-/* cmd to execute in namespace swns */
-#define SWNS_EXEC            "/sbin/ip netns exec swns"
-
 /* enum for type of arguments passed through cli */
 typedef enum {
     IPv4_DESTINATION,
@@ -96,8 +93,10 @@ typedef enum {
 /* structure to store the value of ping tokens */
 typedef struct pingEntry_t {
     bool isIpv4;
+    bool isBcast;
     char *pingTarget;
     char *pingDataFill;
+    char *vrf;
     uint16_t pingDataSize;
     uint8_t pingTimeout;
     uint8_t pingInterval;
