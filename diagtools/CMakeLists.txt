@@ -15,11 +15,23 @@
 
 cmake_minimum_required (VERSION 2.8)
 
-project ("ops-ipapps")
+project ("ops_diagtools")
+set (NSCMDEXEC nscmdexec)
 
-# Build ops-udpfwd daemon.
-add_subdirectory(udpfwd)
-# Build diagtools libraries.
-add_subdirectory(diagtools/src/cli)
-# Build nscdmexec
-add_subdirectory(diagtools)
+# Define compile flags
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -Wall -Werror")
+
+include_directories (${PROJECT_SOURCE_DIR})
+
+# Source files to build ops-udpfwd
+set (SOURCES ${PROJECT_SOURCE_DIR}/nscmdexec.c)
+
+# Rules to build nscmdexec
+add_executable (${NSCMDEXEC} ${SOURCES})
+
+# Rules to install nscmdexec binary in rootfs
+install(TARGETS ${NSCMDEXEC}
+    PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
+    GROUP_READ GROUP_EXECUTE
+    WORLD_READ WORLD_EXECUTE SETUID
+    RUNTIME DESTINATION bin)
