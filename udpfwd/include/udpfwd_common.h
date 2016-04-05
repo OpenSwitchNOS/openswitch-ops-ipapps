@@ -99,6 +99,32 @@ typedef struct FEATURE_CONFIG
     DHCP_RELAY_OPTION82_REMOTE_ID r_id;
 } FEATURE_CONFIG;
 
+/*
+ * FIXME: This will be removed once the macros merged into
+ * the openswitch-idl.h
+ */
+/* DHCP-Relay statistics */
+#define PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4CLIENT_REQUESTS                   "valid_v4client_requests"
+#define PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4CLIENT_REQUESTS                 "dropped_v4client_requests"
+#define PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4SERVER_RESPONSES                  "valid_v4server_responses"
+#define PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4SERVER_RESPONSES                "dropped_v4server_responses"
+#define PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4CLIENT_REQUESTS_WITH_OPTION82     "valid_v4client_requests_with_option82"
+#define PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4CLIENT_REQUESTS_WITH_OPTION82   "dropped_v4client_requests_with_option82"
+#define PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4SERVER_RESPONSES_WITH_OPTION82    "valid_v4server_responses_with_option82"
+#define PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4SERVER_RESPONSES_WITH_OPTION82  "dropped_v4server_responses_with_option82"
+
+/* DHCP-Relay statistics types */
+typedef enum RELAY_STATISTICS
+{
+    VALID_V4CLIENT_REQUESTS = 0,
+    DROPPED_V4CLIENT_REQUESTS,
+    VALID_V4SERVER_RESPONSES,
+    DROPPED_V4SERVER_RESPONSES,
+    VALID_V4CLIENT_REQUESTS_WITH_OPTION82,
+    DROPPED_V4CLIENT_REQUESTS_WITH_OPTION82,
+    VALID_V4SERVER_RESPONSES_WITH_OPTION82,
+    DROPPED_V4SERVER_RESPONSES_WITH_OPTION82
+}RELAY_STATISTICS;
 /* IP Address string maximum length(Ex : 255.255.255.255). */
 #define IPADDRESS_STRING_MAX_LENGTH   (15)
 
