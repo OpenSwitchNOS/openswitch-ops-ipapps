@@ -49,10 +49,114 @@
 #include "udpfwd_vty_utils.h"
 #include "udpfwd_common.h"
 #include "udpfwd_util.h"
+#include "udpfwd.h"
 
 extern struct ovsdb_idl *idl;
 VLOG_DEFINE_THIS_MODULE(dhcp_relay_vty);
 
+/*-----------------------------------------------------------------------------
+| Function       : print_relay_statistics
+| Responsibility : To print the dhcp-relay statistics.
+| Return         : Returns CMD_SUCCESS
+-----------------------------------------------------------------------------*/
+int32_t
+print_relay_statistics(void)
+{
+    const struct ovsrec_dhcp_relay *row = NULL;
+    const struct ovsdb_datum *datum = NULL;
+    union ovsdb_atom atom;
+    uint32_t index;
+    struct UDPF_PKT_COUNTER udp_counters;
+    memset(&udp_counters, 0, sizeof (struct UDPF_PKT_COUNTER));
+
+    row = ovsrec_dhcp_relay_first(idl);
+
+    OVSREC_DHCP_RELAY_FOR_EACH (row, idl)
+    {
+        datum = ovsrec_port_get_dhcp_relay_statistics(row->port,
+                                OVSDB_TYPE_STRING, OVSDB_TYPE_INTEGER);
+        if (NULL == datum)
+            continue;
+
+        atom.string =
+            PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4CLIENT_REQUESTS;
+        index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+        udp_counters.dhcp_client_valids +=
+            ((index == UINT_MAX)? 0 : datum->values[index].integer);
+
+        atom.string =
+            PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4CLIENT_REQUESTS;
+        index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+        udp_counters.dhcp_client_drops +=
+            ((index == UINT_MAX)? 0 : datum->values[index].integer);
+
+        atom.string =
+            PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4SERVER_RESPONSES;
+        index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+        udp_counters.dhcp_serv_valids +=
+            ((index == UINT_MAX)? 0 : datum->values[index].integer);
+
+        atom.string =
+            PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4SERVER_RESPONSES;
+        index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+        udp_counters.dhcp_serv_drops +=
+            ((index == UINT_MAX)? 0 : datum->values[index].integer);
+
+        atom.string =
+            PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4CLIENT_REQUESTS_WITH_OPTION82;
+        index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+        udp_counters.dhcp_client_valids_with_option82 +=
+            ((index == UINT_MAX)? 0 : datum->values[index].integer);
+
+        atom.string =
+            PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4CLIENT_REQUESTS_WITH_OPTION82;
+        index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+        udp_counters.dhcp_client_drops_with_option82 +=
+            ((index == UINT_MAX)? 0 : datum->values[index].integer);
+
+        atom.string =
+            PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4SERVER_RESPONSES_WITH_OPTION82;
+        index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+        udp_counters.dhcp_serv_valids_with_option82 +=
+            ((index == UINT_MAX)? 0 : datum->values[index].integer);
+
+        atom.string =
+            PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4SERVER_RESPONSES_WITH_OPTION82;
+        index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+        udp_counters.dhcp_serv_drops_with_option82 +=
+            ((index == UINT_MAX)? 0 : datum->values[index].integer);
+    }
+
+    vty_out(vty, "%s DHCP Relay Statistics:%s",
+                VTY_NEWLINE, VTY_NEWLINE);
+    vty_out(vty, "%s  Client Requests       Server Responses%s",
+                VTY_NEWLINE, VTY_NEWLINE);
+    vty_out(vty, "%s  Valid      Dropped    Valid      Dropped%s",
+                VTY_NEWLINE, VTY_NEWLINE);
+    vty_out(vty, "  ---------- ---------- ---------- ----------%s",
+            VTY_NEWLINE);
+    vty_out(vty, "  %-10d %-10d %-10d %-10d%s",
+            udp_counters.dhcp_client_valids,
+            udp_counters.dhcp_client_drops,
+            udp_counters.dhcp_serv_valids,
+            udp_counters.dhcp_serv_drops, VTY_NEWLINE);
+
+    vty_out(vty, "%s DHCP Relay Option 82 Statistics:%s",
+                VTY_NEWLINE, VTY_NEWLINE);
+    vty_out(vty, "%s  Client Requests       Server Responses%s",
+                VTY_NEWLINE, VTY_NEWLINE);
+    vty_out(vty, "%s  Valid      Dropped    Valid      Dropped%s",
+                VTY_NEWLINE, VTY_NEWLINE);
+    vty_out(vty, "  ---------- ---------- ---------- ----------%s",
+            VTY_NEWLINE);
+    vty_out(vty, "  %-10d %-10d %-10d %-10d%s",
+            udp_counters.dhcp_client_valids_with_option82,
+            udp_counters.dhcp_client_drops_with_option82,
+            udp_counters.dhcp_serv_valids_with_option82,
+            udp_counters.dhcp_serv_drops_with_option82, VTY_NEWLINE);
+
+    return CMD_SUCCESS;
+}
 /*-----------------------------------------------------------------------------
 | Function       : show_dhcp_relay_config
 | Responsibility : To show the dhcp-relay configuration.
@@ -147,6 +251,7 @@ show_dhcp_relay_config (void)
         vty_out(vty, " Remote ID                        : %s%s",
                 status, VTY_NEWLINE);
     }
+    print_relay_statistics();
     return CMD_SUCCESS;
 }
 
