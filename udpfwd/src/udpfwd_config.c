@@ -23,10 +23,11 @@
  *
  */
 
-
-#include "udpfwd_common.h"
 #include "udpfwd.h"
+#include "udpfwd_common.h"
 #include "hash.h"
+#include "udpfwd_util.h"
+
 
 VLOG_DEFINE_THIS_MODULE(udpfwd_config);
 
@@ -846,5 +847,72 @@ void udpfwd_handle_udp_bcast_forwarder_config_change(
                              servers[iter].udp_port);
     }
 
+    return;
+}
+
+void
+port_refresh_dhcp_relay_stats(struct ovsdb_idl *idl)
+{
+    const struct ovsrec_dhcp_relay *rec = NULL;
+    struct shash_node *node = NULL, *next = NULL;
+    char *keys[8];
+    int64_t int_values[8];
+    UDPFWD_INTERFACE_NODE_T *intfNode = NULL;
+    bool found = false;
+
+    rec = ovsrec_dhcp_relay_first(idl);
+    SHASH_FOR_EACH_SAFE(node, next, &udpfwd_ctrl_cb_p->intfHashTable)
+    {
+        intfNode = (UDPFWD_INTERFACE_NODE_T *)node->data;
+        OVSREC_DHCP_RELAY_FOR_EACH(rec, idl) {
+            if (0 == strncmp(rec->port->name, intfNode->portName,
+                             strlen(rec->port->name))) {
+                    found = true;
+                    break;
+            }
+            else
+                continue;
+        }
+
+        if (found)
+        {
+            /* Set Statistics column. */
+            keys[VALID_V4CLIENT_REQUESTS] =
+                PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4CLIENT_REQUESTS;
+            int_values[VALID_V4CLIENT_REQUESTS] =
+                UDPF_DHCPR_CLIENT_SENT(intfNode);
+            keys[DROPPED_V4CLIENT_REQUESTS] =
+                PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4CLIENT_REQUESTS;
+            int_values[DROPPED_V4CLIENT_REQUESTS] =
+                UDPF_DHCPR_CLIENT_DROPS(intfNode);
+            keys[VALID_V4SERVER_RESPONSES] =
+                PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4SERVER_RESPONSES;
+            int_values[VALID_V4SERVER_RESPONSES] =
+                UDPF_DHCPR_SERVER_SENT(intfNode);
+            keys[DROPPED_V4SERVER_RESPONSES] =
+                PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4SERVER_RESPONSES;
+            int_values[DROPPED_V4SERVER_RESPONSES] =
+                UDPF_DHCPR_SERVER_DROPS(intfNode);
+            keys[VALID_V4CLIENT_REQUESTS_WITH_OPTION82] =
+                PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4CLIENT_REQUESTS_WITH_OPTION82;
+            int_values[VALID_V4CLIENT_REQUESTS_WITH_OPTION82] =
+                UDPF_DHCPR_CLIENT_SENT_WITH_OPTION82(intfNode);
+            keys[DROPPED_V4CLIENT_REQUESTS_WITH_OPTION82] =
+                PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4CLIENT_REQUESTS_WITH_OPTION82;
+            int_values[DROPPED_V4CLIENT_REQUESTS_WITH_OPTION82] =
+                UDPF_DHCPR_CLIENT_DROPS_WITH_OPTION82(intfNode);
+            keys[VALID_V4SERVER_RESPONSES_WITH_OPTION82] =
+                PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4SERVER_RESPONSES_WITH_OPTION82;
+            int_values[VALID_V4SERVER_RESPONSES_WITH_OPTION82] =
+                UDPF_DHCPR_SERVER_SENT_WITH_OPTION82(intfNode);
+            keys[DROPPED_V4SERVER_RESPONSES_WITH_OPTION82] =
+                PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4SERVER_RESPONSES_WITH_OPTION82;
+            int_values[DROPPED_V4SERVER_RESPONSES_WITH_OPTION82] =
+                UDPF_DHCPR_SERVER_DROPS_WITH_OPTION82(intfNode);
+
+            ovsrec_port_set_dhcp_relay_statistics(rec->port, keys,
+                        int_values, ARRAY_SIZE(int_values));
+        }
+    }
     return;
 }
