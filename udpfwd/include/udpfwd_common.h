@@ -32,8 +32,12 @@ typedef uint16_t feature_bmap;
 /* Feature enumeration bit positions */
 typedef enum FEATURE_BIT
 {
+#ifdef FTR_UDP_BCAST_FWD
     /* UDP broadcast forwarder feature bit */
     UDP_BCAST_FORWARDER_BIT           = 0x0001,
+#endif /* FTR_UDP_BCAST_FWD */
+
+#ifdef FTR_DHCP_RELAY
     /* DHCP relay feature bit */
     DHCP_RELAY_BIT                    = 0x0002,
     /* DHCP packet hop count increment feature bit */
@@ -42,6 +46,7 @@ typedef enum FEATURE_BIT
     DHCP_RELAY_OPTION82_BIT           = 0x0008,
     /* DHCP relay option 82 server resonse validate bit */
     DHCP_RELAY_OPTION82_VALIDATE_BIT  = 0x0020,
+#endif /* FTR_DHCP_RELAY */
     /* Invalid feature */
     INVALID_FEATURE_BIT               = 0x0040
 } FEATURE_BIT;
@@ -49,17 +54,24 @@ typedef enum FEATURE_BIT
 /* Feature enumeration */
 typedef enum UDPFWD_FEATURE
 {
+#ifdef FTR_UDP_BCAST_FWD
     UDP_BCAST_FORWARDER = 0,
+#endif /* FTR_UDP_BCAST_FWD */
+
+#ifdef FTR_DHCP_RELAY
     DHCP_RELAY,
     DHCP_RELAY_HOP_COUNT_INCREMENT,
     DHCP_RELAY_OPTION82,
-    DHCP_RELAY_OPTION82_VALIDATE
+    DHCP_RELAY_OPTION82_VALIDATE,
+#endif /* FTR_DHCP_RELAY */
+    INVALID_FEATURE
 } UDPFWD_FEATURE;
 
 /* Feature to name mapping. There should be exact one-to-one mapping
  * between UDPFWD_FEATURE enum and feature_name array */
 extern char *feature_name[];
 
+#ifdef FTR_DHCP_RELAY
 /* DHCP-Relay option 82 policy types */
 typedef enum DHCP_RELAY_OPTION82_POLICY
 {
@@ -83,6 +95,7 @@ typedef enum dhcp_relay_option82_remote_id
 /* remote-id to name mapping. There should be strict one-to-one mapping
  * between DHCP_RELAY_OPTION82_REMOTE_ID and policy_name array */
 extern char *remote_id_name[];
+#endif /* FTR_DHCP_RELAY */
 
 /* Feature configuration status */
 typedef enum feature_status
@@ -95,10 +108,13 @@ typedef enum feature_status
 typedef struct FEATURE_CONFIG
 {
     feature_bmap config;
+#ifdef FTR_DHCP_RELAY
     DHCP_RELAY_OPTION82_POLICY    policy;
     DHCP_RELAY_OPTION82_REMOTE_ID r_id;
+#endif /* FTR_DHCP_RELAY */
 } FEATURE_CONFIG;
 
+#ifdef FTR_DHCP_RELAY
 /* DHCP-Relay statistics types */
 typedef enum RELAY_STATISTICS
 {
@@ -112,6 +128,14 @@ typedef enum RELAY_STATISTICS
     DROPPED_V4SERVER_RESPONSES_WITH_OPTION82,
     MAX_STATISTICS_TYPE
 }RELAY_STATISTICS;
+#endif /* FTR_DHCP_RELAY */
+
+/* Store the UDP Forwarder details. */
+typedef struct
+udpfwd_server_t {
+    char *ipAddr;       /* IP address of the protocol server. */
+    int  udpPort;       /* UDP port number. */
+} udpfwd_server;
 
 /* IP Address string maximum length(Ex : 255.255.255.255). */
 #define IPADDRESS_STRING_MAX_LENGTH   (15)

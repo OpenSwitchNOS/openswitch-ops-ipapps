@@ -29,7 +29,7 @@ include_directories (${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/${INCL_DIR}
                      ${OVSCOMMON_INCLUDE_DIRS}
 )
 
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror")
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -D FTR_UDP_BCAST_FWD=1 -D FTR_DHCP_RELAY=1")
 
 # Source files to build ops-udpfwd
 set (SOURCES ${SRC_DIR}/udpfwd.c
