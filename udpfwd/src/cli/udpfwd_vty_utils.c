@@ -955,6 +955,15 @@ show_udp_forwarder_configuration (const char *ifname)
             udp_status, VTY_NEWLINE);
     vty_out(vty, "%s", VTY_NEWLINE);
 
+    if (ifname)
+    {
+        vty_out(vty, "Interface: %s%s", ifname, VTY_NEWLINE);
+        vty_out(vty, "%2sIP Forward Addresses%4sUDP Port %s", "", "",
+                     VTY_NEWLINE);
+        vty_out(vty, "%2s------------------------------- %s", "",
+                     VTY_NEWLINE);
+    }
+
     row_serv = ovsrec_udp_bcast_forwarder_server_first(idl);
 
     OVSREC_UDP_BCAST_FORWARDER_SERVER_FOR_EACH (row_serv, idl)
@@ -968,11 +977,6 @@ show_udp_forwarder_configuration (const char *ifname)
                 {
                     if(row_serv->n_ipv4_ucast_server)
                     {
-                        vty_out(vty, "Interface: %s%s", ifname, VTY_NEWLINE);
-                        vty_out(vty, "%2sIP Forward Addresses%4sUDP Port %s", "", "",
-                                VTY_NEWLINE);
-                        vty_out(vty, "%2s------------------------------- %s", "",
-                                VTY_NEWLINE);
                         for (i = 0; i < row_serv->n_ipv4_ucast_server; i++)
                         {
                             /* get the UDP port number. */
@@ -989,15 +993,13 @@ show_udp_forwarder_configuration (const char *ifname)
                         }
                         entry_found = true;
                     }
-
-                    break;
                 }
             }
             else
             {
                 vty_out(vty, "Interface: %s%s",
                         row_serv->src_port->name, VTY_NEWLINE);
-                vty_out(vty, "%2sIP Forward Address%4sUDP Port%s",
+                vty_out(vty, "%2sIP Forward Addresses%4sUDP Port%s",
                         "", "", VTY_NEWLINE);
                 vty_out(vty, "%2s-----------------------------%s",
                         "", VTY_NEWLINE);
