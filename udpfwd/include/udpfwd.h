@@ -71,6 +71,23 @@ typedef uint8_t MAC_ADDRESS[6];
 
 #define UDPFWD_DHCP_BROADCAST_FLAG    0x8000
 
+/* structure needed for statistics counters */
+typedef struct DHCP_RELAY_PKT_COUNTER
+{
+    uint32_t    client_drops; /* number of dropped client requests */
+    uint32_t    client_valids; /* number of valid client requests */
+    uint32_t    serv_drops; /* number of dropped server responses */
+    uint32_t    serv_valids; /* number of valid server responses */
+    uint32_t    client_drops_with_option82; /* number of dropped client
+                                               requests with option 82 */
+    uint32_t    client_valids_with_option82; /* number of valid client
+                                                requests with option 82 */
+    uint32_t    serv_drops_with_option82; /* number of dropped server
+                                             responses with option 82 */
+    uint32_t    serv_valids_with_option82; /* number of valid server
+                                              responses with option 82 */
+} DHCP_RELAY_PKT_COUNTER;
+
 /* UDP Forwarder Control Block. */
 typedef struct UDPF_CTRL_CB
 {
@@ -98,6 +115,8 @@ typedef struct UDPFWD_INTERFACE_NODE_T
   uint8_t addrCount; /* Counts of configured servers */
   UDPFWD_SERVER_T **serverArray; /* Pointer to the array server configs */
   IP_ADDRESS bootp_gw; /* store bootp gateway IP address */
+  DHCP_RELAY_PKT_COUNTER dhcp_relay_pkt_counters; /* Counts of dhcp-relay
+                                                     statistics */
 } UDPFWD_INTERFACE_NODE_T;
 
 typedef enum DB_OP_TYPE_t {
@@ -139,6 +158,7 @@ void udpfwd_handle_dhcp_relay_row_delete(struct ovsdb_idl *idl);
 void udpfwd_handle_udp_bcast_forwarder_row_delete(struct ovsdb_idl *idl);
 void udpfwd_handle_udp_bcast_forwarder_config_change(
               const struct ovsrec_udp_bcast_forwarder_server *rec);
-
+void
+port_refresh_dhcp_relay_stats(struct ovsdb_idl *idl);
 
 #endif /* udpfwd.h */
