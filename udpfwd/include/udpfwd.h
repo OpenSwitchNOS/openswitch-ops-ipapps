@@ -38,6 +38,7 @@
 #include <stdio.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
+#include <netinet/udp.h>
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -79,6 +80,7 @@ typedef uint8_t MAC_ADDRESS[6];
 /* statistics refresh default interval  */
 #define STATS_UPDATE_DEFAULT_INTERVAL    5000
 
+#ifdef FTR_DHCP_RELAY
 /* structure needed for statistics counters */
 typedef struct DHCP_RELAY_PKT_COUNTER
 {
@@ -95,6 +97,7 @@ typedef struct DHCP_RELAY_PKT_COUNTER
     uint32_t    serv_valids_with_option82; /* number of valid server
                                               responses with option 82 */
 } DHCP_RELAY_PKT_COUNTER;
+#endif /* FTR_DHCP_RELAY */
 
 /* UDP Forwarder Control Block. */
 typedef struct UDPF_CTRL_CB
@@ -124,8 +127,10 @@ typedef struct UDPFWD_INTERFACE_NODE_T
   uint8_t addrCount; /* Counts of configured servers */
   UDPFWD_SERVER_T **serverArray; /* Pointer to the array server configs */
   IP_ADDRESS bootp_gw; /* store bootp gateway IP address */
+#ifdef FTR_DHCP_RELAY
   DHCP_RELAY_PKT_COUNTER dhcp_relay_pkt_counters; /* Counts of dhcp-relay
                                                      statistics */
+#endif /* FTR_DHCP_RELAY */
 } UDPFWD_INTERFACE_NODE_T;
 
 typedef enum DB_OP_TYPE_t {

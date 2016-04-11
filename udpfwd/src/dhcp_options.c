@@ -29,7 +29,119 @@
 
 VLOG_DEFINE_THIS_MODULE(dhcp_options);
 
+#ifdef FTR_DHCP_RELAY
+
 unsigned char dhcpCookie[] = RFC1048_MAGIC;
+
+
+
+/*
+ * Function      : dhcpScanOpt
+ * Responsiblity : This function is used to search for a specified option tag
+ *                 in the options field that starts at opt and ends at optend.
+ *                 If the ovld_opt argument is non-null, and an overload
+ *                 option is encountered, its value
+ *                 will be returned in *opt_ovld.
+ * Parameters    : opt - option field starting point
+ *                 optend - option field ending point
+ *                 tag - option tag to search
+ *                 ovld_opt - overload option
+ * Return        : If the option tag is found, a pointer to it is returned.
+ *                 Otherwise, this function returns NULL.
+ */
+uint8_t * dhcpScanOpt(uint8_t *opt, uint8_t *optend,
+                            uint8_t tag, uint8_t *ovld_opt)
+{
+    while (opt < optend) {
+        if (*opt == tag) {
+            return(opt);
+        }
+        else if (*opt == END) {
+            break;
+        }
+        else if (*opt == PAD) {
+            opt++;
+        }
+        else {
+            if (*opt == OPT_OVERLOAD) {
+                if (ovld_opt != NULL) {
+                    *ovld_opt = *OPTBODY(opt);
+                }
+            }
+            opt += 2 + DHCPOPTLEN(opt);  /* + 2 for tag and length.*/
+        }
+    }
+    return NULL;
+}
+
+/*
+ * Function      : dhcpPickupOpt
+ * Responsiblity : This function is used to search for a specified option tag in the
+ *                 dhcp packet pointed to by dhcp of length len. It first searches the
+ *                 options field. If an overload option is encountered in the options field,
+ *                 it will also search the sname and/or file fields, as indicated by the
+ *                 value of the overload option.
+ * Parameters    : dhcp - dhcp packet
+ *                 len - length of dhcp packet
+ *                 tag - option tag
+ * Return        : If the option tag is found, a pointer to it is returned.
+ *                 Otherwise, this function returns NULL.
+ */
+uint8_t * dhcpPickupOpt(struct dhcp_packet *dhcp, int32_t len, uint8_t tag)
+{
+    bool useSname = false;
+    bool useFile = false;
+    uint8_t *opt;
+    uint8_t *optend;
+    uint8_t *retval;
+    uint8_t overload = 0;
+
+    /* First, try searching the options field. */
+    opt = (uint8_t *)&(dhcp->options[MAGIC_LEN]);
+    optend = (uint8_t *)&(dhcp->options[len - DFLTDHCPLEN + DFLTOPTLEN]);
+    if ((retval = dhcpScanOpt(opt, optend, tag, &overload)) != NULL) {
+        if (overload == 0)
+            return retval;
+    }
+
+    /*
+     * If we encountered an overload option in the options field, decode
+     * its value to determine if we should look at the file/sname fields.
+     */
+    switch (overload) {
+    case FILE_ISOPT:
+        useFile = true;
+        break;
+    case SNAME_ISOPT:
+        useSname = true;
+        break;
+    case BOTH_AREOPT:
+        useFile = useSname = true;
+        break;
+    default:
+        break;
+    }
+
+    /* Search the file field if the overload option said we should. */
+    if (useFile) {
+        opt = (uint8_t *)(dhcp->file);
+        optend = (uint8_t *)&(dhcp->file[DHCP_BOOT_FILENAME_LEN]);
+        if ((retval = dhcpScanOpt(opt, optend, tag, NULL)) != NULL) {
+            return retval;
+        }
+    }
+    /* Search the sname field if the overload option said we should. */
+    else if (useSname) {
+        opt = (uint8_t *)(dhcp->sname);
+        optend = (uint8_t *)&(dhcp->sname[DHCP_SERVER_HOSTNAME_LEN]);
+        if ((retval = dhcpScanOpt(opt, optend, tag, NULL)) != NULL) {
+            return retval;
+        }
+    }
+
+    /* Didn't find the tag, return NULL. */
+    return (NULL);
+ }
 
 /*
  * Function: dhcp_relay_get_option82_len
@@ -495,3 +607,4 @@ OPTION82_RESULT_t process_dhcp_relay_option82_message(void *pkt, DHCP_OPTION_82_
 
    return VALID;
 }
+#endif /* FTR_DHCP_RELAY */

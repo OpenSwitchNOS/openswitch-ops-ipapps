@@ -29,6 +29,8 @@
 
 #include "udpfwd_vty.h"
 
+#ifdef FTR_UDP_BCAST_FWD
 vtysh_ret_val vtysh_udp_forwarder_context_clientcallback (void *p_private);
+#endif /* FTR_UDP_BCAST_FWD */
 
 #endif /* vtysh_ovsdb_udpfwd_context.h */

@@ -32,7 +32,7 @@
 
 VLOG_DEFINE_THIS_MODULE(udpfwd_xmit);
 
-
+#if defined(FTR_DHCP_RELAY) || defined(FTR_UDP_BCAST_FWD)
 /*
  * Function : udpf_send_pkt_through_socket
  * Responsiblity : To send a unicast packet to a known server address.
@@ -64,8 +64,8 @@ static bool udpfwd_send_pkt_through_socket(void *pkt,
     udph->uh_dport = to->sin_port;
 
     iph->ip_sum = in_cksum((uint16_t *) pkt, iph->ip_len, 0);
-    /* FIXME: Add working udp checksum function */
-    udph->check = 0; //get_udpsum(iph, udph);
+	/* FIXME: Add udp checksum computation function */
+    udph->check = 0;
 
     iov[0].iov_base = pkt;
     iov[0].iov_len = size;
@@ -99,7 +99,9 @@ static bool udpfwd_send_pkt_through_socket(void *pkt,
 
     return result;
 }
+#endif /* (FTR_DHCP_RELAY | FTR_UDP_BCAST_FWD) */
 
+#ifdef FTR_UDP_BCAST_FWD
 /*
  * Function: udpfwd_forward_packet
  * Responsibilty : Send incoming UDP broadcast message to server UDP port.
@@ -186,7 +188,9 @@ void udpfwd_forward_packet (void *pkt, uint16_t udp_dport, int32_t size,
 
     return;
 }
+#endif /* FTR_UDP_BCAST_FWD */
 
+#ifdef FTR_DHCP_RELAY
 /*
  * Function: udpfwd_relay_to_dhcp_server
  * Responsibilty : Send incoming DHCP message to client port.
@@ -452,7 +456,6 @@ void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
         /* Release the semaphore and return */
         sem_post(&udpfwd_ctrl_cb_p->waitSem);
         return;
-
     }
     else if (option82_result == VALID)
         INC_UDPF_DHCPR_OPT82_SERVER_SENT(intfNode);
@@ -535,3 +538,4 @@ void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
     sem_post(&udpfwd_ctrl_cb_p->waitSem);
     return;
 }
+#endif /* FTR_DHCP_RELAY */

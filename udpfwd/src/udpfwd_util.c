@@ -46,13 +46,19 @@
 /* Feature to name mapping. There should be exact one-to-one mapping
  * between UDPFWD_FEATURE enum and feature_name array */
 char *feature_name[] =
-       {"UDP-Bcast-Forwarder",            /* UDP_BCAST_FORWARDER */
+       {
+#ifdef FTR_UDP_BCAST_FWD
+        "UDP-Bcast-Forwarder",            /* UDP_BCAST_FORWARDER */
+#endif /* FTR_UDP_BCAST_FWD */
+#ifdef FTR_DHCP_RELAY
         "DHCP-Relay",                     /* DHCP_RELAY */
         "DHCP-Relay hop-count increment", /* DHCP_RELAY_HOP_COUNT_INCREMENT */
         "DHCP-Relay Option 82",           /* DHCP_RELAY_OPTION82 */
         "DHCP-Relay Option 82 validation" /* DHCP_RELAY_OPTION82_VALIDATE */
+#endif /* FTR_DHCP_RELAY */
        };
 
+#ifdef FTR_DHCP_RELAY
 /* Policy to name mapping. There should be strict one-to-one mapping
  * between DHCP_RELAY_OPTION82_POLICY and policy_name array */
 char *policy_name[] =
@@ -67,6 +73,7 @@ char *remote_id_name[] =
      {"ip",    /* REMOTE_ID_IP */
       "mac"    /* REMOTE_ID_MAC */
      };
+#endif /* FTR_DHCP_RELAY */
 
 /*
  * Function      : get_feature_status
@@ -82,11 +89,14 @@ FEATURE_STATUS get_feature_status(feature_bmap value, UDPFWD_FEATURE feature)
 
     switch(feature)
     {
+#ifdef FTR_UDP_BCAST_FWD
     case UDP_BCAST_FORWARDER:
         if (value & UDP_BCAST_FORWARDER_BIT)
             status = ENABLE;
     break;
+#endif /* FTR_UDP_BCAST_FWD */
 
+#ifdef FTR_DHCP_RELAY
     case DHCP_RELAY:
         if (value & DHCP_RELAY_BIT)
             status = ENABLE;
@@ -106,6 +116,7 @@ FEATURE_STATUS get_feature_status(feature_bmap value, UDPFWD_FEATURE feature)
         if (value & DHCP_RELAY_OPTION82_VALIDATE_BIT)
             status = ENABLE;
     break;
+#endif /* FTR_DHCP_RELAY */
 
     default:
     break;
@@ -127,13 +138,16 @@ void set_feature_status(feature_bmap *value, UDPFWD_FEATURE feature,
 {
     switch(feature)
     {
+#ifdef FTR_UDP_BCAST_FWD
     case UDP_BCAST_FORWARDER:
         if (ENABLE == status)
             *value |= UDP_BCAST_FORWARDER_BIT;
         else
             *value &= ~UDP_BCAST_FORWARDER_BIT;
     break;
+#endif /* FTR_UDP_BCAST_FWD */
 
+#ifdef FTR_DHCP_RELAY
     case DHCP_RELAY:
         if (ENABLE == status)
             *value |= DHCP_RELAY_BIT;
@@ -161,6 +175,7 @@ void set_feature_status(feature_bmap *value, UDPFWD_FEATURE feature,
         else
             *value &= ~DHCP_RELAY_OPTION82_VALIDATE_BIT;
     break;
+#endif /* FTR_DHCP_RELAY */
 
     default:
     break;
@@ -168,114 +183,6 @@ void set_feature_status(feature_bmap *value, UDPFWD_FEATURE feature,
 
     return;
 }
-
-/*
- * Function      : dhcpScanOpt
- * Responsiblity : This function is used to search for a specified option tag
- *                 in the options field that starts at opt and ends at optend.
- *                 If the ovld_opt argument is non-null, and an overload
- *                 option is encountered, its value
- *                 will be returned in *opt_ovld.
- * Parameters    : opt - option field starting point
- *                 optend - option field ending point
- *                 tag - option tag to search
- *                 ovld_opt - overload option
- * Return        : If the option tag is found, a pointer to it is returned.
- *                 Otherwise, this function returns NULL.
- */
-uint8_t * dhcpScanOpt(uint8_t *opt, uint8_t *optend,
-                            uint8_t tag, uint8_t *ovld_opt)
-{
-    while (opt < optend) {
-        if (*opt == tag) {
-            return(opt);
-        }
-        else if (*opt == END) {
-            break;
-        }
-        else if (*opt == PAD) {
-            opt++;
-        }
-        else {
-            if (*opt == OPT_OVERLOAD) {
-                if (ovld_opt != NULL) {
-                    *ovld_opt = *OPTBODY(opt);
-                }
-            }
-            opt += 2 + DHCPOPTLEN(opt);  /* + 2 for tag and length.*/
-        }
-    }
-    return NULL;
-}
-
-/*
- * Function      : dhcpPickupOpt
- * Responsiblity : This function is used to search for a specified option tag in the
- *                 dhcp packet pointed to by dhcp of length len. It first searches the
- *                 options field. If an overload option is encountered in the options field,
- *                 it will also search the sname and/or file fields, as indicated by the
- *                 value of the overload option.
- * Parameters    : dhcp - dhcp packet
- *                 len - length of dhcp packet
- *                 tag - option tag
- * Return        : If the option tag is found, a pointer to it is returned.
- *                 Otherwise, this function returns NULL.
- */
-uint8_t * dhcpPickupOpt(struct dhcp_packet *dhcp, int32_t len, uint8_t tag)
-{
-    bool useSname = false;
-    bool useFile = false;
-    uint8_t *opt;
-    uint8_t *optend;
-    uint8_t *retval;
-    uint8_t overload = 0;
-
-    /* First, try searching the options field. */
-    opt = (uint8_t *)&(dhcp->options[MAGIC_LEN]);
-    optend = (uint8_t *)&(dhcp->options[len - DFLTDHCPLEN + DFLTOPTLEN]);
-    if ((retval = dhcpScanOpt(opt, optend, tag, &overload)) != NULL) {
-        if (overload == 0)
-            return retval;
-    }
-
-    /*
-     * If we encountered an overload option in the options field, decode
-     * its value to determine if we should look at the file/sname fields.
-     */
-    switch (overload) {
-    case FILE_ISOPT:
-        useFile = true;
-        break;
-    case SNAME_ISOPT:
-        useSname = true;
-        break;
-    case BOTH_AREOPT:
-        useFile = useSname = true;
-        break;
-    default:
-        break;
-    }
-
-    /* Search the file field if the overload option said we should. */
-    if (useFile) {
-        opt = (uint8_t *)(dhcp->file);
-        optend = (uint8_t *)&(dhcp->file[DHCP_BOOT_FILENAME_LEN]);
-        if ((retval = dhcpScanOpt(opt, optend, tag, NULL)) != NULL) {
-            return retval;
-        }
-    }
-    /* Search the sname field if the overload option said we should. */
-    else if (useSname) {
-        opt = (uint8_t *)(dhcp->sname);
-        optend = (uint8_t *)&(dhcp->sname[DHCP_SERVER_HOSTNAME_LEN]);
-        if ((retval = dhcpScanOpt(opt, optend, tag, NULL)) != NULL) {
-            return retval;
-        }
-    }
-
-    /* Didn't find the tag, return NULL. */
-    return (NULL);
- }
 
 /*
  * Function      : getIfIndexfromIpAddress

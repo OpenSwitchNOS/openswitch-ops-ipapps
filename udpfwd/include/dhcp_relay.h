@@ -27,6 +27,8 @@
 
 #include "udpfwd.h"
 
+#ifdef FTR_DHCP_RELAY
+
 /* BOOTP operation types. */
 #define BOOTREQUEST  1
 #define BOOTREPLY    2
@@ -83,6 +85,45 @@ typedef struct DHCP_OPTION_82_OPTIONS
    CIRCUIT_ID_t  circuit_id;
    REMOTE_ID_IP_ADDR_t ip_addr;
 } DHCP_OPTION_82_OPTIONS;
+
+/* Macros for dhcp-relay statistics counters */
+#define INC_UDPF_DHCPR_CLIENT_DROPS(intfNode)  \
+            intfNode->dhcp_relay_pkt_counters.client_drops++
+#define INC_UDPF_DHCPR_CLIENT_SENT(intfNode)  \
+            intfNode->dhcp_relay_pkt_counters.client_valids++
+#define INC_UDPF_DHCPR_SERVER_DROPS(intfNode)  \
+            intfNode->dhcp_relay_pkt_counters.serv_drops++
+#define INC_UDPF_DHCPR_SERVER_SENT(intfNode)  \
+            intfNode->dhcp_relay_pkt_counters.serv_valids++
+
+/* Macros for Option 82 statistics counters */
+#define INC_UDPF_DHCPR_OPT82_CLIENT_DROPS(intfNode) \
+        intfNode->dhcp_relay_pkt_counters.client_drops_with_option82++
+#define INC_UDPF_DHCPR_OPT82_CLIENT_SENT(intfNode) \
+        intfNode->dhcp_relay_pkt_counters.client_valids_with_option82++
+#define INC_UDPF_DHCPR_OPT82_SERVER_DROPS(intfNode) \
+        intfNode->dhcp_relay_pkt_counters.serv_drops_with_option82++
+#define INC_UDPF_DHCPR_OPT82_SERVER_SENT(intfNode) \
+        intfNode->dhcp_relay_pkt_counters.serv_valids_with_option82++
+
+/* The following macros will return pkt counters values  */
+#define UDPF_DHCPR_CLIENT_DROPS(intfNode)  \
+            intfNode->dhcp_relay_pkt_counters.client_drops
+#define UDPF_DHCPR_CLIENT_SENT(intfNode)  \
+            intfNode->dhcp_relay_pkt_counters.client_valids
+#define UDPF_DHCPR_SERVER_DROPS(intfNode)  \
+            intfNode->dhcp_relay_pkt_counters.serv_drops
+#define UDPF_DHCPR_SERVER_SENT(intfNode)  \
+            intfNode->dhcp_relay_pkt_counters.serv_valids
+
+#define UDPF_DHCPR_CLIENT_DROPS_WITH_OPTION82(intfNode)  \
+            intfNode->dhcp_relay_pkt_counters.client_drops_with_option82
+#define UDPF_DHCPR_CLIENT_SENT_WITH_OPTION82(intfNode)  \
+            intfNode->dhcp_relay_pkt_counters.client_valids_with_option82
+#define UDPF_DHCPR_SERVER_DROPS_WITH_OPTION82(intfNode)  \
+            intfNode->dhcp_relay_pkt_counters.serv_drops_with_option82
+#define UDPF_DHCPR_SERVER_SENT_WITH_OPTION82(intfNode)  \
+            intfNode->dhcp_relay_pkt_counters.serv_valids_with_option82
 
 /* invalid message type or options */
 #define DHCPR_INVALID_PKT -1
@@ -149,6 +190,9 @@ struct ps_udph {
 };
 
 /* Function prototypes from dhcp_options.c */
+uint8_t * dhcpScanOpt(uint8_t *opt, uint8_t *optend,
+                      uint8_t tag, uint8_t *ovld_opt);
+uint8_t * dhcpPickupOpt(struct dhcp_packet *dhcp, int32_t len, uint8_t tag);
 int32_t dhcp_relay_get_option82_len(DHCP_RELAY_OPTION82_REMOTE_ID remote_id);
 
 int32_t dhcp_relay_validate_agent_option(const uint8_t *buf, int32_t buflen,
@@ -166,5 +210,7 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
                    struct in_pktinfo *pktInfo);
 void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
                                    struct in_pktinfo *pktInfo);
+
+#endif /* FTR_DHCP_RELAY */
 
 #endif /* dhcp_relay.h */

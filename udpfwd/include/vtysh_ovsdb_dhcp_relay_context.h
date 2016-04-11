@@ -29,6 +29,8 @@
 
 #include "dhcp_relay_vty.h"
 
+#ifdef FTR_DHCP_RELAY
 vtysh_ret_val vtysh_dhcp_relay_context_clientcallback (void *p_private);
+#endif /* FTR_DHCP_RELAY */
 
 #endif /* vtysh_ovsdb_dhcp_relay_context.h */

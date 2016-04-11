@@ -66,7 +66,7 @@ def udp_bcast_forwarder_enable(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show ip forward-protocol")
-    assert 'UDP Bcast Forwarder : enabled' in cmdOut,\
+    assert 'UDP Broadcast Forwarder : enabled' in cmdOut,\
            "Test to enable UDP Bcast" \
            " Forwarding failed"
 
@@ -84,7 +84,7 @@ def udp_bcast_forwarder_disable(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show ip forward-protocol")
-    assert 'UDP Bcast Forwarder : disabled' in cmdOut, \
+    assert 'UDP Broadcast Forwarder : disabled' in cmdOut, \
            "Test to disable UDP Bcast " \
            "Forwarding failed"
 

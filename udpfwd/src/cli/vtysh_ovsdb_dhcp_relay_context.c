@@ -41,6 +41,7 @@
 #include "vtysh/vtysh_ovsdb_config.h"
 #include "vtysh_ovsdb_dhcp_relay_context.h"
 
+#ifdef FTR_DHCP_RELAY
 /*-----------------------------------------------------------------------------
 | Function : vtysh_dhcp_relay_context_clientcallback
 | Responsibility : client callback routine for dhcp-relay
@@ -118,3 +119,4 @@ vtysh_dhcp_relay_context_clientcallback (void *p_private)
 
     return e_vtysh_ok;
 }
+#endif /* FTR_DHCP_RELAY */

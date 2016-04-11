@@ -151,10 +151,14 @@ int create_udp_socket(void)
  */
 void udpfwd_set_default_config(void)
 {
+#ifdef FTR_UDP_BCAST_FWD
     /* Set UDP-broadcast-forwarding enabled */
     set_feature_status(&(udpfwd_ctrl_cb_p->feature_config.config),
                        UDP_BCAST_FORWARDER, DISABLE);
+#endif /* FTR_UDP_BCAST_FWD */
 
+
+#ifdef FTR_DHCP_RELAY
     /* Set DHCP-Relay enabled */
     set_feature_status(&(udpfwd_ctrl_cb_p->feature_config.config),
                        DHCP_RELAY, ENABLE);
@@ -179,6 +183,7 @@ void udpfwd_set_default_config(void)
 
     /* Set statistics refresh interval */
     udpfwd_ctrl_cb_p->stats_interval = STATS_UPDATE_DEFAULT_INTERVAL;
+#endif /* FTR_DHCP_RELAY */
 
     return;
 }
@@ -274,6 +279,7 @@ void update_feature_state(UDPFWD_FEATURE feature, FEATURE_STATUS state)
     return;
 }
 
+#ifdef FTR_DHCP_RELAY
 /*
  * Function      : update_option82_policy
  * Responsiblity : Check for dhcp relay option 82 policy update.
@@ -345,6 +351,7 @@ void update_stats_refresh_interval(const char *value)
 
     return;
 }
+#endif /* FTR_DHCP_RELAY */
 
 /*
  * Function      : udpfwd_process_globalconfig_update
@@ -356,8 +363,10 @@ void update_stats_refresh_interval(const char *value)
 void udpfwd_process_globalconfig_update(void)
 {
     const struct ovsrec_system *system_row = NULL;
+#if defined(FTR_DHCP_RELAY) || defined(FTR_UDP_BCAST_FWD)
     FEATURE_STATUS state;
     char *value;
+#endif /* (FTR_DHCP_RELAY | FTR_UDP_BCAST_FWD) */
 
     system_row = ovsrec_system_first(idl);
     if (NULL == system_row) {
@@ -371,6 +380,7 @@ void udpfwd_process_globalconfig_update(void)
         return;
     }
 
+#ifdef FTR_DHCP_RELAY
     /* Check if dhcp-relay global configuration is changed */
     if (OVSREC_IDL_IS_COLUMN_MODIFIED(ovsrec_system_col_dhcp_config,
                                    idl_seqno)) {
@@ -421,11 +431,12 @@ void udpfwd_process_globalconfig_update(void)
                   SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_REMOTE_ID);
         update_option82_remote_id(value);
     }
+#endif /* FTR_DHCP_RELAY */
 
-    /* Check if there is a change in system table other config */
+    /* Check if there is a change in UDP Broadcast Forwarder global config */
     if (OVSREC_IDL_IS_COLUMN_MODIFIED(ovsrec_system_col_other_config,
                                    idl_seqno)) {
-        /* Check if there is a change in UDP Broadcast Forwarder global config */
+#ifdef FTR_UDP_BCAST_FWD
         state = DISABLE;
         value = (char *)smap_get(&system_row->other_config,
                                  SYSTEM_OTHER_CONFIG_MAP_UDP_BCAST_FWD_ENABLED);
@@ -433,16 +444,21 @@ void udpfwd_process_globalconfig_update(void)
             state = ENABLE;
         }
         update_feature_state(UDP_BCAST_FORWARDER, state);
+#endif /* FTR_UDP_BCAST_FWD */
 
+#ifdef FTR_DHCP_RELAY
         /* Check if there is a change in statistics refresh interval */
         value = (char *)smap_get(&system_row->other_config,
                                  SYSTEM_OTHER_CONFIG_MAP_STATS_UPDATE_INTERVAL);
-        update_stats_refresh_interval(value);
+        if (value)
+            update_stats_refresh_interval(value);
+#endif /* FTR_DHCP_RELAY */
     }
 
     return;
 }
 
+#ifdef FTR_DHCP_RELAY
 /*
  * Function      : dhcp_relay_server_config_update
  * Responsiblity : Process dhcp_relay table update notifications from OVSDB for the
@@ -489,7 +505,9 @@ void dhcp_relay_server_config_update(void)
 
     return;
 }
+#endif /* FTR_DHCP_RELAY */
 
+#ifdef FTR_UDP_BCAST_FWD
 /*
  * Function      : udp_bcast_forwarder_server_config_update
  * Responsiblity : Process udp_bcast_forwarder table update notifications from
@@ -536,6 +554,8 @@ void udp_bcast_forwarder_server_config_update(void)
 
     return;
 }
+#endif /* FTR_UDP_BCAST_FWD */
+
 /*
  * Function      : udpfwd_reconfigure
  * Responsiblity : Process the table update notifications from OVSDB for the
@@ -555,17 +575,22 @@ void udpfwd_reconfigure(void)
     /* Check for global configuration changes in system table */
     udpfwd_process_globalconfig_update();
 
+#ifdef FTR_DHCP_RELAY
     /* Process dhcp_relay table updates */
     dhcp_relay_server_config_update();
+#endif /* FTR_DHCP_RELAY */
 
+#ifdef FTR_UDP_BCAST_FWD
     /* Process udp_bcast_forwarder_server table updates */
     udp_bcast_forwarder_server_config_update();
+#endif /* FTR_UDP_BCAST_FWD */
 
     /* Cache the lated idl sequence number */
     idl_seqno = new_idl_seqno;
     return;
 }
 
+#ifdef FTR_DHCP_RELAY
 /*
  * Function      : run_stats_update
  * Responsiblity : To update interface dhcp-relay statistics if necessary.
@@ -595,6 +620,7 @@ run_stats_update(void)
         stats_timer = time_msec() + stats_timer_interval;
     }
 }
+#endif /* FTR_DHCP_RELAY */
 
 /*
  * Function      : udpfwd_interface_dump
@@ -623,6 +649,7 @@ static void udpfwd_interface_dump(struct shash_node *node,
     ds_put_format(ds, "Interface %s: %d\n", intfNode->portName,
                       intfNode->addrCount);
 
+#ifdef FTR_DHCP_RELAY
     /* Print dhcp-relay statistics */
     ds_put_format(ds, "client request dropped packets = %d\n",
                   UDPF_DHCPR_CLIENT_DROPS(intfNode));
@@ -645,6 +672,7 @@ static void udpfwd_interface_dump(struct shash_node *node,
     /* Print bootp gateway */
     ip_addr.s_addr = intfNode->bootp_gw;
     ds_put_format(ds, "%s\n", inet_ntoa(ip_addr));
+#endif /* FTR_DHCP_RELAY */
 
     for(iter = 0; iter < intfNode->addrCount; iter++)
     {
@@ -676,10 +704,16 @@ static void udpfwd_interface_dump(struct shash_node *node,
 static void udpfwd_interfaces_dump(struct ds *ds, struct dump_params *params)
 {
     struct shash_node *node, *temp;
+#if defined(FTR_DHCP_RELAY) || defined(FTR_UDP_BCAST_FWD)
     feature_bmap config = udpfwd_ctrl_cb_p->feature_config.config;
+#endif /* (FTR_DHCP_RELAY | FTR_UDP_BCAST_FWD) */
 
+#ifdef FTR_UDP_BCAST_FWD
     ds_put_format(ds, "UDP Bcast Forwarder : %d\n",
                       get_feature_status(config, UDP_BCAST_FORWARDER));
+#endif /* FTR_UDP_BCAST_FWD */
+
+#ifdef FTR_DHCP_RELAY
     ds_put_format(ds, "DHCP Relay : %d\n", get_feature_status(config, DHCP_RELAY));
     ds_put_format(ds, "DHCP Relay hop-count-increment : %d\n",
                       get_feature_status(config, DHCP_RELAY_HOP_COUNT_INCREMENT));
@@ -691,6 +725,7 @@ static void udpfwd_interfaces_dump(struct ds *ds, struct dump_params *params)
                       policy_name[udpfwd_ctrl_cb_p->feature_config.policy]);
     ds_put_format(ds, "DHCP Relay Option82 remote-id : %s\n",
                       remote_id_name[udpfwd_ctrl_cb_p->feature_config.r_id]);
+#endif /* FTR_DHCP_RELAY */
 
     if (!params->ifName) {
         /* dump all interfaces */
@@ -908,10 +943,13 @@ bool udpfwd_init(const char *remote)
     /* Register for System table updates */
     ovsdb_idl_add_table(idl, &ovsrec_table_system);
     ovsdb_idl_add_column(idl, &ovsrec_system_col_cur_cfg);
-    ovsdb_idl_add_column(idl, &ovsrec_system_col_dhcp_config);
     ovsdb_idl_add_column(idl, &ovsrec_system_col_other_config);
+#ifdef FTR_DHCP_RELAY
+    ovsdb_idl_add_column(idl, &ovsrec_system_col_dhcp_config);
+#endif /* FTR_DHCP_RELAY */
 
     /* Register for DHCP_Relay table updates */
+#ifdef FTR_DHCP_RELAY
     ovsdb_idl_add_table(idl, &ovsrec_table_dhcp_relay);
     ovsdb_idl_add_column(idl, &ovsrec_dhcp_relay_col_port);
     ovsdb_idl_add_column(idl,
@@ -921,19 +959,24 @@ bool udpfwd_init(const char *remote)
 
     ovsdb_idl_add_column(idl,
                            &ovsrec_dhcp_relay_col_other_config);
+#endif /* FTR_DHCP_RELAY */
 
     /* Register for UDP_Bcast_Forwarder table updates */
+#ifdef FTR_UDP_BCAST_FWD
     ovsdb_idl_add_table(idl, &ovsrec_table_udp_bcast_forwarder_server);
     ovsdb_idl_add_column(idl, &ovsrec_udp_bcast_forwarder_server_col_src_port);
     ovsdb_idl_add_column(idl, &ovsrec_udp_bcast_forwarder_server_col_dest_vrf);
     ovsdb_idl_add_column(idl, &ovsrec_udp_bcast_forwarder_server_col_udp_dport);
     ovsdb_idl_add_column(idl,
                          &ovsrec_udp_bcast_forwarder_server_col_ipv4_ucast_server);
+#endif /* FTR_UDP_BCAST_FWD */
 
     /* Register for port table for dhcp_relay_statistics update */
     ovsdb_idl_add_table(idl, &ovsrec_table_port);
     ovsdb_idl_add_column(idl, &ovsrec_port_col_name);
+#ifdef FTR_DHCP_RELAY
     ovsdb_idl_add_column(idl, &ovsrec_port_col_dhcp_relay_statistics);
+#endif /* FTR_DHCP_RELAY */
 
     /* Initialize module data structures */
     if (true != udpfwd_module_init())
@@ -944,6 +987,7 @@ bool udpfwd_init(const char *remote)
 
     unixctl_command_register("udpfwd/dump", "", 0, 4,
                              udpfwd_unixctl_dump, NULL);
+
     return true;
 }
 
@@ -1006,7 +1050,9 @@ void udpfwd_run(void)
         return;
 
     udpfwd_reconfigure();
+#ifdef FTR_DHCP_RELAY
     run_stats_update();
+#endif /* FTR_DHCP_RELAY */
 }
 
 /*
