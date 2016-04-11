@@ -49,10 +49,114 @@
 #include "udpfwd_vty_utils.h"
 #include "udpfwd_common.h"
 #include "udpfwd_util.h"
+#include "udpfwd.h"
 
 extern struct ovsdb_idl *idl;
 VLOG_DEFINE_THIS_MODULE(dhcp_relay_vty);
 
+/*-----------------------------------------------------------------------------
+| Function       : print_relay_statistics
+| Responsibility : To print the dhcp-relay statistics.
+| Return         : Returns CMD_SUCCESS
+-----------------------------------------------------------------------------*/
+int32_t
+print_relay_statistics(void)
+{
+    const struct ovsrec_dhcp_relay *row = NULL;
+    const struct ovsdb_datum *datum = NULL;
+    union ovsdb_atom atom;
+    uint32_t index;
+    DHCP_RELAY_PKT_COUNTER dhcp_relay_pkt_counters;
+    memset(&dhcp_relay_pkt_counters, 0, sizeof(DHCP_RELAY_PKT_COUNTER));
+
+    row = ovsrec_dhcp_relay_first(idl);
+
+    OVSREC_DHCP_RELAY_FOR_EACH (row, idl)
+    {
+        datum = ovsrec_port_get_dhcp_relay_statistics(row->port,
+                                OVSDB_TYPE_STRING, OVSDB_TYPE_INTEGER);
+        if (NULL == datum)
+            continue;
+
+        atom.string =
+            PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4CLIENT_REQUESTS;
+        index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+        dhcp_relay_pkt_counters.client_valids +=
+            ((index == UINT_MAX)? 0 : datum->values[index].integer);
+
+        atom.string =
+            PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4CLIENT_REQUESTS;
+        index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+        dhcp_relay_pkt_counters.client_drops +=
+            ((index == UINT_MAX)? 0 : datum->values[index].integer);
+
+        atom.string =
+            PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4SERVER_RESPONSES;
+        index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+        dhcp_relay_pkt_counters.serv_valids +=
+            ((index == UINT_MAX)? 0 : datum->values[index].integer);
+
+        atom.string =
+            PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4SERVER_RESPONSES;
+        index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+        dhcp_relay_pkt_counters.serv_drops +=
+            ((index == UINT_MAX)? 0 : datum->values[index].integer);
+
+        atom.string =
+            PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4CLIENT_REQUESTS_WITH_OPTION82;
+        index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+        dhcp_relay_pkt_counters.client_valids_with_option82 +=
+            ((index == UINT_MAX)? 0 : datum->values[index].integer);
+
+        atom.string =
+            PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4CLIENT_REQUESTS_WITH_OPTION82;
+        index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+        dhcp_relay_pkt_counters.client_drops_with_option82 +=
+            ((index == UINT_MAX)? 0 : datum->values[index].integer);
+
+        atom.string =
+            PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4SERVER_RESPONSES_WITH_OPTION82;
+        index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+        dhcp_relay_pkt_counters.serv_valids_with_option82 +=
+            ((index == UINT_MAX)? 0 : datum->values[index].integer);
+
+        atom.string =
+            PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4SERVER_RESPONSES_WITH_OPTION82;
+        index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+        dhcp_relay_pkt_counters.serv_drops_with_option82 +=
+            ((index == UINT_MAX)? 0 : datum->values[index].integer);
+    }
+
+    vty_out(vty, "%s DHCP Relay Statistics:%s",
+                VTY_NEWLINE, VTY_NEWLINE);
+    vty_out(vty, "%s  Client Requests       Server Responses%s",
+                VTY_NEWLINE, VTY_NEWLINE);
+    vty_out(vty, "%s  Valid      Dropped    Valid      Dropped%s",
+                VTY_NEWLINE, VTY_NEWLINE);
+    vty_out(vty, "  ---------- ---------- ---------- ----------%s",
+            VTY_NEWLINE);
+    vty_out(vty, "  %-10d %-10d %-10d %-10d%s",
+            dhcp_relay_pkt_counters.client_valids,
+            dhcp_relay_pkt_counters.client_drops,
+            dhcp_relay_pkt_counters.serv_valids,
+            dhcp_relay_pkt_counters.serv_drops, VTY_NEWLINE);
+
+    vty_out(vty, "%s DHCP Relay Option 82 Statistics:%s",
+                VTY_NEWLINE, VTY_NEWLINE);
+    vty_out(vty, "%s  Client Requests       Server Responses%s",
+                VTY_NEWLINE, VTY_NEWLINE);
+    vty_out(vty, "%s  Valid      Dropped    Valid      Dropped%s",
+                VTY_NEWLINE, VTY_NEWLINE);
+    vty_out(vty, "  ---------- ---------- ---------- ----------%s",
+            VTY_NEWLINE);
+    vty_out(vty, "  %-10d %-10d %-10d %-10d%s",
+            dhcp_relay_pkt_counters.client_valids_with_option82,
+            dhcp_relay_pkt_counters.client_drops_with_option82,
+            dhcp_relay_pkt_counters.serv_valids_with_option82,
+            dhcp_relay_pkt_counters.serv_drops_with_option82, VTY_NEWLINE);
+
+    return CMD_SUCCESS;
+}
 /*-----------------------------------------------------------------------------
 | Function       : show_dhcp_relay_config
 | Responsibility : To show the dhcp-relay configuration.
@@ -112,10 +216,10 @@ show_dhcp_relay_config (void)
                 SYSTEM_DHCP_CONFIG_MAP_V4RELAY_OPTION82_VALIDATION_ENABLED);
 
     if (status && !strcmp(status, "true"))
-        vty_out(vty, " Response validation              : %s%s",
+        vty_out(vty, " Response Validation              : %s%s",
                 "enabled", VTY_NEWLINE);
     else
-        vty_out(vty, " Response validation              : %s%s",
+        vty_out(vty, " Response Validation              : %s%s",
                 "disabled", VTY_NEWLINE);
 
     /* Display the dhcp-relay option 82 policy configuration */
@@ -129,7 +233,7 @@ show_dhcp_relay_config (void)
 
     if (status)
     {
-        vty_out(vty, " Option 82 handle policy          : %s%s",
+        vty_out(vty, " Option 82 Handle Policy          : %s%s",
                 status, VTY_NEWLINE);
     }
 
@@ -147,6 +251,7 @@ show_dhcp_relay_config (void)
         vty_out(vty, " Remote ID                        : %s%s",
                 status, VTY_NEWLINE);
     }
+    print_relay_statistics();
     return CMD_SUCCESS;
 }
 
