@@ -23,6 +23,9 @@
     - [Verify the maximum number of helper address configurations on all interfaces](#verify-the-maximum-number-of-helper-address-configurations-on-all-interfaces)
     - [Verify helper address deletion on all interfaces](#verify-helper-address-deletion-on-all-interfaces)
     - [Verify bootp gateway configuration](#verify-bootp-gateway-configuration)
+- [Verify the dhcp-relay statistics](#verify-the-dhcp-relay-statistics)
+    - [Verify the dhcp-relay statistics on a specific interface](#verify-the-dhcp-relay-statistics-on-a-specific-interface)
+    - [Verify the dhcp-relay option 82 statistics on a specific interface](#verify-the-dhcp-relay-option-82-statistics-on-a-specific-interface)
 
 ## Verify dhcp-relay configuration
 ### Objective
@@ -276,3 +279,40 @@ This test fails if helper addresses for an interface are displayed in the unixct
 The unixctl dump output displays the interface along with the bootp gateway address.
 #### Test fail criteria
 The unixctl dump output does not display interface with the bootp gateway address.
+
+## Verify the dhcp-relay statistics
+### Objective
+To verify the dhcp-relay statistics are properly updated in the daemon's local cache.
+### Requirements
+One switch is required for this test.
+
+### Setup
+#### Topology diagram
+```ditaa
+
+                          +----------------+
+                          |                |
+                          |     DUT01      |
+                          |                |
+                          |                |
+                          +----------------+
+```
+### Verify the dhcp-relay statistics on a specific interface
+### Description
+1. Verify that the unixctl dump output of the interface displays the dhcp-relay statistics.
+
+### Test result criteria
+#### Test pass criteria
+The unixctl dump output displays the dhcp-relay statistics.
+#### Test fail criteria
+The unixctl dump output does not display the dhcp-relay statistics.
+
+### Verify the dhcp-relay option 82 statistics on a specific interface
+### Description
+1. Verify that the unixctl dump output of the interface displays the dhcp-relay statistics.
+
+### Test result criteria
+#### Test pass criteria
+The unixctl dump output displays the dhcp-relay statistics.
+#### Test fail criteria
+The unixctl dump output does not display the dhcp-relay statistics.
