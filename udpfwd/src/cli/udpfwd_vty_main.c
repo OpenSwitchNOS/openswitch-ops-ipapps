@@ -43,6 +43,8 @@ dhcp_relay_ovsdb_init(void)
 {
     ovsdb_idl_add_table(idl, &ovsrec_table_system);
     ovsdb_idl_add_column(idl, &ovsrec_system_col_dhcp_config);
+    ovsdb_idl_add_table(idl, &ovsrec_table_port);
+    ovsdb_idl_add_column(idl, &ovsrec_port_col_dhcp_relay_statistics);
     ovsdb_idl_add_table(idl, &ovsrec_table_dhcp_relay);
     ovsdb_idl_add_column(idl, &ovsrec_dhcp_relay_col_port);
     ovsdb_idl_add_column(idl, &ovsrec_dhcp_relay_col_vrf);

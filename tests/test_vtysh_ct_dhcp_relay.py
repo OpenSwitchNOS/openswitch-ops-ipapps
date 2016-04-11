@@ -152,7 +152,7 @@ def dhcp_relay_option_82_validation_enable(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
-    assert 'Response validation              : enabled' in cmdOut, "Test " \
+    assert 'Response Validation              : enabled' in cmdOut, "Test " \
         "to enable dhcp-relay option 82 response validation failed"
 
     return True
@@ -171,8 +171,8 @@ def relay_option_82_with_validation_and_replace(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : enabled' and \
-        'Option 82 handle policy          : replace' in cmdOut, "Test to " \
+        'Response Validation              : enabled' and \
+        'Option 82 Handle Policy          : replace' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with validation and " \
         "replace policy failed"
 
@@ -192,8 +192,8 @@ def relay_option_82_with_validation_replace_and_mac_rid(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : enabled' and \
-        'Option 82 handle policy          : replace' and \
+        'Response Validation              : enabled' and \
+        'Option 82 Handle Policy          : replace' and \
         'Remote ID                        : mac' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "validation, replace policy and mac remote ID failed"
@@ -214,8 +214,8 @@ def relay_option_82_with_validation_replace_and_ip_rid(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : enabled' and \
-        'Option 82 handle policy          : replace' and \
+        'Response Validation              : enabled' and \
+        'Option 82 Handle Policy          : replace' and \
         'Remote ID                        : ip' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "validation, replace policy and ip remote ID failed"
@@ -236,8 +236,8 @@ def relay_option_82_with_validation_and_drop(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : enabled' and \
-        'Option 82 handle policy          : drop' in cmdOut, "Test to " \
+        'Response Validation              : enabled' and \
+        'Option 82 Handle Policy          : drop' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with validation and " \
         "drop policy failed"
 
@@ -257,8 +257,8 @@ def relay_option_82_with_validation_drop_and_mac_rid(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : enabled' and \
-        'Option 82 handle policy          : drop' and \
+        'Response Validation              : enabled' and \
+        'Option 82 Handle Policy          : drop' and \
         'Remote ID                        : mac' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "validation, drop policy and mac remote ID failed"
@@ -279,8 +279,8 @@ def relay_option_82_with_validation_drop_and_ip_rid(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : enabled' and \
-        'Option 82 handle policy          : drop' and \
+        'Response Validation              : enabled' and \
+        'Option 82 Handle Policy          : drop' and \
         'Remote ID                        : ip' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "validation, drop policy and ip remote ID failed"
@@ -301,8 +301,8 @@ def relay_option_82_with_keep_policy(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : disabled' and \
-        'Option 82 handle policy          : keep' in cmdOut, "Test to " \
+        'Response Validation              : disabled' and \
+        'Option 82 Handle Policy          : keep' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with keep policy failed"
 
     return True
@@ -321,8 +321,8 @@ def relay_option_82_with_keep_and_mac_rid(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : disabled' and \
-        'Option 82 handle policy          : keep' and \
+        'Response Validation              : disabled' and \
+        'Option 82 Handle Policy          : keep' and \
         'Remote ID                        : mac' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "keep policy and mac remote ID failed"
@@ -343,8 +343,8 @@ def relay_option_82_with_keep_and_ip_rid(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : disabled' and \
-        'Option 82 handle policy          : keep' and \
+        'Response Validation              : disabled' and \
+        'Option 82 Handle Policy          : keep' and \
         'Remote ID                        : ip' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "keep policy and ip remote ID failed"
@@ -365,7 +365,7 @@ def relay_option_82_with_replace_policy(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Option 82 handle policy          : replace' in cmdOut, "Test to " \
+        'Option 82 Handle Policy          : replace' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with replace policy failed"
 
     return True
@@ -384,7 +384,7 @@ def relay_option_82_with_replace_and_mac_rid(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Option 82 handle policy          : replace' and \
+        'Option 82 Handle Policy          : replace' and \
         'Remote ID                        : mac' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "replace policy and mac remote ID failed"
@@ -405,8 +405,8 @@ def relay_option_82_replace_with_mac_rid_validation(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : enabled' and \
-        'Option 82 handle policy          : replace' and \
+        'Response Validation              : enabled' and \
+        'Option 82 Handle Policy          : replace' and \
         'Remote ID                        : mac' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "replace policy, mac remote ID and validation failed"
@@ -427,7 +427,7 @@ def relay_option_82_with_replace_and_ip_rid(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Option 82 handle policy          : replace' and \
+        'Option 82 Handle Policy          : replace' and \
         'Remote ID                        : ip' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "replace policy and ip remote ID failed"
@@ -448,8 +448,8 @@ def relay_option_82_replace_with_ip_rid_validation(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : enabled' and \
-        'Option 82 handle policy          : replace' and \
+        'Response Validation              : enabled' and \
+        'Option 82 Handle Policy          : replace' and \
         'Remote ID                        : ip' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "replace policy, ip remote ID and validation failed"
@@ -470,8 +470,8 @@ def relay_option_82_with_replace_and_validation(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : enabled' and \
-        'Option 82 handle policy          : replace' in cmdOut, "Test to " \
+        'Response Validation              : enabled' and \
+        'Option 82 Handle Policy          : replace' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with replace policy and " \
         "validation failed"
 
@@ -491,8 +491,8 @@ def relay_option_82_with_replace_validation_and_mac_rid(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : enabled' and \
-        'Option 82 handle policy          : replace' and \
+        'Response Validation              : enabled' and \
+        'Option 82 Handle Policy          : replace' and \
         'Remote ID                        : mac' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "replace policy, validation and mac remote ID failed"
@@ -513,8 +513,8 @@ def relay_option_82_with_replace_validation_and_ip_rid(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : enabled' and \
-        'Option 82 handle policy          : replace' and \
+        'Response Validation              : enabled' and \
+        'Option 82 Handle Policy          : replace' and \
         'Remote ID                        : ip' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "replace policy, validation and ip remote ID failed"
@@ -535,7 +535,7 @@ def relay_option_82_with_drop_policy(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Option 82 handle policy          : drop' in cmdOut, "Test to " \
+        'Option 82 Handle Policy          : drop' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with drop policy failed"
 
     return True
@@ -554,7 +554,7 @@ def relay_option_82_with_drop_and_mac_rid(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Option 82 handle policy          : drop' and \
+        'Option 82 Handle Policy          : drop' and \
         'Remote ID                        : mac' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "drop policy and mac remote ID failed"
@@ -575,8 +575,8 @@ def relay_option_82_drop_with_mac_rid_validation(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : enabled' and \
-        'Option 82 handle policy          : drop' and \
+        'Response Validation              : enabled' and \
+        'Option 82 Handle Policy          : drop' and \
         'Remote ID                        : mac' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "drop policy, mac remote ID and validation failed"
@@ -597,7 +597,7 @@ def relay_option_82_with_drop_and_ip_rid(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Option 82 handle policy          : drop' and \
+        'Option 82 Handle Policy          : drop' and \
         'Remote ID                        : ip' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "drop policy and ip remote ID failed"
@@ -618,8 +618,8 @@ def relay_option_82_drop_with_ip_rid_validation(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : enabled' and \
-        'Option 82 handle policy          : drop' and \
+        'Response Validation              : enabled' and \
+        'Option 82 Handle Policy          : drop' and \
         'Remote ID                        : ip' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "drop policy, ip remote ID and validation failed"
@@ -640,8 +640,8 @@ def relay_option_82_with_drop_and_validation(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : enabled' and \
-        'Option 82 handle policy          : drop' in cmdOut, "Test to " \
+        'Response Validation              : enabled' and \
+        'Option 82 Handle Policy          : drop' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with drop policy and " \
         "validation failed"
 
@@ -661,8 +661,8 @@ def relay_option_82_with_drop_validation_and_mac_rid(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : enabled' and \
-        'Option 82 handle policy          : drop' and \
+        'Response Validation              : enabled' and \
+        'Option 82 Handle Policy          : drop' and \
         'Remote ID                        : mac' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "drop policy, validation and mac remote ID failed"
@@ -683,8 +683,8 @@ def relay_option_82_with_drop_validation_and_ip_rid(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : enabled' and \
-        'Response validation              : enabled' and \
-        'Option 82 handle policy          : drop' and \
+        'Response Validation              : enabled' and \
+        'Option 82 Handle Policy          : drop' and \
         'Remote ID                        : ip' in cmdOut, "Test to " \
         "enable dhcp-relay option 82 with " \
         "drop policy, validation and ip remote ID failed"
@@ -703,8 +703,8 @@ def dhcp_relay_option_82_disable(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'Option 82                        : disabled' and \
-        'Response validation              : disbled' and \
-        'Option 82 handle policy          : replace' and \
+        'Response Validation              : disbled' and \
+        'Option 82 Handle Policy          : replace' and \
         'Remote ID                        : mac' in cmdOut, "Test to " \
         "disable dhcp-relay option 82 failed"
 
@@ -723,7 +723,7 @@ def dhcp_relay_option_82_validation_disable(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
-    assert 'Response validation              : disabled' in cmdOut, "Test " \
+    assert 'Response Validation              : disabled' in cmdOut, "Test " \
         "to disable dhcp-relay option 82 response validation failed"
 
     return True
@@ -741,6 +741,44 @@ def show_dhcp_relay(dut01):
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
     assert 'DHCP Relay Agent                 : enabled' in cmdOut, "Test  " \
         "to show dhcp-relay configuration failed"
+
+    return True
+
+
+def show_dhcp_relay_statistics(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="dhcp-relay")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to enable dhcp-relay failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
+    assert 'DHCP Relay Agent                 : enabled' and \
+        'DHCP Relay Statistics:' and \
+        'Client Requests       Server Responses' and \
+        'Valid      Dropped    Valid      Dropped' in cmdOut, "Test  " \
+        "to show dhcp-relay statistics failed"
+
+    return True
+
+
+def show_dhcp_relay_option82_statistics(dut01):
+    if (enterConfigShell(dut01) is False):
+        return False
+
+    devIntReturn = dut01.DeviceInteract(command="dhcp-relay")
+    retCode = devIntReturn.get('returnCode')
+    assert retCode == 0, "Test to enable dhcp-relay failed"
+    dut01.DeviceInteract(command="end")
+
+    cmdOut = dut01.cmdVtysh(command="show dhcp-relay")
+    assert 'DHCP Relay Agent                 : enabled' and \
+        'DHCP Relay Option 82 Statistics:' and \
+        'Client Requests       Server Responses' and \
+        'Valid      Dropped    Valid      Dropped' in cmdOut, "Test  " \
+        "to show dhcp-relay option 82 statistics failed"
 
     return True
 
@@ -2109,6 +2147,24 @@ class Test_dhcp_relay_configuration:
             LogOutput('info', "Show DHCP-Relay configuration - passed")
         else:
             LogOutput('error', "Show DHCP-Relay configuration - failed")
+
+    def test_show_dhcp_relay_statistics(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = show_dhcp_relay_statistics(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Show DHCP-Relay statistics - passed")
+        else:
+            LogOutput('error', "Show DHCP-Relay statistics - failed")
+
+    def test_show_dhcp_relay_option82_statistics(self):
+        dut01Obj = self.topoObj.deviceObjGet(device="dut01")
+        retValue = show_dhcp_relay_option82_statistics(dut01Obj)
+        if(retValue):
+            LogOutput('info', "Show DHCP-Relay option 82 "
+                              "statistics - passed")
+        else:
+            LogOutput('error', "Show DHCP-Relay option 82 "
+                               "statistics - failed")
 
     def test_dhcp_relayRunningConfigTest(self):
         dut01Obj = self.topoObj.deviceObjGet(device="dut01")
