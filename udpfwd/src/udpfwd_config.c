@@ -380,44 +380,7 @@ UDPFWD_INTERFACE_NODE_T *udpfwd_create_intferface_node(char *pname)
     return intfNode;
 }
 
-/*
- * Function      : udpfwd_delete_servers_on_interface
- * Responsiblity : Delete servers on an interface that are configured for
- *                 a specific feature
- * Parameters    : intf - interface node
- *                 udp_dport - UDP destination port
- * Return        : none
- */
-void udpfwd_delete_servers_on_interface(UDPFWD_INTERFACE_NODE_T *intf,
-                                        UDPFWD_FEATURE feature)
-{
-    UDPFWD_SERVER_T servers[MAX_UDP_BCAST_SERVER_PER_INTERFACE];
-    UDPFWD_SERVER_T *arrayPtr;
-    int32_t iter;
-
-    memset(servers, 0, sizeof(servers));
-    arrayPtr = (UDPFWD_SERVER_T *)servers;
-
-    /* Delete the interface entry from hash table */
-    for (iter = 0; iter < intf->addrCount; iter++) {
-        /* Delete only non DHCP-Relay server entries from the intf */
-        if (DHCPS_PORT == intf->serverArray[iter]->udp_port)
-        {
-            *arrayPtr = *(intf->serverArray[iter]);
-            arrayPtr++;
-        }
-    }
-
-    /* Delete the servers maked for removal */
-    for (iter = 0; (servers[iter].ip_address) != 0; iter++)
-    {
-        udpfwd_remove_address(intf, servers[iter].ip_address,
-                              servers[iter].udp_port);
-    }
-
-    return;
-}
-
+#ifdef FTR_DHCP_RELAY
 /*
  * Function      : udpfwd_handle_dhcp_relay_row_delete
  * Responsiblity : Process delete event for one or more ports records from
@@ -613,7 +576,9 @@ void udpfwd_handle_dhcp_relay_config_change(
 
     return;
 }
+#endif /* FTR_DHCP_RELAY */
 
+#ifdef FTR_UDP_BCAST_FWD
 /*
  * Function      : server_ip_exists
  * Responsiblity : Check if a server ip exists in a server array
@@ -848,3 +813,4 @@ void udpfwd_handle_udp_bcast_forwarder_config_change(
 
     return;
 }
+#endif /* FTR_UDP_BCAST_FWD */

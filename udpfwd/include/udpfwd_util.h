@@ -99,11 +99,6 @@ void getMacfromIfname(MAC_ADDRESS mac, char*ifName);
 FEATURE_STATUS get_feature_status(uint16_t value, UDPFWD_FEATURE feature);
 void set_feature_status(uint16_t *value, UDPFWD_FEATURE feature,
                         FEATURE_STATUS status);
-/* Functions to search for a specified option tag in the dhcp packet. */
-uint8_t *dhcpPickupOpt(struct dhcp_packet *dhcp, int32_t len, uint8_t tag);
-uint8_t * dhcpScanOpt(uint8_t *opt, uint8_t *optend,
-                        uint8_t tag, uint8_t *ovld_opt);
-
 /* Checksum computation function */
 uint16_t in_cksum(const uint16_t *addr, register int32_t len, uint16_t csum);
 

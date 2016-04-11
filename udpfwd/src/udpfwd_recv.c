@@ -46,7 +46,9 @@ void udpfwd_ctrl(void *pkt, int32_t size,
 {
     struct ip *iph;              /* ip header */
     struct udphdr *udph;            /* udp header */
+#ifdef FTR_DHCP_RELAY
     struct dhcp_packet *dhcp;       /* dhcp header */
+#endif /* FTR_DHCP_RELAY */
 
     /* Input parameter validation */
     if ((NULL == pkt) || (NULL == pktInfo))
@@ -60,6 +62,7 @@ void udpfwd_ctrl(void *pkt, int32_t size,
     udph = (struct udphdr *) ((char *)iph + (iph->ip_hl * 4));
 
     switch (ntohs(udph->dest)) {
+#ifdef FTR_DHCP_RELAY
     case DHCPS_PORT:
     case DHCPC_PORT:
         {
@@ -85,8 +88,11 @@ void udpfwd_ctrl(void *pkt, int32_t size,
             }
             break;
         }
+#endif /* FTR_DHCP_RELAY */
+
     default:
         {
+#ifdef FTR_UDP_BCAST_FWD
             /* UDP Broadcast forwarding case. */
             if (ENABLE != get_feature_status
                           (udpfwd_ctrl_cb_p->feature_config.config,
@@ -94,6 +100,7 @@ void udpfwd_ctrl(void *pkt, int32_t size,
                 return;
             }
             udpfwd_forward_packet(pkt, ntohs(udph->dest), size, pktInfo);
+#endif /* FTR_UDP_BCAST_FWD */
             break;
         }
     }

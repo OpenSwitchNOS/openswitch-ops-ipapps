@@ -27,6 +27,10 @@
 #define DHCP_RELAY_VTY_H
 
 #include <stdbool.h>
+#include "udpfwd_common.h"
+#include "udpfwd_vty.h"
+
+#ifdef FTR_DHCP_RELAY
 
 #define DHCP_RELAY_STR \
 "Configure dhcp-relay\n"
@@ -90,6 +94,26 @@ extern struct cmd_element show_ip_helper_address_configuration_cmd;
 extern struct cmd_element ip_bootp_gateway_configuration_cmd;
 extern struct cmd_element no_ip_bootp_gateway_configuration_cmd;
 extern struct cmd_element show_dhcp_relay_bootp_gateway_configuration_cmd;
+
+
+/*
+ * Function prototypes
+ */
+
+void update_feature_key(FEATURE_STATUS status, struct smap *smap_status_value,
+                        UDPFWD_FEATURE feature);
+void update_option_82_policy(DHCP_RELAY_OPTION82_POLICY policy,
+                             struct smap *smap_status_value);
+void update_option_82_remote_id(DHCP_RELAY_OPTION82_REMOTE_ID rid,
+                                struct smap *smap_status_value);
+const struct ovsrec_dhcp_relay *dhcp_relay_row_lookup(const char *,
+                                              const char *);
+int8_t dhcp_relay_helperaddressconfig(udpfwd_server *, bool);
+int32_t show_dhcp_relay_config(void);
+int8_t dhcp_relay_config(uint16_t, FEATURE_CONFIG *);
+int8_t show_ip_helper_address_config(const char *);
+
+#endif /* FTR_DHCP_RELAY */
 
 
 #endif /* dhcp_relay_vty.h */

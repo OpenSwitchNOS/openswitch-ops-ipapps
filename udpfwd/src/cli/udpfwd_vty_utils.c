@@ -51,6 +51,7 @@
 extern struct ovsdb_idl *idl;
 VLOG_DEFINE_THIS_MODULE(udpfwd_vty_utils);
 
+#ifdef FTR_UDP_BCAST_FWD
 /* Supported UDP protocols. */
 udpProtocols
 udp_protocol[MAX_UDP_PROTOCOL] = {
@@ -66,61 +67,7 @@ udp_protocol[MAX_UDP_PROTOCOL] = {
                                      { "tftp", 69},
                                      { "timep", 37}
                                  };
-
-/*-----------------------------------------------------------------------------
-| Function       : udpfwd_globalconfig
-| Responsibility : To enable/disable udp broadcast forwarding and dhcp-relay.
-| Parameters     :
-|        status  : If true, enable UDP broadcast forwarding/dhcp-relay and
-|                  if false disable the UDP broadcast forwarding/dhcp-relay
-|        type    : Determines the udpfwd feature type
-| Return         : On success returns CMD_SUCCESS,
-|                  On failure returns CMD_OVSDB_FAILURE
------------------------------------------------------------------------------*/
-int8_t
-udpfwd_globalconfig (const char *status, UDPFWD_FEATURE type)
-{
-    const struct ovsrec_system *ovs_row = NULL;
-    struct ovsdb_idl_txn *status_txn = cli_do_config_start();
-    struct smap smap_status_value;
-    enum ovsdb_idl_txn_status txn_status;
-    char *key = NULL;
-
-    if (status_txn == NULL)
-    {
-        VLOG_ERR(OVSDB_TXN_CREATE_ERROR);
-        cli_do_config_abort(status_txn);
-        return CMD_OVSDB_FAILURE;
-    }
-
-    ovs_row = ovsrec_system_first(idl);
-    if (!ovs_row) {
-        VLOG_ERR(OVSDB_ROW_FETCH_ERROR);
-        cli_do_config_abort(status_txn);
-        return CMD_OVSDB_FAILURE;
-    }
-
-    key = SYSTEM_OTHER_CONFIG_MAP_UDP_BCAST_FWD_ENABLED;
-
-    smap_clone(&smap_status_value, &ovs_row->other_config);
-
-    /* Update the latest config status. */
-    smap_replace(&smap_status_value, key, status);
-
-    ovsrec_system_set_other_config(ovs_row, &smap_status_value);
-    smap_destroy(&smap_status_value);
-    txn_status = cli_do_config_finish(status_txn);
-
-    if (txn_status == TXN_SUCCESS || txn_status == TXN_UNCHANGED)
-    {
-        return CMD_SUCCESS;
-    }
-    else
-    {
-        VLOG_ERR(OVSDB_TXN_COMMIT_ERROR);
-        return CMD_OVSDB_FAILURE;
-    }
-}
+#endif /* FTR_UDP_BCAST_FWD */
 
 /*
  * FIXME: This will be removed once the same function
@@ -163,8 +110,10 @@ bool
 decode_server_param (udpfwd_server *udpfwdServer, const char *argv[],
                      UDPFWD_FEATURE type)
 {
+#ifdef FTR_UDP_BCAST_FWD
     int pNum, i;
     char *pName;
+#endif /* FTR_UDP_BCAST_FWD */
     struct in_addr addr;
     bool validParams = false;
 
@@ -179,6 +128,7 @@ decode_server_param (udpfwd_server *udpfwdServer, const char *argv[],
 
     if (!IS_VALID_IPV4(htonl(addr.s_addr)))
     {
+#ifdef FTR_UDP_BCAST_FWD
         if (type == UDP_BCAST_FORWARDER)
         {
             if ((IS_BROADCAST_IPV4(htonl(addr.s_addr))) ||
@@ -191,7 +141,9 @@ decode_server_param (udpfwd_server *udpfwdServer, const char *argv[],
                 return validParams;
             }
         }
-        else if (type == DHCP_RELAY)
+#endif /* FTR_UDP_BCAST_FWD */
+#ifdef FTR_DHCP_RELAY
+        if (type == DHCP_RELAY)
         {
             if ((!IS_BROADCAST_IPV4(htonl(addr.s_addr))) ||
                 (!IS_SUBNET_BROADCAST(htonl(addr.s_addr))))
@@ -203,13 +155,17 @@ decode_server_param (udpfwd_server *udpfwdServer, const char *argv[],
                 return validParams;
             }
         }
+#endif /* FTR_DHCP_RELAY */
     }
 
     udpfwdServer->ipAddr = (char *)argv[0];
 
+#ifdef FTR_DHCP_RELAY
     if (type == DHCP_RELAY)
         return true;
+#endif /* FTR_DHCP_RELAY */
 
+#ifdef FTR_UDP_BCAST_FWD
     /* Validate UDP port info. */
     if (isalpha((int) *argv[1]))
     {
@@ -237,6 +193,7 @@ decode_server_param (udpfwd_server *udpfwdServer, const char *argv[],
             }
         }
     }
+#endif /* FTR_UDP_BCAST_FWD */
 
     if (!validParams)
     {
@@ -276,67 +233,6 @@ find_udpfwd_server_ip (char **servers, int8_t count,
 }
 
 /*-----------------------------------------------------------------------------
-| Function         : dhcp_relay_row_lookup
-| Responsibility   : To lookup for the record with port and
-|                    default VRF in the dhcp-relay table.
-| Parameters       :
-|        portname  : Name of the port
-|        vrf_name  : Name of the VRF
-| Return           : On success returns the dhcp-relay row,
-|                    On failure returns NULL
------------------------------------------------------------------------------*/
-const struct
-ovsrec_dhcp_relay *dhcp_relay_row_lookup(const char *portname,
-                                         const char *vrf_name)
-{
-    const struct ovsrec_dhcp_relay *row_serv = NULL;
-    OVSREC_DHCP_RELAY_FOR_EACH (row_serv, idl)
-    {
-        if (((row_serv->port) && (!strcmp(row_serv->port->name, portname))) &&
-           ((row_serv->vrf) && (!strcmp(row_serv->vrf->name, vrf_name))))
-        {
-            return row_serv;
-        }
-    }
-    return row_serv;
-}
-
-/*-----------------------------------------------------------------------------
-| Function         : udp_bcast_server_row_lookup
-| Responsibility   : To lookup for the record with port and
-|                    default VRF in the UDP broadcast server table.
-| Parameters       :
-|        portname  : Name of the port
-|        vrf_name  : Name of the VRF
-| Return           : On success returns the UDP broadcast server row,
-|                    On failure returns NULL
------------------------------------------------------------------------------*/
-const struct
-ovsrec_udp_bcast_forwarder_server *udp_bcast_server_row_lookup
-        (const char *portname, const char *vrf_name, udpfwd_server *udpfwdServ)
-{
-    const struct ovsrec_udp_bcast_forwarder_server *row_serv = NULL;
-
-    OVSREC_UDP_BCAST_FORWARDER_SERVER_FOR_EACH (row_serv, idl)
-    {
-        if ((row_serv->src_port) &&
-            (!strcmp(row_serv->src_port->name, portname)))
-        {
-            if ((row_serv->dest_vrf) &&
-                (!strcmp(row_serv->dest_vrf->name, vrf_name)))
-            {
-                if (row_serv->udp_dport == udpfwdServ->udpPort)
-                {
-                    return row_serv;
-                }
-            }
-        }
-    }
-
-    return row_serv;
-}
-
-/*-----------------------------------------------------------------------------
 | Function         : server_address_maxcount_reached
 | Responsibility   : To check the UDP server IP or dhcp-relay helper address
 |                    count on an interface.
@@ -349,10 +245,17 @@ ovsrec_udp_bcast_forwarder_server *udp_bcast_server_row_lookup
 bool
 server_address_maxcount_reached (const char *portname, UDPFWD_FEATURE type)
 {
+#ifdef FTR_UDP_BCAST_FWD
     const struct ovsrec_udp_bcast_forwarder_server *udp_row_serv = NULL;
+#endif /* FTR_UDP_BCAST_FWD */
+#ifdef FTR_DHCP_RELAY
     const struct ovsrec_dhcp_relay *dhcp_row_serv = NULL;
+#endif /* FTR_DHCP_RELAY */
+#if defined(FTR_DHCP_RELAY) || defined(FTR_UDP_BCAST_FWD)
     size_t entries = 0;
+#endif /* (FTR_DHCP_RELAY | FTR_UDP_BCAST_FWD) */
 
+#ifdef FTR_UDP_BCAST_FWD
     if(type == UDP_BCAST_FORWARDER)
     {
         OVSREC_UDP_BCAST_FORWARDER_SERVER_FOR_EACH (udp_row_serv, idl)
@@ -373,7 +276,9 @@ server_address_maxcount_reached (const char *portname, UDPFWD_FEATURE type)
             }
         }
     }
-    else if (type == DHCP_RELAY)
+#endif /* FTR_UDP_BCAST_FWD */
+#ifdef FTR_DHCP_RELAY
+    if (type == DHCP_RELAY)
     {
         OVSREC_DHCP_RELAY_FOR_EACH (dhcp_row_serv, idl)
         {
@@ -393,6 +298,7 @@ server_address_maxcount_reached (const char *portname, UDPFWD_FEATURE type)
             }
         }
     }
+#endif /* FTR_DHCP_RELAY */
 
     return false;
 }
@@ -409,12 +315,18 @@ void
 udpfwd_serverupdate (void *row_serv, bool action, udpfwd_server *udpfwdServ,
                      UDPFWD_FEATURE type)
 {
+#ifdef FTR_UDP_BCAST_FWD
     const struct ovsrec_udp_bcast_forwarder_server *udp_row_serv = NULL;
+#endif /* FTR_UDP_BCAST_FWD */
+#ifdef FTR_DHCP_RELAY
     const struct ovsrec_dhcp_relay *dhcp_row_serv = NULL;
-    char **servers;
-    char **serverArray;
+#endif /* FTR_DHCP_RELAY */
+
+    char **servers = NULL;
+    char **serverArray = NULL;
     size_t i, n, server_length = 0, serverCount = 0;
 
+#ifdef FTR_UDP_BCAST_FWD
     if (type == UDP_BCAST_FORWARDER)
     {
         udp_row_serv = (const struct
@@ -422,13 +334,16 @@ udpfwd_serverupdate (void *row_serv, bool action, udpfwd_server *udpfwdServ,
         serverCount = udp_row_serv->n_ipv4_ucast_server;
         serverArray = udp_row_serv->ipv4_ucast_server;
     }
-    else if (type == DHCP_RELAY)
+#endif /* FTR_UDP_BCAST_FWD */
+#ifdef FTR_DHCP_RELAY
+    if (type == DHCP_RELAY)
     {
         dhcp_row_serv = (const struct
                          ovsrec_dhcp_relay *)row_serv;
         serverCount = dhcp_row_serv->n_ipv4_ucast_server;
         serverArray = dhcp_row_serv->ipv4_ucast_server;
     }
+#endif /* FTR_DHCP_RELAY */
 
     if (action)
     {
@@ -440,16 +355,20 @@ udpfwd_serverupdate (void *row_serv, bool action, udpfwd_server *udpfwdServ,
             servers[i] = serverArray[i];
 
         servers[serverCount] = udpfwdServ->ipAddr;
+#ifdef FTR_UDP_BCAST_FWD
         if (type == UDP_BCAST_FORWARDER)
         {
             ovsrec_udp_bcast_forwarder_server_set_ipv4_ucast_server
                         (udp_row_serv, servers, server_length);
         }
-        else if (type == DHCP_RELAY)
+#endif /* FTR_UDP_BCAST_FWD */
+#ifdef FTR_DHCP_RELAY
+        if (type == DHCP_RELAY)
         {
             ovsrec_dhcp_relay_set_ipv4_ucast_server
                         (dhcp_row_serv, servers, server_length);
         }
+#endif /* FTR_DHCP_RELAY */
     }
     else
     {
@@ -462,16 +381,20 @@ udpfwd_serverupdate (void *row_serv, bool action, udpfwd_server *udpfwdServ,
             if (strcmp (udpfwdServ->ipAddr, serverArray[i]) != 0)
                 servers[n++] = serverArray[i];
         }
+#ifdef FTR_UDP_BCAST_FWD
         if (type == UDP_BCAST_FORWARDER)
         {
             ovsrec_udp_bcast_forwarder_server_set_ipv4_ucast_server
                                 (udp_row_serv, servers, n);
         }
-        else if (type == DHCP_RELAY)
+#endif /* FTR_UDP_BCAST_FWD */
+#ifdef FTR_DHCP_RELAY
+        if (type == DHCP_RELAY)
         {
             ovsrec_dhcp_relay_set_ipv4_ucast_server
                                 (dhcp_row_serv, servers, n);
         }
+#endif /* FTR_DHCP_RELAY */
     }
 
     free(servers);
@@ -499,18 +422,22 @@ udpfwd_setcommoncolumn (void *row_serv, UDPFWD_FEATURE type)
     {
         if (strcmp(port_row->name, (char*)vty->index) == 0)
         {
+#ifdef FTR_UDP_BCAST_FWD
             if (type == UDP_BCAST_FORWARDER)
             {
                 ovsrec_udp_bcast_forwarder_server_set_src_port
                 ((const struct ovsrec_udp_bcast_forwarder_server *)row_serv,
                   port_row);
             }
-            else if (type == DHCP_RELAY)
+#endif /* FTR_UDP_BCAST_FWD */
+#ifdef FTR_DHCP_RELAY
+            if (type == DHCP_RELAY)
             {
                 ovsrec_dhcp_relay_set_port
                     ((const struct ovsrec_dhcp_relay *)row_serv,
                       port_row);
             }
+#endif /* FTR_DHCP_RELAY */
             break;
         }
     }
@@ -528,509 +455,22 @@ udpfwd_setcommoncolumn (void *row_serv, UDPFWD_FEATURE type)
 
     if (!strcmp(vrf_row->name, DEFAULT_VRF_NAME))
     {
+#ifdef FTR_UDP_BCAST_FWD
         if (type == UDP_BCAST_FORWARDER)
         {
             ovsrec_udp_bcast_forwarder_server_set_dest_vrf
                 ((const struct ovsrec_udp_bcast_forwarder_server *)row_serv,
                   vrf_row);
         }
-        else if (type == DHCP_RELAY)
+#endif /* FTR_UDP_BCAST_FWD */
+#ifdef FTR_DHCP_RELAY
+        if (type == DHCP_RELAY)
         {
             ovsrec_dhcp_relay_set_vrf
                 ((const struct ovsrec_dhcp_relay *)row_serv,
                   vrf_row);
         }
+#endif /* FTR_DHCP_RELAY */
     }
     return true;
-}
-
-/*-----------------------------------------------------------------------------
-| Function         : udpfwd_helperaddressconfig
-| Responsibility   : Set/unset dhcp-relay.
-|                    helper-address.
-| Parameters       :
-|      *udpfwdServ : Pointer containing user input details
-|      set         : Flag to set or unset
-| Return           : On success returns CMD_SUCCESS,
-|                    On failure returns CMD_OVSDB_FAILURE
------------------------------------------------------------------------------*/
-int8_t
-udpfwd_helperaddressconfig (udpfwd_server *udpfwdServ, bool set)
-{
-    const struct ovsrec_dhcp_relay *row_serv = NULL;
-    struct ovsdb_idl_txn *status_txn = cli_do_config_start();
-    enum ovsdb_idl_txn_status txn_status;
-    bool isAddrMatch = false;
-    char *buff = NULL;
-    bool isMaxEntries;
-    UDPFWD_FEATURE type = DHCP_RELAY;
-
-    if (status_txn == NULL)
-    {
-        VLOG_ERR(OVSDB_TXN_CREATE_ERROR);
-        cli_do_config_abort(status_txn);
-        return CMD_OVSDB_FAILURE;
-    }
-
-    /* Lookup for the record in the dhcp-relay table */
-    row_serv = dhcp_relay_row_lookup((char*)vty->index, DEFAULT_VRF_NAME);
-    if (row_serv)
-    {
-        isAddrMatch = find_udpfwd_server_ip(row_serv->ipv4_ucast_server,
-                                            row_serv->n_ipv4_ucast_server,
-                                            udpfwdServ);
-    }
-
-    if (set)
-    {
-        isMaxEntries = server_address_maxcount_reached
-                            ((char*)vty->index, type);
-        if (isMaxEntries)
-        {
-            vty_out(vty, "Maximum allowed helper addresses already "
-                         "configured on the interface.%s", VTY_NEWLINE);
-            cli_do_config_abort(status_txn);
-            return CMD_SUCCESS;
-        }
-
-        if (NULL == row_serv)
-        {
-            /* First set of dhcp-relay helper-address. */
-
-            row_serv = ovsrec_dhcp_relay_insert(status_txn);
-
-            if (!row_serv)
-            {
-                VLOG_ERR(OVSDB_ROW_FETCH_ERROR);
-                         cli_do_config_abort(status_txn);
-                return CMD_OVSDB_FAILURE;
-            }
-
-            /* Update the dhcp-relay table. */
-            if (!udpfwd_setcommoncolumn((void *)row_serv, type))
-            {
-                cli_do_config_abort(status_txn);
-                return CMD_OVSDB_FAILURE;
-            }
-
-            /* Update the protocol server IP. */
-            udpfwd_serverupdate((void *)row_serv, true, udpfwdServ, type);
-        }
-        else
-        {
-            if (!isAddrMatch)
-            {
-                /* Update the protocol server IP. */
-                udpfwd_serverupdate((void *)row_serv, true, udpfwdServ, type);
-            }
-            else
-            {
-                /* Existing entry. */
-                vty_out(vty, "This entry already exists.%s", VTY_NEWLINE);
-                cli_do_config_abort(status_txn);
-                return CMD_SUCCESS;
-            }
-        }
-    }
-    else
-    {
-        if (NULL == row_serv || (!isAddrMatch))
-        {
-            vty_out(vty, "Helper-address is not present.%s", VTY_NEWLINE);
-            cli_do_config_abort(status_txn);
-            return CMD_SUCCESS;
-        }
-        else
-        {
-            /*
-             * If this is the last entry then after unset remove
-             * the complete row.
-             */
-
-            if (row_serv->n_ipv4_ucast_server == 1)
-            {
-                buff = (char *)smap_get(&row_serv->other_config,
-                                DHCP_RELAY_OTHER_CONFIG_MAP_BOOTP_GATEWAY);
-                if (buff == NULL)
-                {
-                    /*
-                     * Delete the row if the bootp-gateway configuration
-                     * is not present on the interface.
-                     */
-                    ovsrec_dhcp_relay_delete(row_serv);
-                }
-                else
-                {
-                    /* Update the protocol server IP. */
-                    udpfwd_serverupdate((void *)row_serv, false,
-                                        udpfwdServ, type);
-                }
-            }
-            else
-            {
-                /* Update the protocol server IP. */
-                udpfwd_serverupdate((void *)row_serv, false, udpfwdServ, type);
-            }
-        }
-    }
-
-    txn_status = cli_do_config_finish(status_txn);
-
-    if (txn_status == TXN_SUCCESS || txn_status == TXN_UNCHANGED)
-    {
-        return CMD_SUCCESS;
-    }
-    else
-    {
-        VLOG_ERR(OVSDB_TXN_COMMIT_ERROR);
-        return CMD_OVSDB_FAILURE;
-    }
-}
-
-/*-----------------------------------------------------------------------------
-| Function         : udpfwd_serverconfig
-| Responsibility   : set/unset UDP forward-protocol.
-| Parameters       :
-|      *udpfwdServ : Pointer containing user input details
-|      set         : Flag to set or unset
-| Return           : On success returns CMD_SUCCESS,
-|                    On failure returns CMD_OVSDB_FAILURE
------------------------------------------------------------------------------*/
-int8_t
-udpfwd_serverconfig (udpfwd_server *udpfwdServ, bool set)
-{
-    const struct ovsrec_udp_bcast_forwarder_server *row_serv = NULL;
-    struct ovsdb_idl_txn *status_txn = cli_do_config_start();
-    enum ovsdb_idl_txn_status txn_status;
-    bool isAddrMatch = false, isMaxEntries = false;
-    UDPFWD_FEATURE type = UDP_BCAST_FORWARDER;
-
-    if (status_txn == NULL)
-    {
-        VLOG_ERR(OVSDB_TXN_CREATE_ERROR);
-        cli_do_config_abort(status_txn);
-        return CMD_OVSDB_FAILURE;
-    }
-
-    /* lookup for the record in the UDP broadcast server table */
-    row_serv = udp_bcast_server_row_lookup((char*)vty->index,
-                                           DEFAULT_VRF_NAME, udpfwdServ);
-
-    if (row_serv)
-    {
-        isAddrMatch = find_udpfwd_server_ip(row_serv->ipv4_ucast_server,
-                                            row_serv->n_ipv4_ucast_server,
-                                            udpfwdServ);
-    }
-
-    if (set)
-    {
-        isMaxEntries = server_address_maxcount_reached
-                            ((char*)vty->index, type);
-        if (isMaxEntries)
-        {
-            vty_out(vty, "%s: Entry not allowed as maximum "
-                         "entries per interface exceeded.%s",
-                         udpfwdServ->ipAddr, VTY_NEWLINE);
-            cli_do_config_abort(status_txn);
-            return CMD_SUCCESS;
-        }
-
-        if (NULL == row_serv)
-        {
-            /*
-             * First set of UDP forward-protocol
-             */
-
-            row_serv = ovsrec_udp_bcast_forwarder_server_insert(status_txn);
-
-            if (!row_serv)
-            {
-                VLOG_ERR(OVSDB_ROW_FETCH_ERROR);
-                cli_do_config_abort(status_txn);
-                return CMD_OVSDB_FAILURE;
-            }
-
-            /* Update the UDP broadcast forwarder server table. */
-            if (!udpfwd_setcommoncolumn((void *)row_serv, type))
-            {
-                cli_do_config_abort(status_txn);
-                return CMD_OVSDB_FAILURE;
-            }
-
-            /* Update the dst udp port */
-            ovsrec_udp_bcast_forwarder_server_set_udp_dport
-                        (row_serv, udpfwdServ->udpPort);
-
-            /* Update the protocol server IP */
-            udpfwd_serverupdate((void *)row_serv, true, udpfwdServ, type);
-        }
-        else
-        {
-            if (!isAddrMatch)
-            {
-                /* set action */
-                udpfwd_serverupdate((void *)row_serv, true, udpfwdServ, type);
-            }
-            else
-            {
-                /* Existing entry */
-                vty_out(vty, "This entry already exists.%s", VTY_NEWLINE);
-                cli_do_config_abort(status_txn);
-                return CMD_SUCCESS;
-            }
-        }
-    }
-    else
-    {
-        if (NULL == row_serv)
-        {
-            vty_out(vty, "UDP forward-protocol is not present. %s", VTY_NEWLINE);
-            cli_do_config_abort(status_txn);
-            return CMD_SUCCESS;
-        }
-        else
-        {
-            if (!isAddrMatch)
-            {
-                vty_out(vty, "No such entries are present. %s", VTY_NEWLINE);
-                cli_do_config_abort(status_txn);
-                return CMD_SUCCESS;
-            }
-            else
-            {
-                /*
-                 * If this is the last entry then after unset remove
-                 * the complete row.
-                 */
-                if (row_serv->n_ipv4_ucast_server == 1)
-                {
-                    ovsrec_udp_bcast_forwarder_server_delete(row_serv);
-                }
-                else
-                {
-                    /* No set action */
-                    udpfwd_serverupdate((void *)row_serv, false, udpfwdServ, type);
-                }
-            }
-        }
-    }
-
-    txn_status = cli_do_config_finish(status_txn);
-
-    if (txn_status == TXN_SUCCESS || txn_status == TXN_UNCHANGED)
-    {
-        return CMD_SUCCESS;
-    }
-    else
-    {
-        VLOG_ERR(OVSDB_TXN_COMMIT_ERROR);
-        return CMD_OVSDB_FAILURE;
-    }
-}
-
-/*-----------------------------------------------------------------------------
-| Responsibility : To show the dhcp-relay helper-address configurations.
-| Parameters     :
-|      *portname : Name of the Port
-| Return         : On success returns CMD_SUCCESS,
-|                  On failure returns CMD_OVSDB_FAILURE
------------------------------------------------------------------------------*/
-int8_t
-show_ip_helper_address_config (const char *portname)
-{
-    const struct ovsrec_dhcp_relay *row_serv = NULL;
-    size_t i = 0;
-    bool entry_found = false;
-
-
-    row_serv = ovsrec_dhcp_relay_first(idl);
-
-    OVSREC_DHCP_RELAY_FOR_EACH (row_serv, idl)
-    {
-        /* Get the interface details. */
-        if (row_serv->port)
-        {
-            if (portname)
-            {
-                if (strcmp(row_serv->port->name, portname) == 0)
-                {
-                    if(row_serv->n_ipv4_ucast_server)
-                    {
-                        vty_out(vty, "%s IP Helper Addresses%s", VTY_NEWLINE,
-                                VTY_NEWLINE);
-                        vty_out(vty, "%s Interface: %s%s", VTY_NEWLINE,
-                                portname, VTY_NEWLINE);
-                        vty_out(vty, "%2sIP Helper Address%s", "", VTY_NEWLINE);
-                        vty_out(vty, "%2s-----------------%s", "", VTY_NEWLINE);
-                        for (i = 0; i < row_serv->n_ipv4_ucast_server; i++)
-                        {
-                            vty_out(vty, "%2s%s%s", "",
-                                    row_serv->ipv4_ucast_server[i],
-                                    VTY_NEWLINE);
-                        }
-                        entry_found = true;
-                    }
-
-                    break;
-                }
-            }
-            else
-            {
-                if(row_serv->n_ipv4_ucast_server)
-                {
-                    if (entry_found == false) {
-                        entry_found = true;
-                        vty_out(vty, "%s IP Helper Addresses%s", VTY_NEWLINE,
-                                VTY_NEWLINE);
-                    }
-
-                    vty_out(vty, "%s Interface: %s%s", VTY_NEWLINE,
-                            row_serv->port->name, VTY_NEWLINE);
-                    vty_out(vty, "%2sIP Helper Address%s", "", VTY_NEWLINE);
-                    vty_out(vty, "%2s-----------------%s", "", VTY_NEWLINE);
-                    for (i = 0; i < row_serv->n_ipv4_ucast_server; i++)
-                    {
-                        vty_out(vty, "%2s%s%s", "",
-                                row_serv->ipv4_ucast_server[i], VTY_NEWLINE);
-                    }
-                }
-            }
-        }
-    }
-
-    if (entry_found == false)
-    {
-        if (portname)
-            vty_out(vty, "No helper-address configuration found on "
-                    "the interface %s.%s", portname, VTY_NEWLINE);
-        else
-            vty_out(vty, "No helper-address configuration found.%s",
-                    VTY_NEWLINE);
-    }
-
-    return CMD_SUCCESS;
-}
-
-/*-----------------------------------------------------------------------------
-| Responsibility : To show the UDP Broadcast Forwarder configurations.
-| Parameters     :
-|       *ifname  : Interface name
-| Return         : On success returns CMD_SUCCESS,
-|                  On failure returns CMD_OVSDB_FAILURE
------------------------------------------------------------------------------*/
-int8_t
-show_udp_forwarder_configuration (const char *ifname)
-{
-    const struct ovsrec_udp_bcast_forwarder_server *row_serv = NULL;
-    const struct ovsrec_system *ovs_row = NULL;
-    const struct ovsdb_datum *datum = NULL;
-    char *udp_status = NULL ;
-    int index = 0;
-    size_t i = 0;
-    bool entry_found = false;
-
-    ovs_row = ovsrec_system_first(idl);
-    if (ovs_row == NULL)
-    {
-        VLOG_ERR(OVSDB_ROW_FETCH_ERROR);
-        return CMD_OVSDB_FAILURE;
-    }
-
-    udp_status = (char *)smap_get(&ovs_row->other_config,
-                         SYSTEM_OTHER_CONFIG_MAP_UDP_BCAST_FWD_ENABLED);
-    if (!udp_status)
-    {
-        udp_status = "disabled";
-    }
-    else
-    {
-        if (!strcmp(udp_status, "true"))
-            udp_status = "enabled";
-        else
-            udp_status = "disabled";
-    }
-
-    vty_out(vty, "%sUDP Broadcast Forwarder : %s%s", VTY_NEWLINE,
-            udp_status, VTY_NEWLINE);
-    vty_out(vty, "%s", VTY_NEWLINE);
-
-    if (ifname)
-    {
-        vty_out(vty, "Interface: %s%s", ifname, VTY_NEWLINE);
-        vty_out(vty, "%2sIP Forward Addresses%4sUDP Port %s", "", "",
-                     VTY_NEWLINE);
-        vty_out(vty, "%2s------------------------------- %s", "",
-                     VTY_NEWLINE);
-    }
-
-    row_serv = ovsrec_udp_bcast_forwarder_server_first(idl);
-
-    OVSREC_UDP_BCAST_FORWARDER_SERVER_FOR_EACH (row_serv, idl)
-    {
-        /* get the interface details. */
-        if(row_serv->src_port)
-        {
-            if (ifname)
-            {
-                if(!strcmp(row_serv->src_port->name, ifname))
-                {
-                    if(row_serv->n_ipv4_ucast_server)
-                    {
-                        for (i = 0; i < row_serv->n_ipv4_ucast_server; i++)
-                        {
-                            /* get the UDP port number. */
-                            datum =
-                            ovsrec_udp_bcast_forwarder_server_get_udp_dport
-                                    (row_serv, OVSDB_TYPE_INTEGER);
-                            if ((NULL!=datum) && (datum->n >0))
-                            {
-                                index = datum->keys[0].integer;
-                            }
-                            vty_out(vty, "%2s%s%16s%d%s", "",
-                                    row_serv->ipv4_ucast_server[i], "",
-                                    index, VTY_NEWLINE);
-                        }
-                        entry_found = true;
-                    }
-                }
-            }
-            else
-            {
-                vty_out(vty, "Interface: %s%s",
-                        row_serv->src_port->name, VTY_NEWLINE);
-                vty_out(vty, "%2sIP Forward Addresses%4sUDP Port%s",
-                        "", "", VTY_NEWLINE);
-                vty_out(vty, "%2s-----------------------------%s",
-                        "", VTY_NEWLINE);
-
-                for (i = 0; i < row_serv->n_ipv4_ucast_server; i++)
-                {
-                    /* get the UDP port number. */
-                    datum = ovsrec_udp_bcast_forwarder_server_get_udp_dport
-                                                (row_serv, OVSDB_TYPE_INTEGER);
-                    if ((NULL!=datum) && (datum->n >0))
-                    {
-                        index = datum->keys[0].integer;
-                    }
-                    vty_out(vty, "%2s%s%16s%d%s", "",
-                                 row_serv->ipv4_ucast_server[i], "",
-                                 index, VTY_NEWLINE);
-                }
-                entry_found = true;
-            }
-        }
-    }
-
-    if (entry_found == false)
-    {
-        if (ifname)
-            vty_out(vty, "No forward address configuration found on "
-                    "the interface %s.%s", ifname, VTY_NEWLINE);
-        else
-            vty_out(vty, "No forward address configuration found.%s",
-                    VTY_NEWLINE);
-    }
-
-    return CMD_SUCCESS;
 }

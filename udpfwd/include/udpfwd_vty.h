@@ -45,11 +45,12 @@
 #include "openswitch-idl.h"
 #include "vtysh/vtysh_ovsdb_if.h"
 #include "vtysh/vtysh_ovsdb_config.h"
-#include "udpfwd_vty_utils.h"
 #include "udpfwd_common.h"
 #include "vtysh_ovsdb_udpfwd_context.h"
 #include <arpa/inet.h>
 #include <string.h>
+
+#ifdef FTR_UDP_BCAST_FWD
 
 #define UDPFWD_BCAST_STR \
 "Enable/disable UDP broadcast forwarding\n"
@@ -83,5 +84,16 @@ extern struct cmd_element cli_udp_bcast_fwd_disable_cmd;
 extern struct cmd_element intf_set_udpf_proto_cmd;
 extern struct cmd_element intf_no_set_udpf_proto_cmd;
 extern struct cmd_element cli_show_udpf_forward_protocol_cmd;
+
+/*
+ * Function prototypes
+ */
+int8_t udpfwd_globalconfig(const char *);
+const struct ovsrec_udp_bcast_forwarder_server *
+udp_bcast_server_row_lookup(const char *, const char *, udpfwd_server *);
+int8_t udpfwd_serverconfig(udpfwd_server *, bool);
+int8_t show_udp_forwarder_configuration(const char *);
+
+#endif /* FTR_UDP_BCAST_FWD */
 
 #endif /* udpfwd_vty.h */

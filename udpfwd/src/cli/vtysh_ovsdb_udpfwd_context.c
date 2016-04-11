@@ -38,6 +38,7 @@
 #include "vtysh/vtysh_ovsdb_config.h"
 #include "vtysh_ovsdb_udpfwd_context.h"
 
+#ifdef FTR_UDP_BCAST_FWD
 char udp_forwarder_context_client_name[] = "vtysh_udp_forwarder_context_\
                                                         clientcallback";
 
@@ -68,3 +69,4 @@ vtysh_udp_forwarder_context_clientcallback (void *p_private)
 
     return e_vtysh_ok;
 }
+#endif /* FTR_UDP_BCAST_FWD */

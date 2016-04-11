@@ -25,13 +25,13 @@
 #include <stdint.h>
 #include "vtysh/command.h"
 #include "dhcp_relay_vty.h"
-#include "udpfwd_vty.h"
 #include "vtysh_ovsdb_udpfwd_context.h"
 #include "vtysh_ovsdb_dhcp_relay_context.h"
 
 extern struct ovsdb_idl *idl;
 VLOG_DEFINE_THIS_MODULE(vtysh_udpfwd_cli);
 
+#ifdef FTR_DHCP_RELAY
 /*-----------------------------------------------------------------------------
 | Function       : dhcp_relay_ovsdb_init
 | Responsibility : Initialise dhcp-relay table details.
@@ -53,7 +53,9 @@ dhcp_relay_ovsdb_init(void)
 
     return;
 }
+#endif /* FTR_DHCP_RELAY */
 
+#ifdef FTR_UDP_BCAST_FWD
 /*******************************************************************
 | Function       : udpfwd_ovsdb_init
 | Responsibility : Initialise UDP broadcast server table details.
@@ -73,39 +75,47 @@ udpfwd_ovsdb_init(void)
 
     return;
 }
+#endif /* FTR_UDP_BCAST_FWD */
 
 /* Install dhcp-relay and UDP fowarder related vty commands */
 void
 cli_pre_init(void)
 {
-    vtysh_ret_val dhcp_retval = e_vtysh_error, udp_retval = e_vtysh_error;
+#if defined(FTR_DHCP_RELAY) || defined(FTR_UDP_BCAST_FWD)
+    vtysh_ret_val retval = e_vtysh_error;
+#endif /* (FTR_DHCP_RELAY | FTR_UDP_BCAST_FWD) */
 
+#ifdef FTR_DHCP_RELAY
     /* dhcp-relay */
     dhcp_relay_ovsdb_init();
-    dhcp_retval = install_show_run_config_context(e_vtysh_dhcp_relay_context,
+    retval = install_show_run_config_context(e_vtysh_dhcp_relay_context,
                                      &vtysh_dhcp_relay_context_clientcallback,
                                      NULL, NULL);
-    if(e_vtysh_ok != dhcp_retval)
+    if(e_vtysh_ok != retval)
     {
        vtysh_ovsdb_config_logmsg(VTYSH_OVSDB_CONFIG_ERR,
                            "dhcp-relay context unable "\
                            "to add config callback");
         assert(0);
     }
+#endif /* FTR_DHCP_RELAY */
 
+#ifdef FTR_UDP_BCAST_FWD
     /* UDP forwarder */
     udpfwd_ovsdb_init();
-    udp_retval = install_show_run_config_context
+    retval = install_show_run_config_context
                         (e_vtysh_udp_forwarder_context,
                          &vtysh_udp_forwarder_context_clientcallback,
                          NULL, NULL);
-    if (e_vtysh_ok != udp_retval)
+    if (e_vtysh_ok != retval)
     {
         vtysh_ovsdb_config_logmsg(VTYSH_OVSDB_CONFIG_ERR,
                            "UDP  Broadcast Forwarder context unable "\
                            "to add config callback");
         assert(0);
     }
+#endif /* FTR_UDP_BCAST_FWD */
+
     return;
 }
 
@@ -113,6 +123,7 @@ cli_pre_init(void)
 void
 cli_post_init(void)
 {
+#ifdef FTR_DHCP_RELAY
     /* dhcp-relay */
     install_element (CONFIG_NODE, &dhcp_relay_configuration_cmd);
     install_element(CONFIG_NODE, &dhcp_relay_options_configuration_cmd);
@@ -154,7 +165,9 @@ cli_post_init(void)
     install_element (ENABLE_NODE, &show_ip_helper_address_configuration_cmd);
     install_element(ENABLE_NODE,
                     &show_dhcp_relay_bootp_gateway_configuration_cmd);
+#endif /* FTR_DHCP_RELAY */
 
+#ifdef FTR_UDP_BCAST_FWD
     /* UDP Forwarder */
     install_element(CONFIG_NODE, &cli_udp_bcast_fwd_enable_cmd);
     install_element(CONFIG_NODE, &cli_udp_bcast_fwd_disable_cmd);
@@ -163,6 +176,7 @@ cli_post_init(void)
     install_element(SUB_INTERFACE_NODE, &intf_set_udpf_proto_cmd);
     install_element(SUB_INTERFACE_NODE, &intf_no_set_udpf_proto_cmd);
     install_element(ENABLE_NODE, &cli_show_udpf_forward_protocol_cmd);
+#endif /* FTR_UDP_BCAST_FWD */
 
     return;
 }
