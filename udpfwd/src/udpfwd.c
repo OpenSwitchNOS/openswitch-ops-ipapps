@@ -26,6 +26,7 @@
 
 /* Linux includes */
 #include <errno.h>
+#include <timeval.h>
 #include <getopt.h>
 #include <limits.h>
 #include <signal.h>
@@ -506,7 +507,6 @@ void udp_bcast_forwarder_server_config_update(void)
 
     return;
 }
-
 /*
  * Function      : udpfwd_reconfigure
  * Responsiblity : Process the table update notifications from OVSDB for the
@@ -537,6 +537,49 @@ void udpfwd_reconfigure(void)
     return;
 }
 
+/* Update interface and mirror statistics if necessary. */
+static void
+run_stats_update(void)
+{
+
+const struct ovsrec_system *cfg = ovsrec_system_first(idl);
+    int stats_interval;
+    static struct ovsdb_idl_txn *stats_txn;
+    static int stats_timer_interval;
+    static long long int stats_timer = LLONG_MIN;
+
+
+    if (!cfg) {
+        return;
+    }
+
+    /* Statistics update interval should always be greater than or equal to
+     * 5000 ms. */
+    stats_interval = MAX(smap_get_int(&cfg->other_config,
+                                      "stats-update-interval",
+                                      5000), 5000);
+    if (stats_timer_interval != stats_interval) {
+        stats_timer_interval = stats_interval;
+        stats_timer = LLONG_MIN;
+    }
+
+    if (time_msec() >= stats_timer) {
+        enum ovsdb_idl_txn_status status;
+        /* Rate limit the update.  Do not start a new update if the
+         * previous one is not done. */
+        if (!stats_txn) {
+            stats_txn = ovsdb_idl_txn_create(idl);
+            refresh_dhcp_relay_stats();
+        }
+        status = ovsdb_idl_txn_commit(stats_txn);
+        if (status != TXN_INCOMPLETE) {
+            stats_timer = time_msec() + stats_timer_interval;
+            ovsdb_idl_txn_destroy(stats_txn);
+            stats_txn = NULL;
+        }
+    }
+}
+
 /*
  * Function      : udpfwd_interface_dump
  * Responsiblity : Function dumps information about server IP address,
@@ -564,6 +607,24 @@ static void udpfwd_interface_dump(struct shash_node *node,
     ds_put_format(ds, "Interface %s: %d\n", intfNode->portName,
                       intfNode->addrCount);
 
+    /* Print dhcp-relay statistics */
+    ds_put_format(ds, "client request dropped packets = %d\n",
+                  intfNode->dhcp_relay_pkt_counters.client_drops);
+    ds_put_format(ds, "client request valid packets = %d\n",
+                  intfNode->dhcp_relay_pkt_counters.client_valids);
+    ds_put_format(ds, "server request dropped packets = %d\n",
+                  intfNode->dhcp_relay_pkt_counters.serv_drops);
+    ds_put_format(ds, "server request valid packets = %d\n",
+                  intfNode->dhcp_relay_pkt_counters.serv_valids);
+
+    ds_put_format(ds, "client request dropped packets with option 82 = %d\n",
+           intfNode->dhcp_relay_pkt_counters.client_drops_with_option82);
+    ds_put_format(ds, "client request valid packets with option 82 = %d\n",
+           intfNode->dhcp_relay_pkt_counters.client_valids_with_option82);
+    ds_put_format(ds, "server request dropped packets with option 82 = %d\n",
+           intfNode->dhcp_relay_pkt_counters.serv_drops_with_option82);
+    ds_put_format(ds, "server request valid packets with option 82 = %d\n",
+           intfNode->dhcp_relay_pkt_counters.serv_valids_with_option82);
     /* Print bootp gateway */
     ip_addr.s_addr = intfNode->bootp_gw;
     ds_put_format(ds, "%s\n", inet_ntoa(ip_addr));
@@ -866,7 +927,6 @@ bool udpfwd_init(const char *remote)
 
     unixctl_command_register("udpfwd/dump", "", 0, 4,
                              udpfwd_unixctl_dump, NULL);
-
     return true;
 }
 
@@ -929,6 +989,7 @@ void udpfwd_run(void)
         return;
 
     udpfwd_reconfigure();
+    run_stats_update();
 }
 
 /*

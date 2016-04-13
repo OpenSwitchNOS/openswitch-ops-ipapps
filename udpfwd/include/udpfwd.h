@@ -33,6 +33,7 @@
 #include "openvswitch/vlog.h"
 #include "vswitch-idl.h"
 #include "openswitch-idl.h"
+#include "ovsdb-idl.h"
 
 #include <stdio.h>
 #include <netinet/in.h>
@@ -158,5 +159,7 @@ void udpfwd_handle_dhcp_relay_row_delete(struct ovsdb_idl *idl);
 void udpfwd_handle_udp_bcast_forwarder_row_delete(struct ovsdb_idl *idl);
 void udpfwd_handle_udp_bcast_forwarder_config_change(
               const struct ovsrec_udp_bcast_forwarder_server *rec);
+void
+refresh_dhcp_relay_stats();
 
 #endif /* udpfwd.h */

@@ -23,7 +23,6 @@
  * Purpose: DHCP relay agent Information Option (82) implementation
  */
 
-#include "dhcp_relay.h"
 #include "udpfwd_util.h"
 #include "udpfwd.h"
 #include <stdlib.h>
@@ -169,7 +168,7 @@ int32_t dhcp_relay_validate_agent_option(const uint8_t *buf, int32_t buflen,
             return DHCP_RELAY_OPTION_82_MISMATCH;
         memcpy(&intf_ip_address.s_addr, remote_id_ptr, sizeof intf_ip_address.s_addr);
         /* check interface with this ip exists or not */
-        if (!ipExistsOnInterface(ifName, intf_ip_address.s_addr))
+       if (!ipExistsOnInterface(ifName, intf_ip_address.s_addr))
             return DHCP_RELAY_OPTION_82_MISMATCH;
         pkt_info->ip_addr = intf_ip_address.s_addr;
         break;
@@ -205,7 +204,7 @@ int32_t dhcp_relay_validate_agent_option(const uint8_t *buf, int32_t buflen,
  *          false - any failures.
  */
 bool process_dhcp_relay_option82_message(void *pkt, DHCP_OPTION_82_OPTIONS *pkt_info,
-                               uint32_t ifIndex, char *ifName, IP_ADDRESS bootp_gw)
+                               uint32_t ifIndex, char *ifName, UDPFWD_INTERFACE_NODE_T *intfNode)
 {
     struct ip *iph = NULL;       /* pointer to IP header */
     struct udphdr *udph = NULL;  /* pointer to UDP header */
@@ -245,7 +244,6 @@ bool process_dhcp_relay_option82_message(void *pkt, DHCP_OPTION_82_OPTIONS *pkt_
     max = ((uint8_t *)dhcp) + length;
     option_parser_ptr = (uint8_t *)(dhcp->options + MAGIC_LEN);
     sp = option_parser_ptr;
-
     while (option_parser_ptr < max)
     {
         switch (*option_parser_ptr)
@@ -273,8 +271,9 @@ bool process_dhcp_relay_option82_message(void *pkt, DHCP_OPTION_82_OPTIONS *pkt_
                }
                else
                {
-                  VLOG_ERR("Pkt dropped. dhcp_maxmsgsize option with invalid length");
-                  return false;
+                   VLOG_ERR("Pkt dropped. dhcp_maxmsgsize option with invalid length");
+                   INC_UDPF_DHCPR_OPT82_CLIENT_DROPS(intfNode);
+                   return false;
                }
             }
         break;
@@ -297,9 +296,11 @@ bool process_dhcp_relay_option82_message(void *pkt, DHCP_OPTION_82_OPTIONS *pkt_
                break;
             }
             if (dhcp->giaddr.s_addr == 0)
+			{
                 /* drop packets with giaddr field set to NULL and option 82 !=NULL */
+				INC_UDPF_DHCPR_OPT82_CLIENT_DROPS(intfNode);
                 return false;
-
+            }
             end_pad = 0;
             if (dhcp->op == BOOTREPLY)
             {
@@ -314,6 +315,7 @@ bool process_dhcp_relay_option82_message(void *pkt, DHCP_OPTION_82_OPTIONS *pkt_
                 if (status == DHCP_RELAY_INVALID_OPTION_82)
                 {
                     /* The packet is corrupted so drop it */
+                    INC_UDPF_DHCPR_OPT82_SERVER_DROPS(intfNode);
                     return false;
                 }
                 if (status == DHCP_RELAY_OPTION_82_OK)
@@ -340,8 +342,10 @@ bool process_dhcp_relay_option82_message(void *pkt, DHCP_OPTION_82_OPTIONS *pkt_
                 switch (policy)
                 {
                 case KEEP:
+                    INC_UDPF_DHCPR_OPT82_CLIENT_SENT(intfNode);
                     return true;
                 case DROP:
+                    INC_UDPF_DHCPR_OPT82_CLIENT_DROPS(intfNode);
                     return false;
                 case REPLACE:
                 default:
@@ -393,11 +397,15 @@ bool process_dhcp_relay_option82_message(void *pkt, DHCP_OPTION_82_OPTIONS *pkt_
             (udpfwd_ctrl_cb_p->feature_config.config, DHCP_RELAY_OPTION82_VALIDATE)))
         {
             VLOG_ERR("DHCP relay option 82 validate is enabled. drop the packet");
+            INC_UDPF_DHCPR_OPT82_SERVER_DROPS(intfNode);
             return false;
         }
         else
+        {
+            INC_UDPF_DHCPR_OPT82_SERVER_SENT(intfNode);
             return true;
-   }
+        }
+    }
     else if (dhcp->op == BOOTREQUEST)
     {
         /* If the packet had padding, we can store the agent option at the
@@ -458,8 +466,8 @@ bool process_dhcp_relay_option82_message(void *pkt, DHCP_OPTION_82_OPTIONS *pkt_
                 struct in_addr addr;
 
                 /* If a BOOTP gateway is configured, use that address */
-                if (bootp_gw)
-                    addr.s_addr = bootp_gw;
+                if (intfNode->bootp_gw)
+                    addr.s_addr = intfNode->bootp_gw;
                 else
                     /* Use IP address of the interface where the packet was received */
                     addr.s_addr = pkt_info->ip_addr;
@@ -473,7 +481,8 @@ bool process_dhcp_relay_option82_message(void *pkt, DHCP_OPTION_82_OPTIONS *pkt_
             /* Add END option to packet */
             *sp++ = END;
         }
-    }
+    INC_UDPF_DHCPR_OPT82_CLIENT_DROPS(intfNode);
+   }
 
     /* Recalculate the DHCP length */
 
