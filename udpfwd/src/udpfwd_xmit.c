@@ -295,15 +295,20 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
     option82_info.ip_addr = interface_ip;
 
     if (process_dhcp_relay_option82_message(pkt, &option82_info, ifIndex,
-                            ifName, intfNode->bootp_gw) == false)
+                                            ifName, intfNode->bootp_gw) == DROP_INCREMENT)
     {
         VLOG_ERR("Option 82 check failed when relaying packet to server."
-                  "Drop packet.");
+                 "Drop packet");
+        INC_UDPF_DHCPR_OPT82_CLIENT_DROPS(intfNode);
 
-         /* Release the semaphore and return */
-         sem_post(&udpfwd_ctrl_cb_p->waitSem);
-         return;
+        /* Release the semaphore and return */
+        sem_post(&udpfwd_ctrl_cb_p->waitSem);
+        return;
+
     }
+    else if (process_dhcp_relay_option82_message(pkt, &option82_info, ifIndex,
+                                            ifName, intfNode->bootp_gw) == VALID_INCREMENT)
+        INC_UDPF_DHCPR_OPT82_CLIENT_SENT(intfNode);
 
     /*
      * we need to preserve the giaddr in case of multi hop relays
@@ -351,7 +356,13 @@ void udpfwd_relay_to_dhcp_server(void* pkt, int32_t size,
 
         if (udpfwd_send_pkt_through_socket((void*)pkt, size,
                                          pktInfo, &to) == true) {
+            INC_UDPF_DHCPR_CLIENT_SENT(intfNode);
             VLOG_INFO("packet sent to server successfully\n\n");
+        }
+        else
+        {
+            VLOG_ERR("failed to send packet to server\n\n");
+            INC_UDPF_DHCPR_CLIENT_DROPS(intfNode);
         }
     }
 
@@ -393,6 +404,8 @@ void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
     char ifName[IF_NAMESIZE + 1];
     struct in_addr interface_ip_address; /* Interface IP address. */
     DHCP_OPTION_82_OPTIONS  option82_info;
+    struct shash_node *node;
+    UDPFWD_INTERFACE_NODE_T *intfNode = NULL;
 
     iph  = (struct ip *) pkt;
     udph = (struct udphdr *) ((char *)iph + (iph->ip_hl * 4));
@@ -413,16 +426,34 @@ void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
 
     iph->ip_ttl--;
 
+    /* Acquire db lock */
+    sem_wait(&udpfwd_ctrl_cb_p->waitSem);
+    node = shash_find(&udpfwd_ctrl_cb_p->intfHashTable, ifName);
+
+    if (NULL == node) {
+        /* Release db lock */
+        sem_post(&udpfwd_ctrl_cb_p->waitSem);
+        return;
+    }
+    intfNode = (UDPFWD_INTERFACE_NODE_T *)node->data;
+
     /* initialize option82_info struct */
     memset(&option82_info, 0, sizeof(option82_info));
-    if (process_dhcp_relay_option82_message(pkt, &option82_info, ifIndex,
-                                            ifName, 0) == false)
 
+    if (process_dhcp_relay_option82_message(pkt, &option82_info, ifIndex,
+                                            ifName, 0) == DROP_INCREMENT)
     {
         VLOG_ERR("Option 82 check failed when relaying packet to client."
                  "Drop packet");
+        INC_UDPF_DHCPR_OPT82_SERVER_DROPS(intfNode);
+        /* Release the semaphore and return */
+        sem_post(&udpfwd_ctrl_cb_p->waitSem);
         return;
+
     }
+    else if (process_dhcp_relay_option82_message(pkt, &option82_info, ifIndex,
+                                            ifName, 0) == VALID_INCREMENT)
+        INC_UDPF_DHCPR_OPT82_SERVER_SENT(intfNode);
 
     /* Check whether this packet is a NAK. */
     option = dhcpPickupOpt(dhcp, DHCP_PKTLEN(udph), DHCP_MSGTYPE);
@@ -464,9 +495,13 @@ void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
             {
                 if(dhcp->ciaddr.s_addr != IP_ADDRESS_NULL)
                     dest.sin_addr.s_addr = dhcp->ciaddr.s_addr;
-            else
-               /* ciaddr is 0.0.0.0, don't relay to client. */
-               return;
+                else
+                {
+                    /* ciaddr is 0.0.0.0, don't relay to client. */
+                    INC_UDPF_DHCPR_SERVER_DROPS(intfNode);
+                    sem_post(&udpfwd_ctrl_cb_p->waitSem);
+                    return;
+                }
             }
         }
 
@@ -482,10 +517,19 @@ void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
     pktInfo->ipi_ifindex = ifIndex;
     pktInfo->ipi_spec_dst.s_addr = 0;
 
+    /* update value of size */
+    size = ntohs(iph->ip_len);
+
     if (udpfwd_send_pkt_through_socket((void*)pkt, size,
                                 pktInfo, &dest) != true) {
         VLOG_ERR("Failed to send packet dhcp-client");
+        INC_UDPF_DHCPR_SERVER_DROPS(intfNode);
+    }
+    else
+    {
+        INC_UDPF_DHCPR_SERVER_SENT(intfNode);
     }
 
+    sem_post(&udpfwd_ctrl_cb_p->waitSem);
     return;
 }

@@ -23,10 +23,11 @@
  *
  */
 
-
-#include "udpfwd_common.h"
 #include "udpfwd.h"
+#include "udpfwd_common.h"
 #include "hash.h"
+#include "udpfwd_util.h"
+
 
 VLOG_DEFINE_THIS_MODULE(udpfwd_config);
 
@@ -846,5 +847,137 @@ void udpfwd_handle_udp_bcast_forwarder_config_change(
                              servers[iter].udp_port);
     }
 
+    return;
+}
+
+void
+refresh_dhcp_relay_stats()
+{
+    const struct ovsrec_dhcp_relay *rec = NULL;
+    struct shash_node *node = NULL;
+    extern struct ovsdb_idl *idl;
+    struct ovsdb_idl_txn *status_txn = NULL;
+    const struct ovsdb_datum *datum = NULL;
+    int64_t int_values[MAX_STATISTICS_TYPE] = {0};
+    /* DHCP-Relay statistics keys */
+    static char *keys[MAX_STATISTICS_TYPE] = {
+        PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4CLIENT_REQUESTS,
+        PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4CLIENT_REQUESTS,
+        PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4SERVER_RESPONSES,
+        PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4SERVER_RESPONSES,
+        PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4CLIENT_REQUESTS_WITH_OPTION82,
+        PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4CLIENT_REQUESTS_WITH_OPTION82,
+        PORT_DHCP_RELAY_STATISTICS_MAP_VALID_V4SERVER_RESPONSES_WITH_OPTION82,
+        PORT_DHCP_RELAY_STATISTICS_MAP_DROPPED_V4SERVER_RESPONSES_WITH_OPTION82
+    };
+    UDPFWD_INTERFACE_NODE_T *intfNode = NULL;
+    int64_t count = 0;
+    union ovsdb_atom atom;
+    uint32_t index;
+    bool stats_change = false;
+
+    rec = ovsrec_dhcp_relay_first(idl);
+
+    OVSREC_DHCP_RELAY_FOR_EACH(rec, idl) {
+        /* Do lookup for the interface entry in hash table */
+        node = shash_find(&udpfwd_ctrl_cb_p->intfHashTable, rec->port->name);
+
+        if (NULL == node)
+            continue;
+        else
+        {
+            intfNode = (UDPFWD_INTERFACE_NODE_T *)node->data;
+            datum = ovsrec_port_get_dhcp_relay_statistics(rec->port,
+                                OVSDB_TYPE_STRING, OVSDB_TYPE_INTEGER);
+            if (NULL == datum)
+                continue;
+            /* Set Statistics column. */
+            atom.string = keys[VALID_V4CLIENT_REQUESTS];
+            index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+            count = ((index == UINT_MAX)? 0 : datum->values[index].integer);
+            if (UDPF_DHCPR_CLIENT_SENT(intfNode) != count) {
+                int_values[VALID_V4CLIENT_REQUESTS] =
+                UDPF_DHCPR_CLIENT_SENT(intfNode);
+                stats_change = true;
+            }
+
+            atom.string = keys[DROPPED_V4CLIENT_REQUESTS];
+            index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+            count = ((index == UINT_MAX)? 0 : datum->values[index].integer);
+            if (UDPF_DHCPR_CLIENT_DROPS(intfNode) != count) {
+                int_values[DROPPED_V4CLIENT_REQUESTS] =
+                UDPF_DHCPR_CLIENT_DROPS(intfNode);
+                stats_change = true;
+            }
+
+            atom.string = keys[VALID_V4SERVER_RESPONSES];
+            index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+            count = ((index == UINT_MAX)? 0 : datum->values[index].integer);
+            if (UDPF_DHCPR_SERVER_SENT(intfNode) != count) {
+                int_values[VALID_V4SERVER_RESPONSES] =
+                UDPF_DHCPR_SERVER_SENT(intfNode);
+                stats_change = true;
+            }
+
+            atom.string = keys[DROPPED_V4SERVER_RESPONSES];
+            index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+            count = ((index == UINT_MAX)? 0 : datum->values[index].integer);
+            if (UDPF_DHCPR_SERVER_DROPS(intfNode) != count) {
+                int_values[DROPPED_V4SERVER_RESPONSES] =
+                UDPF_DHCPR_SERVER_DROPS(intfNode);
+                stats_change = true;
+            }
+
+            atom.string = keys[VALID_V4CLIENT_REQUESTS_WITH_OPTION82];
+            index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+            count = ((index == UINT_MAX)? 0 : datum->values[index].integer);
+            if (UDPF_DHCPR_CLIENT_SENT_WITH_OPTION82(intfNode) != count) {
+                int_values[VALID_V4CLIENT_REQUESTS_WITH_OPTION82] =
+                UDPF_DHCPR_CLIENT_SENT_WITH_OPTION82(intfNode);
+                stats_change = true;
+            }
+
+            atom.string = keys[DROPPED_V4CLIENT_REQUESTS_WITH_OPTION82];
+            index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+            count = ((index == UINT_MAX)? 0 : datum->values[index].integer);
+            if (UDPF_DHCPR_CLIENT_DROPS_WITH_OPTION82(intfNode) != count) {
+                int_values[DROPPED_V4CLIENT_REQUESTS_WITH_OPTION82] =
+                UDPF_DHCPR_CLIENT_DROPS_WITH_OPTION82(intfNode);
+                stats_change = true;
+            }
+
+            atom.string = keys[VALID_V4SERVER_RESPONSES_WITH_OPTION82];
+            index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+            count = ((index == UINT_MAX)? 0 : datum->values[index].integer);
+            if (UDPF_DHCPR_SERVER_SENT_WITH_OPTION82(intfNode) != count) {
+                int_values[VALID_V4SERVER_RESPONSES_WITH_OPTION82] =
+                UDPF_DHCPR_SERVER_SENT_WITH_OPTION82(intfNode);
+                stats_change = true;
+            }
+
+            atom.string = keys[DROPPED_V4SERVER_RESPONSES_WITH_OPTION82];
+            index = ovsdb_datum_find_key(datum, &atom, OVSDB_TYPE_STRING);
+            count = ((index == UINT_MAX)? 0 : datum->values[index].integer);
+            if (UDPF_DHCPR_SERVER_DROPS_WITH_OPTION82(intfNode) != count) {
+                int_values[DROPPED_V4SERVER_RESPONSES_WITH_OPTION82] =
+                UDPF_DHCPR_SERVER_DROPS_WITH_OPTION82(intfNode);
+                stats_change = true;
+            }
+
+            if (stats_change)
+            {
+                if (status_txn == NULL)
+                    status_txn = ovsdb_idl_txn_create(idl);
+
+                ovsrec_port_set_dhcp_relay_statistics(rec->port, keys,
+                            int_values, ARRAY_SIZE(int_values));
+            }
+        }
+    }
+
+    if (status_txn == NULL)
+        return;
+    ovsdb_idl_txn_commit(status_txn);
+    ovsdb_idl_txn_destroy(status_txn);
     return;
 }

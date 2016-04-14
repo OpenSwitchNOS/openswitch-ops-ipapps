@@ -26,6 +26,7 @@
 
 /* Linux includes */
 #include <errno.h>
+#include <timeval.h>
 #include <getopt.h>
 #include <limits.h>
 #include <signal.h>
@@ -176,6 +177,9 @@ void udpfwd_set_default_config(void)
     /* Set DHCP-Relay option82 remote-id to mac */
     udpfwd_ctrl_cb_p->feature_config.r_id = REMOTE_ID_MAC;
 
+    /* Set statistics refresh interval */
+    udpfwd_ctrl_cb_p->stats_interval = 5000;
+
     return;
 }
 
@@ -323,6 +327,26 @@ void update_option82_remote_id(char *value)
 }
 
 /*
+ * Function      : update_stats_refresh_interval
+ * Responsiblity : Check for statistics refresh interval update.
+ * Parameters    : value - statistics refresh interval
+ * Return        : none
+ */
+void update_stats_refresh_interval(const char *value)
+{
+    if (atoi(value) != udpfwd_ctrl_cb_p->stats_interval) {
+        VLOG_INFO("statistics refresh interva changed. old : %d, new : %d",
+                  udpfwd_ctrl_cb_p->stats_interval,
+                  atoi(value));
+
+        /* update global structure with the new statistics refresh interval. */
+        udpfwd_ctrl_cb_p->stats_interval = atoi(value);
+    }
+
+    return;
+}
+
+/*
  * Function      : udpfwd_process_globalconfig_update
  * Responsiblity : Process system table update notifications related to udp
  *                 forwarder from OVSDB.
@@ -398,9 +422,10 @@ void udpfwd_process_globalconfig_update(void)
         update_option82_remote_id(value);
     }
 
-    /* Check if there is a change in UDP Broadcast Forwarder global config */
+    /* Check if there is a change in system table other config */
     if (OVSREC_IDL_IS_COLUMN_MODIFIED(ovsrec_system_col_other_config,
                                    idl_seqno)) {
+        /* Check if there is a change in UDP Broadcast Forwarder global config */
         state = DISABLE;
         value = (char *)smap_get(&system_row->other_config,
                                  SYSTEM_OTHER_CONFIG_MAP_UDP_BCAST_FWD_ENABLED);
@@ -408,6 +433,11 @@ void udpfwd_process_globalconfig_update(void)
             state = ENABLE;
         }
         update_feature_state(UDP_BCAST_FORWARDER, state);
+
+        /* Check if there is a change in statistics refresh interval */
+        value = (char *)smap_get(&system_row->other_config,
+                                 SYSTEM_OTHER_CONFIG_MAP_STATS_UPDATE_INTERVAL);
+        update_stats_refresh_interval(value);
     }
 
     return;
@@ -506,7 +536,6 @@ void udp_bcast_forwarder_server_config_update(void)
 
     return;
 }
-
 /*
  * Function      : udpfwd_reconfigure
  * Responsiblity : Process the table update notifications from OVSDB for the
@@ -538,6 +567,42 @@ void udpfwd_reconfigure(void)
 }
 
 /*
+ * Function      : run_stats_update
+ * Responsiblity : To update interface dhcp-relay statistics if necessary.
+ * Parameters    : none
+ * Return        : none
+ */
+static void
+run_stats_update(void)
+{
+
+const struct ovsrec_system *cfg = ovsrec_system_first(idl);
+    int stats_interval;
+    static int stats_timer_interval;
+    static long long int stats_timer = LLONG_MIN;
+
+    if (!cfg) {
+        return;
+    }
+
+    /* Statistics update interval should always be greater than or equal to
+     * 5000 ms. */
+    stats_interval = udpfwd_ctrl_cb_p->stats_interval;
+
+    if (stats_timer_interval != stats_interval) {
+        stats_timer_interval = stats_interval;
+        stats_timer = LLONG_MIN;
+    }
+
+    /* Rate limit the update. */
+    if (time_msec() >= stats_timer) {
+
+        refresh_dhcp_relay_stats();
+        stats_timer = time_msec() + stats_timer_interval;
+    }
+}
+
+/*
  * Function      : udpfwd_interface_dump
  * Responsiblity : Function dumps information about server IP address,
  *                 udp destination port Number , ref count for each
@@ -563,6 +628,25 @@ static void udpfwd_interface_dump(struct shash_node *node,
     /* Print all configured server IP addresses along with port number */
     ds_put_format(ds, "Interface %s: %d\n", intfNode->portName,
                       intfNode->addrCount);
+
+    /* Print dhcp-relay statistics */
+    ds_put_format(ds, "client request dropped packets = %d\n",
+                  UDPF_DHCPR_CLIENT_DROPS(intfNode));
+    ds_put_format(ds, "client request valid packets = %d\n",
+                  UDPF_DHCPR_CLIENT_SENT(intfNode));
+    ds_put_format(ds, "server request dropped packets = %d\n",
+                  UDPF_DHCPR_SERVER_DROPS(intfNode));
+    ds_put_format(ds, "server request valid packets = %d\n",
+                  UDPF_DHCPR_SERVER_SENT(intfNode));
+
+    ds_put_format(ds, "client request dropped packets with option 82 = %d\n",
+                  UDPF_DHCPR_CLIENT_DROPS_WITH_OPTION82(intfNode));
+    ds_put_format(ds, "client request valid packets with option 82 = %d\n",
+                  UDPF_DHCPR_CLIENT_SENT_WITH_OPTION82(intfNode));
+    ds_put_format(ds, "server request dropped packets with option 82 = %d\n",
+                  UDPF_DHCPR_SERVER_DROPS_WITH_OPTION82(intfNode));
+    ds_put_format(ds, "server request valid packets with option 82 = %d\n",
+                  UDPF_DHCPR_SERVER_SENT_WITH_OPTION82(intfNode));
 
     /* Print bootp gateway */
     ip_addr.s_addr = intfNode->bootp_gw;
@@ -866,7 +950,6 @@ bool udpfwd_init(const char *remote)
 
     unixctl_command_register("udpfwd/dump", "", 0, 4,
                              udpfwd_unixctl_dump, NULL);
-
     return true;
 }
 
@@ -929,6 +1012,7 @@ void udpfwd_run(void)
         return;
 
     udpfwd_reconfigure();
+    run_stats_update();
 }
 
 /*
