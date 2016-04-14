@@ -33,6 +33,7 @@
 #include "openvswitch/vlog.h"
 #include "vswitch-idl.h"
 #include "openswitch-idl.h"
+#include "ovsdb-idl.h"
 
 #include <stdio.h>
 #include <netinet/in.h>
@@ -71,6 +72,10 @@ typedef uint8_t MAC_ADDRESS[6];
 
 #define UDPFWD_DHCP_BROADCAST_FLAG    0x8000
 
+/* statistics refresh interval */
+#define SYSTEM_OTHER_CONFIG_MAP_STATS_UPDATE_INTERVAL \
+"stats-update-interval"
+
 /* structure needed for statistics counters */
 typedef struct DHCP_RELAY_PKT_COUNTER
 {
@@ -97,6 +102,7 @@ typedef struct UDPF_CTRL_CB
     struct cmap serverHashMap;  /* server hash map handle */
     FEATURE_CONFIG feature_config;
     char *rcvbuff; /* Buffer which is used to store udp packet */
+    int32_t stats_interval;    /* statistics refresh interval */
 } UDPFWD_CTRL_CB;
 
 /* Server Address structure. */
@@ -158,5 +164,7 @@ void udpfwd_handle_dhcp_relay_row_delete(struct ovsdb_idl *idl);
 void udpfwd_handle_udp_bcast_forwarder_row_delete(struct ovsdb_idl *idl);
 void udpfwd_handle_udp_bcast_forwarder_config_change(
               const struct ovsrec_udp_bcast_forwarder_server *rec);
+void
+refresh_dhcp_relay_stats();
 
 #endif /* udpfwd.h */

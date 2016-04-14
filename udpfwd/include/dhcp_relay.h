@@ -114,6 +114,12 @@ typedef enum DHCP_MSG_TYPE_t {
    DHCPMSGTYPEMAX
 } DHCP_MSG_TYPE_t;
 
+/* Option values for DHCP message type (DHCP_OPT_MESSAGE_TYPE). */
+typedef enum OPTION82_RESULT_t {
+   VALID_INCREMENT,
+   DROP_INCREMENT,
+   UNCHANGED
+} OPTION82_RESULT_t;
 /* DHCP message format. */
 struct dhcp_packet {
   uint8_t   op;      /* Packet type. */
@@ -142,7 +148,6 @@ struct ps_udph {
   int16_t ulen;
 };
 
-
 /* Function prototypes from dhcp_options.c */
 int32_t dhcp_relay_get_option82_len(DHCP_RELAY_OPTION82_REMOTE_ID remote_id);
 
@@ -150,9 +155,9 @@ int32_t dhcp_relay_validate_agent_option(const uint8_t *buf, int32_t buflen,
                                char* ifName, DHCP_OPTION_82_OPTIONS *pkt_info,
                                DHCP_RELAY_OPTION82_REMOTE_ID remote_id);
 
-bool process_dhcp_relay_option82_message(void *pkt, DHCP_OPTION_82_OPTIONS *pkt_info,
-                               uint32_t ifIndex, char *ifName,
-                               IP_ADDRESS bootp_gw);
+OPTION82_RESULT_t process_dhcp_relay_option82_message(void *pkt,
+                        DHCP_OPTION_82_OPTIONS *pkt_info, uint32_t ifIndex,
+                        char *ifName, IP_ADDRESS bootp_gw);
 
 /*
  * Function prototypes from udpfwd_xmit.c

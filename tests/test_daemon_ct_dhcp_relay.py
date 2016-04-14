@@ -379,8 +379,16 @@ def helper_address_configuration_per_interface(dut01):
         return False
 
     output = dut01.cmd("ovs-appctl -t ops-udpfwd udpfwd/dump interface 1")
-    assert '192.168.10.1' in output, "Test to set helper-address"
-    " configuration failed"
+    assert '192.168.10.1' and \
+    'client request dropped packets = 0' and \
+    'client request valid packets = 0' and \
+    'server request dropped packets = 0' and \
+    'server request valid packets = 0'
+    'client request dropped packets with option 82 = 0' and \
+    'client request valid packets with option 82 = 0' and \
+    'server request dropped packets with option 82 = 0' and \
+    'server request valid packets with option 82 = 0' in output, "Test to set "
+    "helper-address configuration failed"
 
     # Remove configuration
     if (enterConfigShell(dut01) is False):
