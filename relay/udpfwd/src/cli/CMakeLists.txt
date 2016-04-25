@@ -17,7 +17,7 @@ cmake_minimum_required (VERSION 2.8)
 project ("ops_udpfwd_cli")
 
 set (INCL_DIR ${CMAKE_SOURCE_DIR}/include)
-set (SRC_DIR ${CMAKE_SOURCE_DIR}/udpfwd/src)
+set (SRC_DIR ${CMAKE_SOURCE_DIR}/relay/udpfwd/src)
 set (LIBUDPFWDCLI udpfwd_cli)
 
 # This option is passed by build system.
