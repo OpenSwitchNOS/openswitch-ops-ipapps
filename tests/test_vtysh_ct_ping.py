@@ -331,6 +331,7 @@ class pingCLITest(OpsVsiTest):
              ' test passed\n')
 
 
+@pytest.mark.skipif(True, reason="Disabling old tests")
 class Test_vtysh_ping:
 
     def setup_class(cls):
