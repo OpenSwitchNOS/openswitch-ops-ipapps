@@ -157,6 +157,14 @@ union packet_info {
  */
 extern UDPFWD_CTRL_CB *udpfwd_ctrl_cb_p;
 
+/* Function prototypes from udpfwd.c */
+
+void udpfwd_run(void);
+void udpfwd_exit(void);
+void run_stats_update(void);
+bool udpfwd_module_init(void);
+void udpfwd_reconfigure(void);
+
 /*
  * Function prototypes from udpfwd_xmit.c
  */
