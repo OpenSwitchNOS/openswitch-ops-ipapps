@@ -677,6 +677,7 @@ def udp_forward_protocol_reboot(dut01):
     return True
 
 
+@pytest.mark.skipif(True, reason="Disabling old tests")
 class Test_udp_bcast_forwarder_configuration:
 
     def setup_class(cls):
