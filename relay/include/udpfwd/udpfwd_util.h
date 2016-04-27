@@ -26,8 +26,8 @@
 #ifndef UDPFWD_UTIL_H
 #define UDPFWD_UTIL_H 1
 
-#include "dhcp_relay.h"
 #include "udpfwd_common.h"
+#include "dhcp_relay.h"
 #include "udpfwd.h"
 #include <netinet/ip.h>
 #include <netinet/udp.h>

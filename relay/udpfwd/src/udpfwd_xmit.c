@@ -64,7 +64,7 @@ static bool udpfwd_send_pkt_through_socket(void *pkt,
     udph->uh_dport = to->sin_port;
 
     iph->ip_sum = in_cksum((uint16_t *) pkt, iph->ip_len, 0);
-	/* FIXME: Add udp checksum computation function */
+    /* FIXME: Add udp checksum calculation function */
     udph->check = 0;
 
     iov[0].iov_base = pkt;

@@ -22,7 +22,7 @@
  */
 
 #ifndef UDPFWD_COMMON_H
-#define UDPFWD_COMMON_H
+#define UDPFWD_COMMON_H 1
 
 #include "openvswitch/types.h"
 
