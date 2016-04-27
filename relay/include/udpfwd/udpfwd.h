@@ -99,6 +99,22 @@ typedef struct DHCP_RELAY_PKT_COUNTER
 } DHCP_RELAY_PKT_COUNTER;
 #endif /* FTR_DHCP_RELAY */
 
+/* Pseudo header for udp checksum computation */
+struct pseudoheader {
+    u_int32_t src_addr;
+    u_int32_t dst_addr;
+    u_int8_t padding;
+    u_int8_t proto;
+    u_int16_t length;
+};
+
+/* UDP checksum construct */
+struct csum_construct {
+    struct pseudoheader pshd;
+    struct udphdr udph;
+    char payload[RECV_BUFFER_SIZE];
+};
+
 /* UDP Forwarder Control Block. */
 typedef struct UDPF_CTRL_CB
 {
@@ -109,6 +125,7 @@ typedef struct UDPF_CTRL_CB
     FEATURE_CONFIG feature_config;
     char *rcvbuff; /* Buffer which is used to store udp packet */
     int32_t stats_interval;    /* statistics refresh interval */
+    struct csum_construct udp_csum_construct; /* UDP checksum construct */
 } UDPFWD_CTRL_CB;
 
 /* Server Address structure. */
@@ -156,6 +173,13 @@ union packet_info {
  * Global variable declaration
  */
 extern UDPFWD_CTRL_CB *udpfwd_ctrl_cb_p;
+
+/*
+ * Function prototypes from udpfwd.c
+ */
+extern bool udpfwd_init(void);
+extern void udpfwd_reconfigure(void);
+extern void udpfwd_exit(void);
 
 /*
  * Function prototypes from udpfwd_xmit.c

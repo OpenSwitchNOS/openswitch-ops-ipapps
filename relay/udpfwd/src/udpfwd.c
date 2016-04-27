@@ -60,16 +60,14 @@
 #include "coverage.h"
 #include "svec.h"
 
+#include "relay_common.h"
 #include "udpfwd_util.h"
 #include "udpfwd.h"
 
 /*
  * Global variable declarations.
  */
-/* Cached idl sequence number */
-uint32_t idl_seqno;
-/* idl pointer */
-struct ovsdb_idl *idl;
+
 /* udp socket receiver thread handle */
 pthread_t udpBcastRecv_thread;
 
@@ -556,40 +554,6 @@ void udp_bcast_forwarder_server_config_update(void)
 }
 #endif /* FTR_UDP_BCAST_FWD */
 
-/*
- * Function      : udpfwd_reconfigure
- * Responsiblity : Process the table update notifications from OVSDB for the
- *                 configuration changes.
- * Parameters    : none
- * Return        : none
- */
-void udpfwd_reconfigure(void)
-{
-    uint32_t new_idl_seqno = ovsdb_idl_get_seqno(idl);
-
-    if (new_idl_seqno == idl_seqno){
-        VLOG_DBG("No config change for udpfwd in ovs");
-        return;
-    }
-
-    /* Check for global configuration changes in system table */
-    udpfwd_process_globalconfig_update();
-
-#ifdef FTR_DHCP_RELAY
-    /* Process dhcp_relay table updates */
-    dhcp_relay_server_config_update();
-#endif /* FTR_DHCP_RELAY */
-
-#ifdef FTR_UDP_BCAST_FWD
-    /* Process udp_bcast_forwarder_server table updates */
-    udp_bcast_forwarder_server_config_update();
-#endif /* FTR_UDP_BCAST_FWD */
-
-    /* Cache the lated idl sequence number */
-    idl_seqno = new_idl_seqno;
-    return;
-}
-
 #ifdef FTR_DHCP_RELAY
 /*
  * Function      : run_stats_update
@@ -621,6 +585,46 @@ run_stats_update(void)
     }
 }
 #endif /* FTR_DHCP_RELAY */
+
+/*
+ * Function      : udpfwd_reconfigure
+ * Responsiblity : Process the table update notifications from OVSDB for the
+ *                 configuration changes.
+ * Parameters    : none
+ * Return        : none
+ */
+void udpfwd_reconfigure(void)
+{
+    uint32_t new_idl_seqno = ovsdb_idl_get_seqno(idl);
+
+#ifdef FTR_DHCP_RELAY
+    /* Update statistics */
+    run_stats_update();
+#endif /* FTR_DHCP_RELAY */
+
+    /* Do NOOP if there is not change in idl sequence number */
+    if (new_idl_seqno == idl_seqno){
+        VLOG_DBG("No config change for udpfwd in ovs");
+        return;
+    }
+
+    /* Check for global configuration changes in system table */
+    udpfwd_process_globalconfig_update();
+
+#ifdef FTR_DHCP_RELAY
+    /* Process dhcp_relay table updates */
+    dhcp_relay_server_config_update();
+#endif /* FTR_DHCP_RELAY */
+
+#ifdef FTR_UDP_BCAST_FWD
+    /* Process udp_bcast_forwarder_server table updates */
+    udp_bcast_forwarder_server_config_update();
+#endif /* FTR_UDP_BCAST_FWD */
+
+    /* Cache the lated idl sequence number */
+    idl_seqno = new_idl_seqno;
+    return;
+}
 
 /*
  * Function      : udpfwd_interface_dump
@@ -776,145 +780,12 @@ static void udpfwd_unixctl_dump(struct unixctl_conn *conn, int argc OVS_UNUSED,
 }
 
 /*
- * Function      : usage
- * Responsiblity : Daemon usage help display
- * Parameters    : none
- * Return        : none
- */
-static void usage(void)
-{
-    printf("%s: OPS udpfwd daemon\n"
-            "usage: %s [OPTIONS] [DATABASE]\n"
-            "where DATABASE is a socket on which ovsdb-server is listening\n"
-            "      (default: \"unix:%s/db.sock\").\n",
-            program_name, program_name, ovs_rundir());
-    stream_usage("DATABASE", true, false, true);
-    daemon_usage();
-    vlog_usage();
-    printf("\nOther options:\n"
-            "  --unixctl=SOCKET        override default control socket name\n"
-            "  -h, --help              display this help message\n"
-            "  -V, --version           display version information\n");
-    exit(EXIT_SUCCESS);
-}
-
-/*
- * Function      : parse_options
- * Responsiblity : Daemon options validator
- * Parameters    : argc, argv[] - Arguments
- *               : unixctl_pathp - unixctl path
- * Return        : char* - daemon launch command
- */
-static char *parse_options(int argc, char *argv[], char **unixctl_pathp)
-{
-    enum {
-        OPT_UNIXCTL = UCHAR_MAX + 1,
-        VLOG_OPTION_ENUMS,
-        DAEMON_OPTION_ENUMS,
-    };
-
-    static const struct option long_options[] = {
-            {"help",        no_argument, NULL, 'h'},
-            {"version",     no_argument, NULL, 'V'},
-            {"unixctl",     required_argument, NULL, OPT_UNIXCTL},
-            DAEMON_LONG_OPTIONS,
-            VLOG_LONG_OPTIONS,
-            {NULL, 0, NULL, 0},
-    };
-
-    char *short_options = long_options_to_short_options(long_options);
-
-    for (;;) {
-        int c;
-
-        c = getopt_long(argc, argv, short_options, long_options, NULL);
-
-        if (c == -1) {
-            break;
-        }
-
-        switch (c) {
-        case 'h':
-            usage();
-
-        case 'V':
-            ovs_print_version(OFP10_VERSION, OFP10_VERSION);
-            exit(EXIT_SUCCESS);
-
-        case OPT_UNIXCTL:
-            *unixctl_pathp = optarg;
-            break;
-
-            VLOG_OPTION_HANDLERS
-            DAEMON_OPTION_HANDLERS
-
-        case '?':
-            exit(EXIT_FAILURE);
-
-        default:
-            abort();
-        }
-    }
-    free(short_options);
-
-    argc -= optind;
-    argv += optind;
-
-    switch (argc) {
-    case 0:
-        return xasprintf("unix:%s/db.sock", ovs_rundir());
-
-    case 1:
-        return xstrdup(argv[0]);
-
-    default:
-        VLOG_FATAL("at most one non-option argument accepted; "
-                "use --help for usage");
-    }
-}
-
-/*
- * Function      : udpfwd_unixctl_run_and_wait
- * Responsiblity : run unixctl and wait for next idl run
- * Parameters    : none
- * Return        : none
- */
-static void udpfwd_unixctl_run_and_wait(struct unixctl_server *unixctl,
-                                        bool exiting)
-{
-    unixctl_server_run(unixctl);
-
-    ovsdb_idl_wait(idl);
-    poll_timer_wait(IDL_POLL_INTERVAL * 1000);
-
-    unixctl_server_wait(unixctl);
-    if (exiting) {
-        poll_immediate_wake();
-    }
-    poll_block();
-}
-
-/*
- * Function      : udpfwd_exit_cb
- * Responsiblity : Daemon exit callback invoked from unixctl
- * Parameters    : -
- * Return        : none
- */
-static void udpfwd_exit_cb(struct unixctl_conn *conn, int argc OVS_UNUSED,
-                           const char *argv[] OVS_UNUSED, void *exiting_)
-{
-    bool *exiting = exiting_;
-    *exiting = true;
-    unixctl_command_reply(conn, NULL);
-}
-
-/*
  * Function      : udpfwd_exit
  * Responsiblity : Daemon cleanup before exit
  * Parameters    : -
  * Return        : none
  */
-static void udpfwd_exit(void)
+void udpfwd_exit(void)
 {
     /* free memory for packet receive buffer */
     if (0 < udpfwd_ctrl_cb_p->udpSockFd)
@@ -930,20 +801,11 @@ static void udpfwd_exit(void)
  * Function      : udpfwd_init
  * Responsiblity : idl create/registration, module initialization and
  *                 unixctl registrations
- * Parameters    : remote - daemon launch command
- * Return        : true - on success
- *                 false - on failure
+ * Parameters    : none
+ * Return        : void
  */
-bool udpfwd_init(const char *remote)
+bool udpfwd_init(void)
 {
-    idl = ovsdb_idl_create(remote, &ovsrec_idl_class, false, true);
-    idl_seqno = ovsdb_idl_get_seqno(idl);
-    ovsdb_idl_set_lock(idl, "ops_udpfwd");
-
-    /* Register for System table updates */
-    ovsdb_idl_add_table(idl, &ovsrec_table_system);
-    ovsdb_idl_add_column(idl, &ovsrec_system_col_cur_cfg);
-    ovsdb_idl_add_column(idl, &ovsrec_system_col_other_config);
 #ifdef FTR_DHCP_RELAY
     ovsdb_idl_add_column(idl, &ovsrec_system_col_dhcp_config);
 #endif /* FTR_DHCP_RELAY */
@@ -989,130 +851,4 @@ bool udpfwd_init(const char *remote)
                              udpfwd_unixctl_dump, NULL);
 
     return true;
-}
-
-/**
- * Function      : udpfwd_chk_for_system_configured
- * Responsiblity : Check if system is fully configured by looking into
- *                 system table
- * Parameters    : none
- * Return        : true  - if system configured
- *                 false - otherwise
- */
-bool udpfwd_chk_for_system_configured(void)
-{
-    const struct ovsrec_system *ovs_vsw = NULL;
-
-    ovs_vsw = ovsrec_system_first(idl);
-
-    if (ovs_vsw && (ovs_vsw->cur_cfg > (int64_t) 0)) {
-        VLOG_INFO("System is now configured (cur_cfg=%d).",
-                  (int)ovs_vsw->cur_cfg);
-        return true;
-    }
-
-    return false;
-}
-
-/*
- * Function      : udpfwd_idl_run_and_lockcheck
- * Responsiblity : trigger idl run and check if we have the lock
- * Parameters    : none
- * Return        : true  - on success
- *                 false - otherwise
- */
-bool udpfwd_idl_run_and_lockcheck(void)
-{
-    ovsdb_idl_run(idl);
-
-    if (ovsdb_idl_is_lock_contended(idl)) {
-        static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(1, 1);
-
-        VLOG_ERR_RL(&rl, "another udpfwd process is running, "
-                    "disabling this process until it goes away");
-        return false;
-    } else if (!ovsdb_idl_has_lock(idl)) {
-        return false;
-    }
-
-    return true;
-}
-
-/*
- * Function      : udpfwd_run
- * Responsiblity : idl refresh routine. Trigger update processing if need be.
- * Parameters    : none
- * Return        : none
- */
-void udpfwd_run(void)
-{
-    if (!udpfwd_idl_run_and_lockcheck())
-        return;
-
-    udpfwd_reconfigure();
-#ifdef FTR_DHCP_RELAY
-    run_stats_update();
-#endif /* FTR_DHCP_RELAY */
-}
-
-/*
- * Function      : main
- * Responsiblity : Daemon main function
- * Parameters    : argc, argv - daemon arguments
- * Return        : none
- */
-int main(int argc, char *argv[])
-{
-    char *unixctl_path = NULL;
-    struct unixctl_server *unixctl;
-    char *remote;
-    bool exiting = false;
-    int32_t retVal = 0;
-
-    set_program_name(argv[0]);
-    proctitle_init(argc, argv);
-    remote = parse_options(argc, argv, &unixctl_path);
-
-    ovsrec_init();
-    daemonize_start();
-
-    retVal = unixctl_server_create(unixctl_path, &unixctl);
-    if (retVal) {
-        exit(EXIT_FAILURE);
-    }
-    unixctl_command_register("exit", "", 0, 0, udpfwd_exit_cb, &exiting);
-
-    if (false == udpfwd_init(remote))
-    {
-        free(remote);
-        return -1;
-    }
-
-    free(remote);
-    daemonize_complete();
-    vlog_enable_async();
-
-    /* Wait until system is completely initialized */
-    while (!exiting)
-    {
-        udpfwd_idl_run_and_lockcheck();
-
-        /* Check if system initialization is done */
-        if (true == udpfwd_chk_for_system_configured())
-            break;
-
-        udpfwd_unixctl_run_and_wait(unixctl, exiting);
-    }
-
-    /* Daemon Task loop */
-    while (!exiting)
-    {
-        udpfwd_run();
-        udpfwd_unixctl_run_and_wait(unixctl, exiting);
-    }
-
-    udpfwd_exit();
-    unixctl_server_destroy(unixctl);
-
-    return 0;
 }
