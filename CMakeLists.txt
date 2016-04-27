@@ -18,7 +18,7 @@ cmake_minimum_required (VERSION 2.8)
 project ("ops-ipapps")
 
 # Build ops-udpfwd daemon.
-add_subdirectory(udpfwd)
+add_subdirectory(relay)
 # Build diagtools libraries.
 add_subdirectory(diagtools/src/cli)
 # Build nwdiag
