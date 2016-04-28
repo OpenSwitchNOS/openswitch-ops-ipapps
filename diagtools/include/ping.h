@@ -25,6 +25,7 @@
 #define _PING_H
 
 #include <stdbool.h>
+#include "ovsdb-idl.h"
 
 #define PING_STR            "Send ping requests to a device on the network\n"
 #define PING_IP             "Enter IP address of the device to ping\n"
@@ -62,6 +63,9 @@
 "Enter interval value in the range in seconds. (Default: 1 second)\n"
 #define INPUT_COUNT \
 "Enter Repetition value in the range. (Default: 5)\n"
+#define VRF     "Specifies the virtual routing and forwarding (VRF) to use\n"
+#define INPUT_VRF   "Specify the vrf name\n"
+#define MANAGEMENT "Specifies to use the management interface \n"
 
 #define PING_MAX_HOSTNAME_LENGTH 256
 #define MAX_PATTERN_LENGTH       32
@@ -93,7 +97,9 @@ typedef enum {
     INTERVAL,
     TIMEOUT,
     TYPE_OF_SERVICE,
-    PING_IP_OPTION
+    PING_IP_OPTION,
+    VRF_NAME,
+    MGMT
 } pingArguments;
 
 /* structure to store the value of ping tokens */
@@ -110,6 +116,8 @@ typedef struct pingEntry_t {
     bool includeTimestamp;
     bool includeTimestampAddress;
     bool recordRoute;
+    char vrf_n[UUID_LEN + 1];
+    bool mgmt;
 } pingEntry;
 
 /* prototypes of functions */
