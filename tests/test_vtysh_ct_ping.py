@@ -98,6 +98,17 @@ class pingCLITest(OpsVsiTest):
             'Ping IP :ip-option record-route validation failed'
         info('\n### Ping IP: ip-option record-route validation passed ###\n')
 
+        ret = s1.cmdCLI("ping 1.1.1.1 vrf test")
+        assert '% Unknown command.' not in ret, \
+            'Ping IP :VRF option validation failed'
+        info('\n### Ping IP: VRF option validation passed ###\n')
+
+        ret = s1.cmdCLI("ping 1.1.1.1 mgmt")
+        assert '% Unknown command.' not in ret, \
+            'Ping IP :mgmt option validation failed'
+        info('\n### Ping IP: mgmt option validation passed ###\n')
+
+
     def pingValidationIpv4HostTest(self):
         s1 = self.net.switches[0]
         info('\n########## ping Host validations ##########\n')
@@ -160,6 +171,17 @@ class pingCLITest(OpsVsiTest):
             'Ping Host :ip-option record-route validation failed'
         info('\n### Ping Host: ip-option record-route validation passed ###\n')
 
+        ret = s1.cmdCLI("ping testname vrf test")
+        assert '% Unknown command.' not in ret, \
+            'Ping IP :VRF option validation with host name failed'
+        info('\n### Ping IP: VRF option validation host name passed ###\n')
+
+        ret = s1.cmdCLI("ping testname mgmt")
+        assert '% Unknown command.' not in ret, \
+            'Ping IP :mgmt option validation with host name failed'
+        info('\n### Ping IP: mgmt option validation host name passed ###\n')
+
+
     def pingValidationIpv6Test(self):
         info('\n########## ping6 IP validations ##########\n')
         s1 = self.net.switches[0]
@@ -198,6 +220,12 @@ class pingCLITest(OpsVsiTest):
             'Ping IPv6 :interval validation failed'
         info('\n### Ping IPv6: value of interval validation passed ###\n')
 
+        ret = s1.cmdCLI("ping6 1:1::1:1 mgmt")
+        assert '% Unknown command.' not in ret, \
+            'Ping IPv6 :mgmt option validation failed'
+        info('\n### Ping IPv6: mgmt option validation passed ###\n')
+
+
     def pingValidationIpv6HostTest(self):
         info('\n########## ping6 Host validations ##########\n')
         s1 = self.net.switches[0]
@@ -231,6 +259,17 @@ class pingCLITest(OpsVsiTest):
         assert '% Unknown command.' in ret, \
             'Ping IPv6 :interval validation failed'
         info('\n### Ping IPv6: value of interval validation passed ###\n')
+
+        ret = s1.cmdCLI("ping6 testname vrf test")
+        assert '% Unknown command.' not in ret, \
+            'Ping IPv6 :VRF option validation with host name failed'
+        info('\n### Ping IPv6: VRF option validation host name passed ###\n')
+
+        ret = s1.cmdCLI("ping6 testname mgmt")
+        assert '% Unknown command.' not in ret, \
+            'Ping IPv6 :mgmt option validation with host name failed'
+        info('\n### Ping IPv6: mgmt option validation host name passed ###\n')
+
 
     def pingTargetIpv4Ip(self):
         ping_target_ip_set = False

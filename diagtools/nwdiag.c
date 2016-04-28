@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-    if (strncmp("management", (char*)argv[1], strlen("management")) != 0)
+    if (strncmp("mgmt", (char*)argv[1], strlen("mgmt")) != 0)
     {
         sprintf(ns_path, "/var/run/netns/");
         sprintf(ns_path+strlen(ns_path), "%s", argv[1]);
