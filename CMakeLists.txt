@@ -19,6 +19,8 @@ project ("ops-ipapps")
 
 # Build ops-relay daemon.
 add_subdirectory(relay)
+# Build generic apps daemon.
+add_subdirectory(apps)
 # Build diagtools libraries.
 add_subdirectory(diagtools/src/cli)
 # Build nwdiag
