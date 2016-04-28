@@ -46,14 +46,14 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-    if (strncmp("management", (char*)argv[1], strlen("management")) != 0)
+    if (strncmp("mgmt", (char*)argv[1], strlen("mgmt")) != 0)
     {
         sprintf(ns_path, "/var/run/netns/");
         sprintf(ns_path+strlen(ns_path), "%s", argv[1]);
         fd = open(ns_path, O_RDONLY);  /* Get descriptor for namespace */
         if (fd == -1)
         {
-            printf("%s: vrf does not exist\n", argv[1]);
+            printf("ping: Internal error, vrf not found\n");
             exit(0);
         }
 

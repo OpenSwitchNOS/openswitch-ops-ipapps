@@ -27,8 +27,29 @@
 #include "vtysh/vtysh.h"
 #include "ping.h"
 #include "openvswitch/vlog.h"
+#include "ovsdb-idl.h"
+#include "vswitch-idl.h"
 
+extern struct ovsdb_idl *idl;
 VLOG_DEFINE_THIS_MODULE(ping_vty);
+
+static bool get_netns_from_vrf (const char *val, char* vrf_n)
+{
+    const struct ovsrec_vrf *vrf_row = NULL;
+
+    OVSREC_VRF_FOR_EACH (vrf_row, idl)
+    {
+        if(!strncmp(vrf_row->name, val, MAX_PATTERN_LENGTH))
+            break;
+    }
+
+    if (!vrf_row)
+        return false;
+
+    memset(vrf_n, 0, UUID_LEN + 1);
+    sprintf(vrf_n, UUID_FMT, UUID_ARGS(&(vrf_row->header_.uuid)));
+    return true;
+}
 
 /*-----------------------------------------------------------------------------
 | Name : printPingOutput
@@ -187,6 +208,26 @@ int decodeParam (const char* value, pingArguments type, pingEntry* p)
             }
             break;
         }
+        case VRF_NAME :
+        {
+            if (value)
+            {
+                if(!get_netns_from_vrf(value, (p->vrf_n)))
+                {
+                    printf("ping: vrf does not exist\n");
+                    return CMD_WARNING;
+                }
+            }
+            break;
+        }
+        case MGMT :
+        {
+            if (value)
+            {
+                p->mgmt = true;
+            }
+            break;
+        }
         default : break;
     }
     return CMD_SUCCESS;
@@ -203,7 +244,7 @@ DEFUN (cli_ping,
     " { datagram-size <100-65399> | data-fill WORD | repetitions <1-10000>"
     " | interval <1-60> | timeout <1-60> |  tos <0-255>"
     " | ip-option (include-timestamp | include-timestamp-and-address"
-    " | record-route )}",
+    " | record-route) | vrf WORD | mgmt }",
     PING_STR
     PING_IP
     PING_HOST
@@ -223,6 +264,9 @@ DEFUN (cli_ping,
     TS
     TS_ADDR
     RECORD
+    VRF
+    INPUT_VRF
+    MANAGEMENT
     )
 {
     pingEntry p;
@@ -284,6 +328,20 @@ DEFUN (cli_ping,
         return CMD_SUCCESS;
     }
 
+    /* decode token vrf */
+    if (decodeParam(argv[8], VRF_NAME, &p) != CMD_SUCCESS)
+    {
+        VLOG_ERR("Decoding of token vrf failed");
+        return CMD_SUCCESS;
+    }
+
+    /* decode token mgmt */
+    if (decodeParam(argv[9], MGMT, &p) != CMD_SUCCESS)
+    {
+        VLOG_ERR("Decoding of token mgmt failed");
+        return CMD_SUCCESS;
+    }
+
     /* Wrapper for popen, output is printed by printOutput function */
     if (!ping_main(&p, printPingOutput))
     {
@@ -302,7 +360,7 @@ DEFUN (cli_ping6,
        cli_ping6_cmd,
     " ping6 ( X:X::X:X | WORD )"
     " { datagram-size <100-65468> | data-fill WORD | repetitions <1-10000> "
-    " | interval <1-60> }",
+    " | interval <1-60> | vrf WORD | mgmt}",
     PING6_STR
     PING_IP
     PING_HOST
@@ -314,6 +372,9 @@ DEFUN (cli_ping6,
     INPUT_COUNT
     PING_INTERVAL
     INPUT_INTERVAL
+    VRF
+    INPUT_VRF
+    MANAGEMENT
     )
 {
     pingEntry p;
@@ -351,6 +412,20 @@ DEFUN (cli_ping6,
     if (decodeParam(argv[4], INTERVAL, &p) != CMD_SUCCESS)
     {
         VLOG_ERR("Decoding of token interval failed");
+        return CMD_SUCCESS;
+    }
+
+    /* decode token vrf */
+    if (decodeParam(argv[5], VRF_NAME, &p) != CMD_SUCCESS)
+    {
+        VLOG_ERR("Decoding of token vrf failed");
+        return CMD_SUCCESS;
+    }
+
+    /* decode token mgmt */
+    if (decodeParam(argv[6], MGMT, &p) != CMD_SUCCESS)
+    {
+        VLOG_ERR("Decoding of token mgmt failed");
         return CMD_SUCCESS;
     }
 

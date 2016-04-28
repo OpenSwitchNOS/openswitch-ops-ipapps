@@ -55,9 +55,21 @@ bool ping_main (pingEntry *p, void (*fPtr)(char *buff))
         return false;
     }
 
-    /* Append path and namespace name */
+    /* Executing the command in the "swns" namespace or
+                the namespace specified by user */
     len += sprintf(target+len, "%s ", EXE_PATH);
-    len += sprintf(target+len, "%s ", DEFAULT_VRF_NAME);
+
+    if(p->mgmt)
+    {
+        len += sprintf(target+len, "%s ", "mgmt");
+    }
+    else
+    {
+        if(!strcmp(p->vrf_n,""))
+            len += sprintf(target+len, "%s ", DEFAULT_VRF_NAME);
+        else
+            len += sprintf(target+len, "%s ", p->vrf_n);
+    }
 
     /* Append default cmd either ping4 or ping6 */
     if (p->isIpv4)
