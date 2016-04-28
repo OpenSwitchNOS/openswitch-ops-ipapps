@@ -61,6 +61,7 @@
 #include "svec.h"
 
 #include "udpfwd.h"
+#include "dhcpv6_relay.h"
 
 /*
  * Global variable declarations.
@@ -216,7 +217,7 @@ static void relay_exit(void)
 {
     udpfwd_exit();
 #ifdef FTR_DHCPV6_RELAY
-    dhcpv6_relay_exit();
+    dhcpv6r_exit();
 #endif /* FTR_DHCPV6_RELAY */
 
     ovsdb_idl_destroy(idl);
@@ -297,14 +298,27 @@ bool relay_idl_run_and_lockcheck(void)
  */
 void relay_run(void)
 {
+    uint32_t new_idl_seqno;
     if (!relay_idl_run_and_lockcheck())
         return;
+
+    new_idl_seqno = ovsdb_idl_get_seqno(idl);
+
+    /* Do NOOP if there is not change in idl sequence number */
+    if (new_idl_seqno == idl_seqno){
+        VLOG_DBG("No config change in ovs");
+        return;
+    }
 
     udpfwd_reconfigure();
 
 #ifdef FTR_DHCPV6_RELAY
-    dhcpv6_relay_reconfigure();
+    dhcpv6r_reconfigure();
 #endif /* FTR_DHCPV6_RELAY */
+
+    /* Cache the lated idl sequence number */
+    idl_seqno = new_idl_seqno;
+
 }
 
 /*
@@ -344,7 +358,7 @@ int main(int argc, char *argv[])
     }
 
 #ifdef FTR_DHCPV6_RELAY
-    if (false == dhcpv6_relay_init(idl))
+    if (false == dhcpv6r_init())
     {
         free(remote);
         VLOG_ERR("Failed to initialize DHCPv6_Relay");
