@@ -27,8 +27,33 @@
 #include "vtysh/vtysh.h"
 #include "ping.h"
 #include "openvswitch/vlog.h"
+#include "ovsdb-idl.h"
+#include "vswitch-idl.h"
 
+extern struct ovsdb_idl *idl;
+char vrf_n[UUID_LEN + 1];
 VLOG_DEFINE_THIS_MODULE(ping_vty);
+
+static bool get_netns_from_vrf (const char *val)
+{
+    char buff[UUID_LEN + 1];
+    const struct ovsrec_vrf *vrf_row = NULL;
+
+    OVSREC_VRF_FOR_EACH (vrf_row, idl)
+    {
+        if(!strncmp(vrf_row->name,val,32))
+            break;
+    }
+
+    if (!vrf_row)
+        return false;
+
+    memset(buff, 0, UUID_LEN + 1);
+    sprintf(buff, UUID_FMT, UUID_ARGS(&(vrf_row->header_.uuid)));
+    memset(vrf_n, 0, UUID_LEN + 1);
+    strcpy(vrf_n, buff);
+    return true;
+}
 
 /*-----------------------------------------------------------------------------
 | Name : printPingOutput
@@ -173,6 +198,21 @@ int decodeParam (const char* value, pingArguments type, pingEntry* p)
                 p->pingTos = atoi(value);
             break;
         }
+        case VRF_NAME :
+        {
+            if (value)
+            {
+                if(!strcmp(value,"swns") || !strcmp(value,"vrf_default"))
+                {
+                    p->vrfName = (char*)value;
+                    break;
+                }
+                get_netns_from_vrf(value);
+                /* Store vrf name */
+                p->vrfName = (char*)vrf_n;
+            }
+            break;
+        }
         case PING_IP_OPTION :
         {
             /* Store value of ping Ip-option */
@@ -201,7 +241,7 @@ DEFUN (cli_ping,
        cli_ping_cmd,
     " ping ( A.B.C.D | WORD )"
     " { datagram-size <100-65399> | data-fill WORD | repetitions <1-10000>"
-    " | interval <1-60> | timeout <1-60> |  tos <0-255>"
+    " | interval <1-60> | timeout <1-60> |  tos <0-255> | vrf WORD"
     " | ip-option (include-timestamp | include-timestamp-and-address"
     " | record-route )}",
     PING_STR
@@ -219,6 +259,8 @@ DEFUN (cli_ping,
     INPUT_TIMEOUT
     TOS
     INPUT_TOS
+    VRF
+    INPUT_VRF
     PING_IP_OPT
     TS
     TS_ADDR
@@ -277,8 +319,15 @@ DEFUN (cli_ping,
         return CMD_SUCCESS;
     }
 
+    /* decode token vrf */
+    if (decodeParam(argv[7], VRF_NAME, &p) != CMD_SUCCESS)
+    {
+        VLOG_ERR("Decoding of token vrf failed");
+        return CMD_SUCCESS;
+    }
+
     /* decode token ip-options */
-    if (decodeParam(argv[7], PING_IP_OPTION, &p) != CMD_SUCCESS)
+    if (decodeParam(argv[8], PING_IP_OPTION, &p) != CMD_SUCCESS)
     {
         VLOG_ERR("Decoding of token ip-option failed");
         return CMD_SUCCESS;
