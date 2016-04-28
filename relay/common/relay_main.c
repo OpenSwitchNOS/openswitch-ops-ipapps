@@ -61,6 +61,7 @@
 #include "svec.h"
 
 #include "udpfwd.h"
+#include "dhcpv6_relay.h"
 
 /*
  * Global variable declarations.
@@ -344,7 +345,7 @@ int main(int argc, char *argv[])
     }
 
 #ifdef FTR_DHCPV6_RELAY
-    if (false == dhcpv6_relay_init(idl))
+    if (false == dhcpv6_relay_init())
     {
         free(remote);
         VLOG_ERR("Failed to initialize DHCPv6_Relay");
