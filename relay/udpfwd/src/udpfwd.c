@@ -595,18 +595,11 @@ run_stats_update(void)
  */
 void udpfwd_reconfigure(void)
 {
-    uint32_t new_idl_seqno = ovsdb_idl_get_seqno(idl);
 
 #ifdef FTR_DHCP_RELAY
     /* Update statistics */
     run_stats_update();
 #endif /* FTR_DHCP_RELAY */
-
-    /* Do NOOP if there is not change in idl sequence number */
-    if (new_idl_seqno == idl_seqno){
-        VLOG_DBG("No config change for udpfwd in ovs");
-        return;
-    }
 
     /* Check for global configuration changes in system table */
     udpfwd_process_globalconfig_update();
@@ -621,8 +614,6 @@ void udpfwd_reconfigure(void)
     udp_bcast_forwarder_server_config_update();
 #endif /* FTR_UDP_BCAST_FWD */
 
-    /* Cache the lated idl sequence number */
-    idl_seqno = new_idl_seqno;
     return;
 }
 
@@ -793,8 +784,6 @@ void udpfwd_exit(void)
 
     if (NULL != udpfwd_ctrl_cb_p->rcvbuff)
         free(udpfwd_ctrl_cb_p->rcvbuff);
-
-    ovsdb_idl_destroy(idl);
 }
 
 /*
