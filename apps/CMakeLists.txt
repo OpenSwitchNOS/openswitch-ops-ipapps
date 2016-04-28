@@ -15,13 +15,19 @@
 
 cmake_minimum_required (VERSION 2.8)
 
-project ("ops-ipapps")
+set (APPS dns-client)
+project (${APPS})
+set (DNSCLIENT_SRC_DIR dns-client/src)
+set (INCL_DIR dns-client/include)
 
-# Build ops-relay daemon.
-add_subdirectory(relay)
-# Build generic apps daemon.
-add_subdirectory(apps)
-# Build diagtools libraries.
-add_subdirectory(diagtools/src/cli)
-# Build nwdiag
-add_subdirectory(diagtools)
+# Rules to locate needed libraries
+include(FindPkgConfig)
+pkg_check_modules(OVSCOMMON REQUIRED libovscommon)
+pkg_check_modules(OVSDB REQUIRED libovsdb)
+
+include_directories (${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/${INCL_DIR}
+                     ${PROJECT_SOURCE_DIR}/${INCL_DIR}/dns-client
+)
+
+# Build dns-client cli shared libraries.
+add_subdirectory(${DNSCLIENT_SRC_DIR}/cli)
