@@ -62,6 +62,8 @@
 "Enter interval value in the range in seconds. (Default: 1 second)\n"
 #define INPUT_COUNT \
 "Enter Repetition value in the range. (Default: 5)\n"
+#define VRF     "Specifies the virtual routing and forwarding (VRF) to use\n"
+#define INPUT_VRF   "Specify the vrf name\n"
 
 #define PING_MAX_HOSTNAME_LENGTH 256
 #define MAX_PATTERN_LENGTH       32
@@ -93,7 +95,8 @@ typedef enum {
     INTERVAL,
     TIMEOUT,
     TYPE_OF_SERVICE,
-    PING_IP_OPTION
+    PING_IP_OPTION,
+    VRF_NAME
 } pingArguments;
 
 /* structure to store the value of ping tokens */
@@ -110,6 +113,7 @@ typedef struct pingEntry_t {
     bool includeTimestamp;
     bool includeTimestampAddress;
     bool recordRoute;
+    char *vrfName;
 } pingEntry;
 
 /* prototypes of functions */
