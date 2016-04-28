@@ -794,7 +794,6 @@ void udpfwd_exit(void)
     if (NULL != udpfwd_ctrl_cb_p->rcvbuff)
         free(udpfwd_ctrl_cb_p->rcvbuff);
 
-    ovsdb_idl_destroy(idl);
 }
 
 /*
