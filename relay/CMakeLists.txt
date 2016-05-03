@@ -55,6 +55,9 @@ target_link_libraries (${RELAY} ${OVSCOMMON_LIBRARIES}
 # Build ops-relay cli shared libraries.
 add_subdirectory(${UDPFWD_SRC_DIR}/cli)
 
-# Rules to install ops-relay binary in rootfs
+# Build dhcpv6r cli shared libraries.
+add_subdirectory(${DHCPV6R_SRC_DIR}/cli)
+
+# Rules to install ops-udpfwd binary in rootfs
 install(TARGETS ${RELAY}
     RUNTIME DESTINATION bin)
