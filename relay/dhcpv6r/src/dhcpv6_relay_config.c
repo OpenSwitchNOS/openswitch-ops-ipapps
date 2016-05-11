@@ -38,7 +38,6 @@ VLOG_DEFINE_THIS_MODULE(dhcpv6_relay_config);
       else \
         HASH_KEY = hash_2words(hash_string(HASH_IP, 0), 0);
 
-
 /*
  * Function      : compare_server
  * Responsiblity : compare server ipv6 address and
@@ -117,6 +116,8 @@ DHCPV6_RELAY_SERVER_T* dhcpv6r_add_server_entry(char* ipv6_address,
     cmap_insert(&dhcpv6_relay_ctrl_cb_p->serverHashMap,
                 (struct cmap_node *)serverIP, hash_key);
 
+
+
     return serverIP;
 }
 
@@ -191,6 +192,22 @@ bool dhcpv6r_store_address(DHCPV6_RELAY_INTERFACE_NODE_T *intfNode,
             sem_post(&dhcpv6_relay_ctrl_cb_p->waitSem);
             return false;
         }
+    }
+
+    /* Join multicast group for this interface */
+    if (dhcpv6_relay_ctrl_cb_p->dhcpv6_relaySockFd == -1)
+    {
+        VLOG_ERR(" Socket is not yet created");
+        sem_post(&dhcpv6_relay_ctrl_cb_p->waitSem);
+        return false;
+    }
+
+    /* join multicast group for this interface */
+    if (!dhcpv6_relay_join_or_leave_mcast_group(intfNode, true))
+    {
+        VLOG_ERR("join multicast group for this interface failed");
+        sem_post(&dhcpv6_relay_ctrl_cb_p->waitSem);
+        return false; /*FIXME */
     }
 
     /* Update IP reference table (per interface) */
@@ -358,6 +375,14 @@ bool dhcpv6r_remove_address(DHCPV6_RELAY_INTERFACE_NODE_T *intfNode,
         {
             VLOG_ERR("Interface node not found in hash table : %s",
                  intfNode->portName);
+        }
+
+        /* leave multicast group for this interface */
+        if (!dhcpv6_relay_join_or_leave_mcast_group(intfNode, false))
+        {
+            VLOG_ERR("Leave multicast group for this interface failed");
+            sem_post(&dhcpv6_relay_ctrl_cb_p->waitSem);
+            return false; /*FIXME */
         }
         if (NULL != intfNode->portName)
             free(intfNode->portName);
@@ -645,7 +670,7 @@ void dhcpv6r_handle_config_change(
     {
         intfNode = (DHCPV6_RELAY_INTERFACE_NODE_T *)node->data;
     }
-
+#if 0 /* Code changes to be enabled once schema is pushed */
     /* If no change in both colmns return */
     if (!(OVSREC_IDL_IS_COLUMN_MODIFIED(ovsrec_dhcp_relay_col_ipv6_ucast_server,
                                    idl_seqno)) &&
@@ -654,6 +679,7 @@ void dhcpv6r_handle_config_change(
     {
         return;
     }
+#endif
 
     if (OVSREC_IDL_IS_COLUMN_MODIFIED(ovsrec_dhcp_relay_col_ipv6_ucast_server,
                                idl_seqno)) {

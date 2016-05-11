@@ -35,7 +35,6 @@
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <pthread.h>
@@ -64,6 +63,10 @@
 
 #ifdef FTR_DHCPV6_RELAY
 
+/* dhcp receiver thread handle */
+pthread_t dhcpRecv_thread;
+
+
 /* FIXME: Temporary addition. Once macro is merged following shall be removed */
 #define SYSTEM_DHCP_CONFIG_MAP_V6RELAY_ENABLED    "v6relay_enabled"
 #define SYSTEM_DHCP_CONFIG_MAP_V6RELAY_OPTION79_ENABLED "dhcpv6_relay_option79_enabled"
@@ -78,6 +81,49 @@ DHCPV6_RELAY_CTRL_CB *dhcpv6_relay_ctrl_cb_p = &dhcpv6_relay_ctrl_cb;
 
 VLOG_DEFINE_THIS_MODULE(dhcpv6_relay);
 
+
+/* FIXME: Socket needs to be created per VRF basis based on the
+ * configuration
+ */
+int create_socket(void)
+{
+    VLOG_INFO("Creating send/receive socket");
+    int on = 1, dhcpv6Sock = -1;
+    struct sockaddr_in6 sock6Addr;
+    memset(&sock6Addr, 0, sizeof(sock6Addr));
+    dhcpv6Sock = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+
+    if (-1 == dhcpv6Sock) {
+        VLOG_ERR("Failed to create UDP socket");
+        return -1;
+    }
+
+    /* Set the requisite socket options. */
+    /* IPV6_RERCVPKTINFO */
+    if (setsockopt(dhcpv6Sock, IPPROTO_IPV6, IPV6_RECVPKTINFO,
+                    (char*)&on, sizeof(on)) < 0)
+    {
+        VLOG_ERR("Failed to set IPV6_RECVPKTINFO socket option");
+        close(dhcpv6Sock);
+        return -1;
+    }
+
+    sock6Addr.sin6_family = PF_INET6;
+    sock6Addr.sin6_port = htons((uint16_t)DHCPV6_RELAY_PORT);
+    sock6Addr.sin6_addr = in6addr_any;
+
+    /* Bind to the address. */
+    if (bind(dhcpv6Sock, (struct sockaddr*)&sock6Addr, sizeof(sock6Addr)) < 0)
+    {
+        close(dhcpv6Sock);
+        return -1;
+    }
+
+    VLOG_INFO("UDP send/receive socket created successfully");
+    return dhcpv6Sock;
+}
+
+
 /*
  * Function      : dhcpv6r_module_init
  * Responsiblity : Initialization routine for dhcpv6 relay feature
@@ -87,7 +133,7 @@ VLOG_DEFINE_THIS_MODULE(dhcpv6_relay);
  */
 bool dhcpv6r_module_init(void)
 {
-    int32_t retVal;
+    int32_t retVal, sock;
     memset(dhcpv6_relay_ctrl_cb_p, 0, sizeof(DHCPV6_RELAY_CTRL_CB));
 
     /* DB access semaphore initialization */
@@ -107,6 +153,48 @@ bool dhcpv6r_module_init(void)
     /* default values */
     dhcpv6_relay_ctrl_cb_p->dhcpv6_relay_enable = false;
     dhcpv6_relay_ctrl_cb_p->dhcpv6_relay_option79_enable = false;
+
+    /* Store the DHCPv6 Relay Agents and Servers IPv6 address. */
+    if (inet_pton(PF_INET6, DHCPV6_ALLAGENTS,
+                 (void *)&dhcpv6_relay_ctrl_cb_p->agentIpv6Address) <= 0)
+    {
+        VLOG_FATAL("Could not register DHCPv6 All Relay Agents and "
+                "Servers address");
+        return false;
+    }
+
+    /* Create UDP socket */
+    if (-1 == (sock = create_socket()))
+    {
+        VLOG_FATAL("Failed to create socket");
+        return false;
+    }
+
+    dhcpv6_relay_ctrl_cb_p->dhcpv6_relaySockFd = sock;
+
+    /* Allocate memory for packet recieve buffer */
+    dhcpv6_relay_ctrl_cb_p->rcvbuff = (char *)
+                calloc(DHCPV6_RELAY_MSG_SIZE, sizeof(char));
+
+    if (NULL == dhcpv6_relay_ctrl_cb_p->rcvbuff)
+    {
+        close(dhcpv6_relay_ctrl_cb_p->dhcpv6_relaySockFd);
+        VLOG_FATAL(" Memory allocation for receive buffer failed\n");
+        return false;
+    }
+
+     /* Create DHCPv6 relay receiver thread */
+    retVal = pthread_create(&dhcpRecv_thread, (pthread_attr_t *)NULL,
+                            dhcpv6r_recv, NULL);
+    if (0 != retVal)
+    {
+        free(dhcpv6_relay_ctrl_cb_p->rcvbuff);
+        close(dhcpv6_relay_ctrl_cb_p->dhcpv6_relaySockFd);
+        cmap_destroy(&dhcpv6_relay_ctrl_cb_p->serverHashMap);
+        VLOG_FATAL("Failed to create DHCPv6 packet receiver thread : %d",
+                 retVal);
+        return false;
+    }
 
     return true;
 }
@@ -212,7 +300,6 @@ void dhcpv6r_server_config_update(void)
             dhcpv6r_handle_config_change(rec, idl_seqno);
         }
     }
-    /* FIXME : handle port deletion */
     return;
 }
 
@@ -244,6 +331,13 @@ void dhcpv6r_reconfigure()
  */
 void dhcpv6r_exit(void)
 {
+    /* free memory for packet receive buffer */
+    if (0 < dhcpv6_relay_ctrl_cb_p->dhcpv6_relaySockFd)
+        close(dhcpv6_relay_ctrl_cb_p->dhcpv6_relaySockFd);
+
+    if (NULL != dhcpv6_relay_ctrl_cb_p->rcvbuff)
+        free(dhcpv6_relay_ctrl_cb_p->rcvbuff);
+
     return;
 }
 
@@ -346,13 +440,19 @@ bool dhcpv6r_init()
                         &ovsrec_dhcp_relay_col_vrf);
     ovsdb_idl_add_column(idl,
                         &ovsrec_dhcp_relay_col_ipv6_ucast_server);
+
+    #if 0 /* Code changes to be enabled once schema is pushed */
     ovsdb_idl_add_column(idl,
                         &ovsrec_dhcp_relay_col_ipv6_mcast_server);
+    #endif
 
     /* Register for port table for dhcp_relay_statistics update */
     ovsdb_idl_add_table(idl, &ovsrec_table_port);
     ovsdb_idl_add_column(idl, &ovsrec_port_col_name);
     ovsdb_idl_add_column(idl, &ovsrec_port_col_dhcp_relay_statistics);
+
+    /* register for ipv6 address */
+    ovsdb_idl_add_column(idl, &ovsrec_port_col_ip6_address);
 
     /* Initialize module data structures */
     if (true != dhcpv6r_module_init())

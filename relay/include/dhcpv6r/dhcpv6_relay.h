@@ -42,12 +42,15 @@
 #include <pthread.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <netinet/ip.h>
 #include <unistd.h>
 #include <net/if.h>
 #include <assert.h>
+#include <sys/socket.h>
 
+
+/* Mac address definition */
+typedef uint8_t MAC_ADDRESS[6];
 
 #ifdef FTR_DHCPV6_RELAY
 /* structure needed for statistics counters */
@@ -92,6 +95,52 @@ typedef struct DHCPV6_RELAY_INTERFACE_NODE_T
                                                        statistics */
 } DHCPV6_RELAY_INTERFACE_NODE_T;
 
+/* DHCPv6 base message structure */
+typedef struct dhcpv6_basepkt {
+   union {
+      uint8_t   msgtype;
+      uint32_t  transid;
+   } dhcpv6c_msgtypexid;
+   /* Options follow */
+} dhcpv6_basepkt;
+
+typedef struct dhcpv6r_basePkt_t {
+   uint8_t msgType;
+   uint8_t hopCount;
+   struct in6_addr linkAddress;
+   struct in6_addr peerAddress;
+} dhcpv6r_basePkt_t;
+
+/* DHCPv6 options base format */
+typedef struct dhcpv6_opt_t {
+   uint16_t   opt_type;
+   uint16_t   opt_len;
+   /* Type dependent data follows */
+} dhcpv6_opt_t;
+
+/*DHCPv6 client MAC option format RFC6939*/
+typedef struct {
+        uint16_t    hwtype;
+        MAC_ADDRESS macaddr;
+} dhcpv6_clientmac_Opt_t;
+
+/* DHCPv6 client information for relaying to Clients */
+typedef struct {
+   uint32_t clientIntf;
+   struct in6_addr clientAddress;
+} dhcpv6r_clientInfo_t;
+
+
+/* Macros for dhcpv6-relay statistics counters */
+#define INC_DHCPR_CLIENT_DROPS(intfNode)  \
+            intfNode->dhcpv6_relay_pkt_counters.client_drops++
+#define INC_DHCPR_CLIENT_SENT(intfNode)  \
+            intfNode->dhcpv6_relay_pkt_counters.client_valids++
+#define INC_DHCPR_SERVER_DROPS(intfNode)  \
+            intfNode->dhcpv6_relay_pkt_counters.serv_drops++
+#define INC_DHCPR_SERVER_SENT(intfNode)  \
+            intfNode->dhcpv6_relay_pkt_counters.serv_valids++
+
 /*
  * Global variable declaration
  */
@@ -103,6 +152,57 @@ extern DHCPV6_RELAY_CTRL_CB *dhcpv6_relay_ctrl_cb_p;
 /* DHCPv6 multicast destination address */
 #define DHCPV6_ALLAGENTS    "ff02::1:2"
 #define DHCPV6_ALLSERVERS   "FF05::1:3"
+
+/* DHCPv6 relay port */
+#define DHCPV6_RELAY_PORT 547
+
+/* Size of Relay messages that we allow */
+#define DHCPV6_RELAY_MSG_SIZE   1024
+
+/* Maximum number of helper addresses supported. */
+#define DHCPV6R_MAX_HELPER_ADDRS  32
+
+/* Maximum hop count limit. */
+#define DHCPV6R_MAX_HOPCOUNT 32
+
+/* IPv6 header Hop Limit when using a multicast helper address. */
+#define DHCPV6R_MULTICAST_HOPLIMIT 32
+#define OPT_RELAY_MSG      9
+
+#define OPT_INTF_ID        18
+
+#define DHCPV6_CL_PORT    546
+
+/* OPTION_CLIENT_LINKLAYER_ADDR defined in RFC6939 */
+#define OPT_CLIENT_LINKLAYER_ADDR 79
+
+/* DHCPv6 message types as per IANA. */
+#define SOLICIT_MSG          0x01000000
+#define ADVERTISE_MSG        0x02000000
+#define REQUEST_MSG          0x03000000
+#define CONFIRM_MSG          0x04000000
+#define RENEW_MSG            0x05000000
+#define REBIND_MSG           0x06000000
+#define REPLY_MSG            0x07000000
+#define RELEASE_MSG          0x08000000
+#define DECLINE_MSG          0x09000000
+#define RECONFIGURE_MSG      0x0a000000
+#define INFOREQ_MSG          0x0b000000
+#define RELAY_FORW_MSG       0x0c000000
+#define RELAY_REPLY_MSG      0x0d000000
+#define LEASEQUERY_MSG       0x0e000000
+#define LEASEQUERY_REPLY_MSG 0x0f000000
+
+#define DHCPV6_XID_MASK   0x00ffffff
+#define DHCPV6_MSG_MASK   0xff000000
+#define DHCPV6_IAID_IFINDEX_MASK 0xffff0000
+#define DHCPV6_DEF_XID    0x11223344
+
+/* Function prototypes from dhcpv6r_common.c */
+
+bool dhcpv6r_isEnabled();
+bool dhcpv6r_isValidMsg(uint32_t msgType);
+bool dhcpv6r_isMsgFromClient(uint32_t msgType);
 
 /* Function prototypes from dhcpv6_relay.c */
 
@@ -116,6 +216,34 @@ extern void dhcpv6r_reconfigure(void);
 void dhcpv6r_handle_config_change(
               const struct ovsrec_dhcp_relay *rec, uint32_t idl_seqno);
 void dhcpv6r_handle_row_delete(struct ovsdb_idl *idl);
+
+/* Function prototypes from dhcpv6r_xmit.c */
+bool dhcpv6r_getOptions (char *bufPtr, uint32_t *bufLenPtr,
+                        dhcpv6r_basePkt_t *pktPtr, int pktLen,
+                        dhcpv6r_clientInfo_t *clientDataPtr, bool *relayFlagPtr);
+bool dhcpv6r_setOptions (dhcpv6_opt_t *optStartPtr, uint32_t *pktLenPtr,
+                        dhcpv6_basepkt *rxPktPtr, int rxPktLen,
+                        uint32_t ifIndex, void *data);
+bool dhcpv6r_relayToServer (dhcpv6r_basePkt_t *rxPktPtr, int rxPktLen,
+                           struct sockaddr_in6 srcAddr, uint32_t recv_ifindex,
+                           uint32_t srcRecv_ifindex);
+
+/* Function prototypes from dhcpv6r_util.c */
+bool dhcpv6r_isValidMsg (uint32_t msgType);
+bool dhcpv6r_isMsgFromClient (uint32_t msgType);
+bool dhcpv6r_isValidMsgFromServer (uint32_t msgType);
+
+/* Function prototypes from dhcpv6r_recv.c */
+void * dhcpv6r_recv(void *args);
+bool dhcpv6_relay_join_or_leave_mcast_group
+    (DHCPV6_RELAY_INTERFACE_NODE_T *intfNode, bool joinFlag);
+
+
+/* Function prototypes from dhcpv6r_xmit.c */
+bool dhcpv6r_xmit (char *sBuf, uint32_t pktLen, bool relayToServer,
+                  uint32_t ifIndex, void *data, bool sendToRelay,
+                  DHCPV6_RELAY_INTERFACE_NODE_T *intfNode);
+
 
 #endif /* FTR_DHCPV6_RELAY */
 #endif /* dhcpv6_relay.h */
