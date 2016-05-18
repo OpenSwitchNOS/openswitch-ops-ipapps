@@ -27,7 +27,10 @@
 #include "vtysh/vtysh.h"
 #include "traceroute.h"
 #include "openvswitch/vlog.h"
+#include "vswitch-idl.h"
+#include "vrf-utils.h"
 
+extern struct ovsdb_idl *idl;
 VLOG_DEFINE_THIS_MODULE(traceroute_vty);
 
 /*-----------------------------------------------------------------------------
@@ -52,6 +55,7 @@ void printOutput( char * buff)
 int decodeTracerouteParam(const char* value, arguments type, tracerouteEntry* p)
 {
     struct in_addr addr,addr6;
+    struct uuid uuid;
 
     switch(type)
     {
@@ -178,6 +182,29 @@ int decodeTracerouteParam(const char* value, arguments type, tracerouteEntry* p)
             break;
         }
 
+        case TRACEROUTE_VRF_NAME :
+        {
+            if (value)
+            {
+                if (get_vrf_uuid_from_vrf_name(idl, value, &uuid) == -1)
+                {
+                    printf("traceroute: vrf does not exist\n");
+                    return CMD_WARNING;
+                }
+                memset(p->vrf_n, 0, UUID_LEN + 1);
+                sprintf(p->vrf_n, UUID_FMT, UUID_ARGS(&(uuid)));
+            }
+            break;
+        }
+        case TRACEROUTE_MGMT :
+        {
+            if (value)
+            {
+               p->mgmt = true;
+            }
+            break;
+        }
+
         default : break;
     }
     return CMD_SUCCESS;
@@ -191,7 +218,7 @@ int decodeTracerouteParam(const char* value, arguments type, tracerouteEntry* p)
 DEFUN (cli_traceroute,
        cli_traceroute_cmd,
     "traceroute ( A.B.C.D | WORD ) { dstport <1-34000> | maxttl <1-255> | "
-    "minttl <1-255> | probes <1-5>| timeout <1-60>} ",
+    "minttl <1-255> | probes <1-5>| timeout <1-60> | vrf WORD | mgmt} ",
     TRACEROUTE_STR
     TRACEROUTE_IP
     TRACEROUTE_HOST
@@ -205,6 +232,9 @@ DEFUN (cli_traceroute,
     PROBES_INPUT
     TRACEROUTE_TIMEOUT
     TIMEOUT_INPUT
+    VRF
+    INPUT_VRF
+    MANAGEMENT
     )
 {
     tracerouteEntry p;
@@ -264,6 +294,20 @@ DEFUN (cli_traceroute,
     if (decodeTracerouteParam(argv[5], TIME_OUT, &p) != CMD_SUCCESS)
     {
         VLOG_ERR("Decoding of token timeout failed");
+        return CMD_SUCCESS;
+    }
+
+    /* decode token vrf */
+    if (decodeTracerouteParam(argv[6], TRACEROUTE_VRF_NAME, &p) != CMD_SUCCESS)
+    {
+        VLOG_ERR("Decoding of token vrf failed");
+        return CMD_SUCCESS;
+    }
+
+    /* decode token mgmt */
+    if (decodeTracerouteParam(argv[7], TRACEROUTE_MGMT, &p) != CMD_SUCCESS)
+    {
+        VLOG_ERR("Decoding of token mgmt failed");
         return CMD_SUCCESS;
     }
 
@@ -391,7 +435,7 @@ DEFUN (cli_traceroute_ipoption,
 DEFUN (cli_traceroute6,
        cli_traceroute6_cmd,
     "traceroute6 ( X:X::X:X | WORD ) { dstport <1-34000> | maxttl <1-255> | "
-    "probes <1-5>| timeout <1-60>} ",
+    "probes <1-5>| timeout <1-60> | vrf WORD | mgmt} ",
     TRACEROUTE6_STR
     TRACEROUTE_IP
     TRACEROUTE_HOST
@@ -403,6 +447,9 @@ DEFUN (cli_traceroute6,
     PROBES_INPUT
     TRACEROUTE_TIMEOUT
     TIMEOUT_INPUT
+    VRF
+    INPUT_VRF
+    MANAGEMENT
     )
 {
     tracerouteEntry p;
@@ -440,6 +487,20 @@ DEFUN (cli_traceroute6,
     if (decodeTracerouteParam(argv[4], TIME_OUT, &p) != CMD_SUCCESS)
     {
         VLOG_ERR("Decoding of token timeout failed");
+        return CMD_SUCCESS;
+    }
+
+    /* decode token vrf */
+    if (decodeTracerouteParam(argv[5], TRACEROUTE_VRF_NAME, &p) != CMD_SUCCESS)
+    {
+        VLOG_ERR("Decoding of token vrf failed");
+        return CMD_SUCCESS;
+    }
+
+    /* decode token mgmt */
+    if (decodeTracerouteParam(argv[6], TRACEROUTE_MGMT, &p) != CMD_SUCCESS)
+    {
+        VLOG_ERR("Decoding of token mgmt failed");
         return CMD_SUCCESS;
     }
 

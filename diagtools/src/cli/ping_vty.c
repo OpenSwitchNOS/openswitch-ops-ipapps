@@ -29,27 +29,10 @@
 #include "openvswitch/vlog.h"
 #include "ovsdb-idl.h"
 #include "vswitch-idl.h"
+#include "vrf-utils.h"
 
 extern struct ovsdb_idl *idl;
 VLOG_DEFINE_THIS_MODULE(ping_vty);
-
-static bool get_netns_from_vrf (const char *val, char* vrf_n)
-{
-    const struct ovsrec_vrf *vrf_row = NULL;
-
-    OVSREC_VRF_FOR_EACH (vrf_row, idl)
-    {
-        if(!strncmp(vrf_row->name, val, MAX_PATTERN_LENGTH))
-            break;
-    }
-
-    if (!vrf_row)
-        return false;
-
-    memset(vrf_n, 0, UUID_LEN + 1);
-    sprintf(vrf_n, UUID_FMT, UUID_ARGS(&(vrf_row->header_.uuid)));
-    return true;
-}
 
 /*-----------------------------------------------------------------------------
 | Name : printPingOutput
@@ -73,6 +56,7 @@ void printPingOutput (char * buff)
 int decodeParam (const char* value, pingArguments type, pingEntry* p)
 {
     struct in_addr addr, addr6;
+    struct uuid uuid;
     int iter;
 
     switch (type)
@@ -212,11 +196,13 @@ int decodeParam (const char* value, pingArguments type, pingEntry* p)
         {
             if (value)
             {
-                if(!get_netns_from_vrf(value, (p->vrf_n)))
+                if (get_vrf_uuid_from_vrf_name(idl, value, &uuid) == -1)
                 {
                     printf("ping: vrf does not exist\n");
                     return CMD_WARNING;
                 }
+                memset(p->vrf_n, 0, UUID_LEN + 1);
+                sprintf(p->vrf_n, UUID_FMT, UUID_ARGS(&(uuid)));
             }
             break;
         }

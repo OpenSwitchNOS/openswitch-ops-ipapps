@@ -32,11 +32,12 @@ include(FindPkgConfig)
 pkg_check_modules(OVSCOMMON REQUIRED libovscommon)
 pkg_check_modules(OVSDB REQUIRED libovsdb)
 pkg_check_modules(OPSCLI REQUIRED ops-cli)
+pkg_check_modules(OPSUTILS REQUIRED opsutils)
 
 include_directories (${INCL_DIR}
                      ${PROJECT_SOURCE_DIR}
                      ${OVSCOMMON_INCLUDE_DIRS}
-                     ${OPSCLI_INCLUDE_DIRS}
+                     ${OPSCLI_INCLUDE_DIRS} ${OPSUTILS_LIBRARIES}
                     )
 
 # CLI libraries source files
