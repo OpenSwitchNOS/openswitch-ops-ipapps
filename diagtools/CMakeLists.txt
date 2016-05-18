@@ -21,13 +21,15 @@ set (NWDIAG nwdiag)
 # Define compile flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -Wall -Werror")
 
-include_directories (${PROJECT_SOURCE_DIR})
+include_directories (${PROJECT_SOURCE_DIR} ${OPSUTILS_LIBRARIES})
 
 # Source files
 set (SOURCES ${PROJECT_SOURCE_DIR}/nwdiag.c)
 
 # Rules to build nwdiag
 add_executable (${NWDIAG} ${SOURCES})
+target_link_libraries (${NWDIAG} ${OPSUTILS_LIBRARIES}
+                       -lpthread -lrt)
 
 # Rules to install nwdiag binary in rootfs
 install(TARGETS ${NWDIAG}
