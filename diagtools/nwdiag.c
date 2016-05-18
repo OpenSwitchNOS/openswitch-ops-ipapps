@@ -46,23 +46,27 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-    if (strncmp("mgmt", (char*)argv[1], strlen("mgmt")) != 0)
+    if (strncmp("mgmt", (char*)argv[1], strlen("mgmt")) == 0)
+    {
+        sprintf(ns_path, "/proc/1/ns/net");
+    }
+    else
     {
         sprintf(ns_path, "/var/run/netns/");
         sprintf(ns_path+strlen(ns_path), "%s", argv[1]);
-        fd = open(ns_path, O_RDONLY);  /* Get descriptor for namespace */
-        if (fd == -1)
-        {
-            printf("ping: Internal error, vrf not found\n");
-            exit(0);
-        }
+    }
+    fd = open(ns_path, O_RDONLY);  /* Get descriptor for namespace */
+    if (fd == -1)
+    {
+        printf("ping: Internal error, vrf not found\n");
+        exit(0);
+    }
 
-        if (setns(fd, CLONE_NEWNET) == -1) /* Join that namespace */
-        {
-            printf("Internal error");
-            close(fd);
-            exit(0);
-        }
+    if (setns(fd, CLONE_NEWNET) == -1) /* Join that namespace */
+    {
+        printf("Internal error");
+        close(fd);
+        exit(0);
     }
 
     close(fd);
