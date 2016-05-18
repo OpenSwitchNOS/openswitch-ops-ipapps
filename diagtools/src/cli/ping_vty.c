@@ -33,7 +33,7 @@
 extern struct ovsdb_idl *idl;
 VLOG_DEFINE_THIS_MODULE(ping_vty);
 
-static bool get_netns_from_vrf (const char *val, char* vrf_n)
+bool get_netns_from_vrf (const char *val, char* vrf_n)
 {
     const struct ovsrec_vrf *vrf_row = NULL;
 
