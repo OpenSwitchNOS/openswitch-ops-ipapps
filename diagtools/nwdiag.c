@@ -26,22 +26,21 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "nl-utils.h"
 
 #define PING              "ping"
 #define PING6             "ping6"
 #define TRACEROUTE        "traceroute"
 #define TRACEROUTE6       "traceroute6"
-#define NSPATH            "/var/run/netns/"
 #define BUFFSIZE          1024
 #define NSPATHSIZE        280
 #define NAMESPACELENGTH   256
 
 int main(int argc, char *argv[])
 {
-    int fd = -1, len = 0;
+    int len = 0;
     FILE *fp = NULL;
     /* Assuming max namespace name size as 256 */
-    char ns_path[NSPATHSIZE];
     char buffer[BUFFSIZE];
     char *target = buffer;
 
@@ -55,34 +54,29 @@ int main(int argc, char *argv[])
         exit(0);
     }
 
-    if (strncmp("mgmt", (char*)argv[1], strlen("mgmt")) != 0)
+    if (strncmp("mgmt", (char*)argv[1], strlen("mgmt")) == 0)
     {
-        snprintf(ns_path, NSPATHSIZE, NSPATH);
+        if (nl_setns_oobm() == -1)
+        {
+            printf("Internal error, failed to enter mgmt OOBM namespace\n");
+            exit(0);
+        }
+    }
+    else
+    {
         if (strlen((char*)argv[1]) > NAMESPACELENGTH)
         {
-            printf("Error: Invalid vrf name\n");
+            printf("Internal error, invalid vrf\n");
             exit(0);
         }
 
-        snprintf(ns_path+strlen(ns_path),
-                 NSPATHSIZE- strlen(ns_path), "%s", argv[1]);
-        fd = open(ns_path, O_RDONLY);  /* Get descriptor for namespace */
-
-        if (fd == -1)
+        if (nl_setns_with_name((char*)argv[1]) == -1)
         {
             printf("Internal error, vrf not found\n");
             exit(0);
         }
-
-        if (setns(fd, CLONE_NEWNET) == -1) /* Join that namespace */
-        {
-            printf("Internal error");
-            close(fd);
-            exit(0);
-        }
     }
 
-    close(fd);
     /* Change to current user */
     setuid(getuid());
 

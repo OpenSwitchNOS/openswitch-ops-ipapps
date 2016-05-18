@@ -69,6 +69,12 @@ def test_ping_cli(topology, step):
     ret = sw1('ping 1.1.1.1 ip-option record-route 3')
     assert '% Unknown command.' in ret
 
+    ret = sw1("ping 1.1.1.1 vrf test")
+    assert '% Unknown command.' not in ret
+
+    ret = sw1("ping 1.1.1.1 mgmt")
+    assert '% Unknown command.' not in ret
+
     step('### ping Host validations ###')
     ret = sw1('ping testname data-size 65469')
     assert '% Unknown command.' in ret
@@ -102,6 +108,12 @@ def test_ping_cli(topology, step):
 
     ret = sw1('ping testname ip-option record-route 3')
     assert '% Unknown command.' in ret
+
+    ret = sw1("ping testname vrf test")
+    assert '% Unknown command.' not in ret
+
+    ret = sw1("ping testname mgmt")
+    assert '% Unknown command.' not in ret
 
     step('### ping6 IP validations ###')
     ret = sw1('ping6 1.1::1.1')
@@ -143,6 +155,18 @@ def test_ping_cli(topology, step):
 
     ret = sw1('ping6 testname interval 61')
     assert '% Unknown command.' in ret
+
+    ret = sw1("ping6 testname vrf test")
+    assert '% Unknown command.' not in ret
+
+    ret = sw1("ping6 testname mgmt")
+    assert '% Unknown command.' not in ret
+
+    ret = sw1("ping6 1:1::1:1 vrf test")
+    assert '% Unknown command.' not in ret
+
+    ret = sw1("ping6 1:1::1:1 mgmt")
+    assert '% Unknown command.' not in ret
 
     ret = sw1('ping 127.0.0.1')
     assert "127.0.0.1" in ret
