@@ -28,6 +28,7 @@
 #define _TRACEROUTE_VTY_H
 
 #include <stdbool.h>
+#include "uuid.h"
 
 #define TRACEROUTE_STR \
 "Trace the IPv4 route to a device on the network\n"
@@ -63,6 +64,9 @@
 "Enter probes value (Default: 3)\n"
 #define DSTPORT_INPUT \
 "Enter destination port value (Default: 33434)\n"
+#define VRF     "Specifies the virtual routing and forwarding (VRF) to use\n"
+#define INPUT_VRF   "Specify the vrf name\n"
+#define MANAGEMENT "Specifies to use the management interface \n"
 
 #define TRACEROUTE_MAX_HOSTNAME_LENGTH  256
 
@@ -92,7 +96,9 @@ typedef enum {
     MIN_TTL,
     PROBES,
     TIME_OUT,
-    IPV6_DESTINATION
+    IPV6_DESTINATION,
+    TRACEROUTE_VRF_NAME,
+    TRACEROUTE_MGMT
 }arguments;
 
 /*structure to store the traceroute tockens*/
@@ -105,6 +111,8 @@ typedef struct tracerouteEntry_t {
     uint8_t tracerouteMinttl;
     uint32_t tracerouteProbes;
     char *tracerouteLoosesourceIp;
+    char vrf_n[UUID_LEN + 1];
+    bool mgmt;
 } tracerouteEntry;
 
 /*prototypes of the functions*/
