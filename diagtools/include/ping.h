@@ -25,7 +25,7 @@
 #define _PING_H
 
 #include <stdbool.h>
-#include "ovsdb-idl.h"
+#include "uuid.h"
 
 #define PING_STR            "Send ping requests to a device on the network\n"
 #define PING_IP             "Enter IP address of the device to ping\n"
