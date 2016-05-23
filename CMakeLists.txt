@@ -23,3 +23,6 @@ add_subdirectory(relay)
 add_subdirectory(diagtools/src/cli)
 # Build nwdiag
 add_subdirectory(diagtools)
+# Build apps libraries
+add_subdirectory(apps/sourceinterface/src/cli)
+add_subdirectory(apps/sftp/src/cli)
