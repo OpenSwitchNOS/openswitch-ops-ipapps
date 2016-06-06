@@ -26,6 +26,7 @@
 #include "udpfwd_util.h"
 #include "udpfwd.h"
 #include <stdlib.h>
+#include <string.h>
 
 VLOG_DEFINE_THIS_MODULE(dhcp_options);
 
@@ -472,7 +473,8 @@ OPTION82_RESULT_t process_dhcp_relay_option82_message(void *pkt, DHCP_OPTION_82_
         end_pad = 0;
         if (sp != option_parser_ptr)
         {
-            memmove(sp, option_parser_ptr,
+            if (sp != 0)
+                memmove(sp, option_parser_ptr,
                  (unsigned)(option_parser_ptr[1] + DHCP_OPTION_HEADER_LENGTH));
         }
 
@@ -593,7 +595,8 @@ OPTION82_RESULT_t process_dhcp_relay_option82_message(void *pkt, DHCP_OPTION_82_
 
     /* If length is less than minimum, add padding */
     if (length < MINBOOTPLEN) {
-        memset(sp, 0, MINBOOTPLEN - length);
+        if (sp != 0)
+            memset(sp, 0, MINBOOTPLEN - length);
         length = MINBOOTPLEN;
     }
 
