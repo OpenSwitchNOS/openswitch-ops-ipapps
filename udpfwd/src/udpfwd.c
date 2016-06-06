@@ -703,7 +703,7 @@ static void udpfwd_interface_dump(struct shash_node *node,
  */
 static void udpfwd_interfaces_dump(struct ds *ds, struct dump_params *params)
 {
-    struct shash_node *node, *temp;
+    struct shash_node *node = NULL, *temp = NULL;
 #if defined(FTR_DHCP_RELAY) || defined(FTR_UDP_BCAST_FWD)
     feature_bmap config = udpfwd_ctrl_cb_p->feature_config.config;
 #endif /* (FTR_DHCP_RELAY | FTR_UDP_BCAST_FWD) */

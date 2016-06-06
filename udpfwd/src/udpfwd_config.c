@@ -332,10 +332,18 @@ bool udpfwd_remove_address(UDPFWD_INTERFACE_NODE_T *intfNode,
                 VLOG_ERR("Interface node not found in hash table : %s",
                      intfNode->portName);
             }
-            if (NULL != intfNode->portName)
-                free(intfNode->portName);
 
-            free(intfNode);
+            if (NULL != intfNode->portName)
+            {
+                free(intfNode->portName);
+                intfNode->portName = NULL;
+            }
+
+            if (NULL != intfNode)
+            {
+                free(intfNode);
+                intfNode = NULL;
+            }
         }
     }
     sem_post(&udpfwd_ctrl_cb_p->waitSem);
@@ -351,6 +359,7 @@ bool udpfwd_remove_address(UDPFWD_INTERFACE_NODE_T *intfNode,
 UDPFWD_INTERFACE_NODE_T *udpfwd_create_intferface_node(char *pname)
 {
     UDPFWD_INTERFACE_NODE_T *intfNode = NULL;
+    UDPFWD_INTERFACE_NODE_T *temp = NULL;
 
     /* There is no server configuration available for the port,
     * create one */
@@ -366,6 +375,7 @@ UDPFWD_INTERFACE_NODE_T *udpfwd_create_intferface_node(char *pname)
     if (NULL == intfNode->portName)
     {
        VLOG_ERR("Failed to allocate memory for portName : %s", pname);
+       free (intfNode);
        return NULL;
     }
 
@@ -374,10 +384,16 @@ UDPFWD_INTERFACE_NODE_T *udpfwd_create_intferface_node(char *pname)
     intfNode->serverArray = NULL;
     shash_add(&udpfwd_ctrl_cb_p->intfHashTable, pname, intfNode);
     VLOG_INFO("Allocated interface table record for port : %s", pname);
-
+    free (intfNode->portName);
     intfNode->bootp_gw = 0;
 
-    return intfNode;
+    temp = intfNode;
+    if (intfNode != NULL)
+    {
+        free (intfNode);
+        intfNode = NULL;
+    }
+    return temp;
 }
 
 #ifdef FTR_DHCP_RELAY

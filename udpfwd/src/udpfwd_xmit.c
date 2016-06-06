@@ -64,7 +64,7 @@ static bool udpfwd_send_pkt_through_socket(void *pkt,
     udph->uh_dport = to->sin_port;
 
     iph->ip_sum = in_cksum((uint16_t *) pkt, iph->ip_len, 0);
-	/* FIXME: Add udp checksum computation function */
+    /* FIXME: Add udp checksum calculation function */
     udph->check = 0;
 
     iov[0].iov_base = pkt;
@@ -513,7 +513,8 @@ void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
         strncpy(arp_req.arp_dev, ifName, IF_NAMESIZE);
         memcpy(&arp_req.arp_pa, &dest, sizeof(struct sockaddr_in));
         arp_req.arp_ha.sa_family = dhcp->htype;
-        memcpy(arp_req.arp_ha.sa_data, dhcp->chaddr, dhcp->hlen);
+        if ((dhcp->hlen) < strlen(arp_req.arp_ha.sa_data))
+            memcpy(arp_req.arp_ha.sa_data, dhcp->chaddr, dhcp->hlen);
         arp_req.arp_flags = ATF_COM;
         if (ioctl(udpfwd_ctrl_cb_p->udpSockFd, SIOCSARP, &arp_req) == -1)
             VLOG_ERR("ARP Failed, errno value = %d", errno);
