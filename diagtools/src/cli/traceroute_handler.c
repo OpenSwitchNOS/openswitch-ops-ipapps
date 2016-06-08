@@ -56,52 +56,52 @@ bool traceroute_handler(tracerouteEntry *p, void (*fPtr)(char *buff))
     }
 
     /* Append path and namespace name */
-    len += sprintf(target+len, "%s ", EXE_PATH);
-    len += sprintf(target+len, "%s ", DEFAULT_VRF_NAME);
+    len += snprintf(target+len, BUFSIZ, "%s ", EXE_PATH);
+    len += snprintf(target+len, BUFSIZ-len, "%s ", DEFAULT_VRF_NAME);
 
     /* Append default cmd either traceroute4 or traceroute6 */
     if(p->isIpv4)
     {
-        len += sprintf(target+len, "%s ", TRACEROUTE4_DEF_CMD);
+        len += snprintf(target+len, BUFSIZ-len, "%s ", TRACEROUTE4_DEF_CMD);
     }
     else
     {
-        len += sprintf(target+len, "%s ", TRACEROUTE6_DEF_CMD);
+        len += snprintf(target+len, BUFSIZ-len, "%s ", TRACEROUTE6_DEF_CMD);
     }
 
-    len += sprintf(target+len," \" ");
+    len += snprintf(target+len, BUFSIZ-len, " \" ");
     /* Append Target address */
     if(p->tracerouteTarget)
     {
-        len += sprintf(target+len, "%s", p->tracerouteTarget);
+        len += snprintf(target+len, BUFSIZ-len, "%s", p->tracerouteTarget);
     }
     /* Append the value of destination port */
     if(!p->tracerouteDstport)
     {
         p->tracerouteDstport = TRACE_DEF_PORT;
     }
-    len += sprintf(target+len, " -p %d", p->tracerouteDstport);
+    len += snprintf(target+len, BUFSIZ-len, " -p %d", p->tracerouteDstport);
 
     /* Append the value of max TTL */
     if(!p->tracerouteMaxttl)
     {
         p->tracerouteMaxttl = TRACE_DEF_MAXTTL;
     }
-    len += sprintf(target+len, " -m %d", p->tracerouteMaxttl);
+    len += snprintf(target+len, BUFSIZ-len, " -m %d", p->tracerouteMaxttl);
 
     /* Append the value of probes */
     if(!p->tracerouteProbes)
     {
         p->tracerouteProbes = TRACE_DEF_PROBES;
     }
-    len += sprintf(target+len, " -q %d", p->tracerouteProbes);
+    len += snprintf(target+len, BUFSIZ-len, " -q %d", p->tracerouteProbes);
 
     /* Append the value of wait time */
     if(!p->tracerouteTimeout)
     {
         p->tracerouteTimeout = TRACE_DEF_WAIT;
     }
-    len += sprintf(target+len, " -w %d", p->tracerouteTimeout);
+    len += snprintf(target+len, BUFSIZ-len, " -w %d", p->tracerouteTimeout);
 
     /* Traceroute4 options */
     if(p->isIpv4)
@@ -111,16 +111,18 @@ bool traceroute_handler(tracerouteEntry *p, void (*fPtr)(char *buff))
         {
             p->tracerouteMinttl = TRACE_DEF_MINTTL;
         }
-        len += sprintf(target+len, " -f %d", p->tracerouteMinttl);
+        len += snprintf(target+len, BUFSIZ-len,
+                        " -f %d", p->tracerouteMinttl);
 
         /* Append the IP of loosesourceroute */
         if(p->tracerouteLoosesourceIp)
         {
-            len += sprintf(target+len, " -g %s", p->tracerouteLoosesourceIp);
+            len += snprintf(target+len, BUFSIZ-len,
+                            " -g %s", p->tracerouteLoosesourceIp);
         }
     }
 
-    len += sprintf(target+len, " \" ");
+    len += snprintf(target+len, BUFSIZ-len, " \" ");
     fp = popen(buffer,"w");
 
     if(fp)
