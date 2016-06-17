@@ -57,55 +57,55 @@ bool ping_main (pingEntry *p, void (*fPtr)(char *buff))
 
     /* Executing the command in the "swns" namespace or
                 the namespace specified by user */
-    len += sprintf(target+len, "%s ", EXE_PATH);
+    len += snprintf(target+len, BUFSIZ, "%s ", EXE_PATH);
 
     if(p->mgmt)
     {
-        len += sprintf(target+len, "%s ", "mgmt");
+        len += snprintf(target+len,  BUFSIZ-len, "%s ", "mgmt");
     }
     else
     {
         if(!strcmp(p->vrf_n,""))
-            len += sprintf(target+len, "%s ", DEFAULT_VRF_NAME);
+            len += snprintf(target+len, BUFSIZ-len, "%s ", DEFAULT_VRF_NAME);
         else
-            len += sprintf(target+len, "%s ", p->vrf_n);
+            len += snprintf(target+len, BUFSIZ-len, "%s ", p->vrf_n);
     }
 
     /* Append default cmd either ping4 or ping6 */
     if (p->isIpv4)
-        len += sprintf(target+len, "%s ", PING4_DEF_CMD);
+        len += snprintf(target+len, BUFSIZ-len, "%s ", PING4_DEF_CMD);
     else
-        len += sprintf(target+len, "%s ", PING6_DEF_CMD);
+        len += snprintf(target+len, BUFSIZ-len, "%s ", PING6_DEF_CMD);
 
-    len += sprintf(target+len," \" ");
+    len += snprintf(target+len, BUFSIZ-len, " \" ");
 
     /* if broadcast address, append broadcast option */
     if (p->isBcast)
-        len += sprintf(target+len, "-b ");
+        len += snprintf(target+len, BUFSIZ-len, "-b ");
 
     /* Append Target address */
     if (p->pingTarget)
-        len += sprintf(target+len, "%s", p->pingTarget);
+        len += snprintf(target+len, BUFSIZ-len, "%s", p->pingTarget);
 
     /* Append value repetitions(count) */
     if (!p->pingRepetitions)
         p->pingRepetitions = PING_DEF_COUNT;
 
-    len += sprintf(target+len, " -c %d", p->pingRepetitions);
+    len += snprintf(target+len, BUFSIZ-len, " -c %d", p->pingRepetitions);
 
     /* Append value of packet size */
     if (!p->pingDataSize)
         p->pingDataSize = PING_DEF_SIZE;
 
-    len += sprintf(target+len, " -s %d", p->pingDataSize);
+    len += snprintf(target+len, BUFSIZ-len, " -s %d", p->pingDataSize);
 
     /* Append value of Interval */
     if (p->pingInterval)
-        len += sprintf(target+len, " -i %d", p->pingInterval);
+        len += snprintf(target+len, BUFSIZ-len, " -i %d", p->pingInterval);
 
     /* Append value of datafill */
     if (p->pingDataFill)
-        len += sprintf(target+len, " -p %s", p->pingDataFill);
+        len += snprintf(target+len, BUFSIZ-len, " -p %s", p->pingDataFill);
 
     /* Ping4 options */
     if (p->isIpv4)
@@ -113,22 +113,22 @@ bool ping_main (pingEntry *p, void (*fPtr)(char *buff))
         /* Append value of timeout */
         if (!p->pingTimeout)
             p->pingTimeout = PING_DEF_TIMEOUT;
-        len += sprintf(target+len, " -W %d", p->pingTimeout);
+        len += snprintf(target+len, BUFSIZ-len, " -W %d", p->pingTimeout);
 
         /* Append value of tos */
         if (p->pingTos)
-            len += sprintf(target+len, " -Q %d", p->pingTos);
+            len += snprintf(target+len, BUFSIZ-len, " -Q %d", p->pingTos);
 
         /* Ping4 ip-options */
         if (p->includeTimestamp)
-            len += sprintf(target+len, " -T tsonly ");
+            len += snprintf(target+len, BUFSIZ-len, " -T tsonly ");
         else if (p->includeTimestampAddress)
-            len += sprintf(target+len, " -T tsandaddr ");
+            len += snprintf(target+len, BUFSIZ-len, " -T tsandaddr ");
         else if (p->recordRoute)
-            len += sprintf(target+len, " -R ");
+            len += snprintf(target+len, BUFSIZ-len, " -R ");
     }
 
-    len += sprintf(target+len, " \" ");
+    len += snprintf(target+len, BUFSIZ-len, " \" ");
     fp = popen(buffer, "w");
     if (fp)
     {
