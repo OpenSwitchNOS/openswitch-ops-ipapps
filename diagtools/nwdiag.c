@@ -27,13 +27,22 @@
 #include <stdio.h>
 #include <string.h>
 
+#define PING              "ping"
+#define PING6             "ping6"
+#define TRACEROUTE        "traceroute"
+#define TRACEROUTE6       "traceroute6"
+#define NSPATH            "/var/run/netns/"
+#define BUFFSIZE          1024
+#define NSPATHSIZE        280
+#define NAMESPACELENGTH   256
+
 int main(int argc, char *argv[])
 {
     int fd = -1, len = 0;
     FILE *fp = NULL;
     /* Assuming max namespace name size as 256 */
-    char ns_path[280];
-    char buffer[1024];
+    char ns_path[NSPATHSIZE];
+    char buffer[BUFFSIZE];
     char *target = buffer;
 
     /* Arguments to be passed in below order.
@@ -48,12 +57,20 @@ int main(int argc, char *argv[])
 
     if (strncmp("mgmt", (char*)argv[1], strlen("mgmt")) != 0)
     {
-        sprintf(ns_path, "/var/run/netns/");
-        sprintf(ns_path+strlen(ns_path), "%s", argv[1]);
+        snprintf(ns_path, NSPATHSIZE, NSPATH);
+        if (strlen((char*)argv[1]) > NAMESPACELENGTH)
+        {
+            printf("Error: Invalid vrf name\n");
+            exit(0);
+        }
+
+        snprintf(ns_path+strlen(ns_path),
+                 NSPATHSIZE- strlen(ns_path), "%s", argv[1]);
         fd = open(ns_path, O_RDONLY);  /* Get descriptor for namespace */
+
         if (fd == -1)
         {
-            printf("ping: Internal error, vrf not found\n");
+            printf("Internal error, vrf not found\n");
             exit(0);
         }
 
@@ -69,24 +86,46 @@ int main(int argc, char *argv[])
     /* Change to current user */
     setuid(getuid());
 
-    if ((strncmp("ping", argv[2], strlen("ping")) == 0) ||
-        (strncmp("ping6", argv[2], strlen("ping6")) == 0) ||
-        (strncmp("traceroute", argv[2], strlen("traceroute")) == 0) ||
-        (strncmp("traceroute6", argv[2], strlen("traceroute6")) == 0))
+    if ((strncmp(PING, argv[2], strlen(argv[2])) == 0))
     {
-        len += sprintf(target+len, "%s ", argv[2]);
-        len += sprintf(target+len, "%s ", argv[3]);
-        fp = popen(buffer, "w");
-        if (fp)
-        {
-            while (fgets(buffer, 1024, fp) != NULL)
-                printf("%s", buffer);
-        }
-        else
-            printf("Internal error");
-
-        pclose(fp);
+        len += snprintf(target+len, BUFFSIZE, "%s ", PING);
+    }
+    else if ((strncmp(PING6, argv[2], strlen(argv[2])) == 0))
+    {
+        len += snprintf(target+len, BUFFSIZE, "%s ", PING6);
+    }
+    else if ((strncmp(TRACEROUTE, argv[2], strlen(argv[2])) == 0))
+    {
+        len += snprintf(target+len, BUFFSIZE, "%s ", TRACEROUTE);
+    }
+    else if ((strncmp(TRACEROUTE6, argv[2], strlen(argv[2])) == 0))
+    {
+        len += snprintf(target+len, BUFFSIZE, "%s ", TRACEROUTE6);
     }
     else
-        printf("Unsupported operation\n");
+    {
+        printf("Internal error: unsupported operation\n");
+        exit (0);
+    }
+
+    if (strlen((char*)argv[3]) < (BUFFSIZE-len))
+    {
+        len += snprintf(target+len, BUFFSIZE-len, "%s ", argv[3]);
+    }
+    else
+    {
+        printf("Internal error: buffer overflow\n");
+        exit (0);
+    }
+    fp = popen(buffer, "w");
+    if (fp)
+    {
+        while (fgets(buffer, BUFFSIZE, fp) != NULL)
+            printf("%s", buffer);
+    }
+    else
+        printf("Internal error");
+
+    pclose(fp);
+
 }
