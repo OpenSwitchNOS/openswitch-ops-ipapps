@@ -513,7 +513,10 @@ void udpfwd_relay_to_dhcp_client(void* pkt, int32_t size,
         strncpy(arp_req.arp_dev, ifName, IF_NAMESIZE);
         memcpy(&arp_req.arp_pa, &dest, sizeof(struct sockaddr_in));
         arp_req.arp_ha.sa_family = dhcp->htype;
-        memcpy(arp_req.arp_ha.sa_data, dhcp->chaddr, dhcp->hlen);
+        if ((dhcp->hlen) < strlen(arp_req.arp_ha.sa_data))
+            memcpy(arp_req.arp_ha.sa_data, dhcp->chaddr, dhcp->hlen);
+        else
+            VLOG_ERR("Buffer overflow error");
         arp_req.arp_flags = ATF_COM;
         if (ioctl(udpfwd_ctrl_cb_p->udpSockFd, SIOCSARP, &arp_req) == -1)
             VLOG_ERR("ARP Failed, errno value = %d", errno);

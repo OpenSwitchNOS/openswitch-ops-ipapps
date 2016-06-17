@@ -332,10 +332,18 @@ bool udpfwd_remove_address(UDPFWD_INTERFACE_NODE_T *intfNode,
                 VLOG_ERR("Interface node not found in hash table : %s",
                      intfNode->portName);
             }
-            if (NULL != intfNode->portName)
-                free(intfNode->portName);
 
-            free(intfNode);
+            if (NULL != intfNode->portName)
+            {
+                free(intfNode->portName);
+                intfNode->portName = NULL;
+            }
+
+            if (NULL != intfNode)
+            {
+                free(intfNode);
+                intfNode = NULL;
+            }
         }
     }
     sem_post(&udpfwd_ctrl_cb_p->waitSem);
@@ -366,6 +374,7 @@ UDPFWD_INTERFACE_NODE_T *udpfwd_create_intferface_node(char *pname)
     if (NULL == intfNode->portName)
     {
        VLOG_ERR("Failed to allocate memory for portName : %s", pname);
+       free (intfNode);
        return NULL;
     }
 
