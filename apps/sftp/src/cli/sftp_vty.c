@@ -285,10 +285,10 @@ DEFUN ( cli_sftp_interactive,
     }
 
     /* Validation of input params. */
-    if (strlen((char*)argv[0]) > MAX_USERNAME_LEN)
+    if (strlen((char*)argv[0]) > MAX_SFTP_USERNAME_LEN)
     {
         vty_out(vty, "Username should be less than %d "
-                     "characters%s.",MAX_USERNAME_LEN, VTY_NEWLINE);
+                     "characters%s.",MAX_SFTP_USERNAME_LEN, VTY_NEWLINE);
         return CMD_SUCCESS;
     }
     else
@@ -298,14 +298,15 @@ DEFUN ( cli_sftp_interactive,
 
     if (isalpha((int) *argv[1]))
     {
-        if (strlen((char*)argv[1]) < MAX_HOSTNAME_LEN)
+        if (strlen((char*)argv[1]) < MAX_SFTP_HOSTNAME_LEN)
         {
             sclient.hostName = (char*)argv[1];
         }
         else
         {
             vty_out(vty, "Hostname should be less than %d characters "
-                         "or invalid host IP%s.",MAX_HOSTNAME_LEN, VTY_NEWLINE);
+                         "or invalid host IP%s.",
+                         MAX_SFTP_HOSTNAME_LEN, VTY_NEWLINE);
             return CMD_SUCCESS;
         }
     }
@@ -348,10 +349,10 @@ DEFUN ( cli_sftp_non_interactive_copy,
     }
 
     /* Validation of input params. */
-    if (strlen((char*)argv[0]) > MAX_USERNAME_LEN)
+    if (strlen((char*)argv[0]) > MAX_SFTP_USERNAME_LEN)
     {
         vty_out(vty, "Username should be less than %d "
-                     "characters%s.",MAX_USERNAME_LEN, VTY_NEWLINE);
+                     "characters%s.",MAX_SFTP_USERNAME_LEN, VTY_NEWLINE);
         return CMD_SUCCESS;
     }
     else
@@ -361,14 +362,15 @@ DEFUN ( cli_sftp_non_interactive_copy,
 
     if (isalpha((int) *argv[1]))
     {
-        if (strlen((char*)argv[1]) < MAX_HOSTNAME_LEN)
+        if (strlen((char*)argv[1]) < MAX_SFTP_HOSTNAME_LEN)
         {
             sclient.hostName = (char*)argv[1];
         }
         else
         {
             vty_out(vty, "Hostname should be less than %d characters "
-                         "or invalid host IP%s.",MAX_HOSTNAME_LEN, VTY_NEWLINE);
+                         "or invalid host IP%s.",
+                         MAX_SFTP_HOSTNAME_LEN, VTY_NEWLINE);
             return CMD_SUCCESS;
         }
     }

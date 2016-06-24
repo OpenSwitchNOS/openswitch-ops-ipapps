@@ -51,8 +51,8 @@
 #include <string.h>
 
 /* Max lengths. */
-#define MAX_USERNAME_LEN        256
-#define MAX_HOSTNAME_LEN        256
+#define MAX_SFTP_USERNAME_LEN        256
+#define MAX_SFTP_HOSTNAME_LEN        256
 
 /* OVSDB key-value pair. */
 #define SFTP_SERVER_CONFIG      "sftp_server_enable"
