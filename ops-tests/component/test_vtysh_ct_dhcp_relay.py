@@ -949,51 +949,51 @@ def show_bootp_gateway_and_helper_address_config_on_interface(sw1):
     sw1("configure terminal")
     sw1("interface 16")
     sw1("ip helper-address 192.168.90.1")
-    sw1("ip address 10.0.20.2/24")
-    sw1("ip bootp-gateway 10.0.20.2")
+    sw1("ip address 10.0.60.2/24")
+    sw1("ip bootp-gateway 10.0.60.2")
     sw1("no ip helper-address 192.168.90.1")
     sw1("end")
 
     out = sw1("show dhcp-relay bootp-gateway")
-    assert "16                   10.0.20.2" in out
+    assert "16                   10.0.60.2" in out
     return True
 
 
 def show_bootp_gateway_status_on_specified_interface(sw1):
     sw1("configure terminal")
     sw1("interface 26")
-    sw1("ip address 10.0.0.2/24")
-    sw1("ip bootp-gateway 10.0.0.2")
+    sw1("ip address 20.0.0.2/24")
+    sw1("ip bootp-gateway 20.0.0.2")
     sw1("end")
 
     out = sw1("show dhcp-relay bootp-gateway interface 26")
-    assert "26                   10.0.0.2" in out
+    assert "26                   20.0.0.2" in out
     return True
 
 
 def bootp_gateway_running_config_test(sw1):
     sw1("configure terminal")
     sw1("interface 27")
-    sw1("ip address 10.0.0.3/24")
-    sw1("ip bootp-gateway 10.0.0.3")
+    sw1("ip address 30.0.0.3/24")
+    sw1("ip bootp-gateway 30.0.0.3")
     sw1("end")
 
     out = sw1("show running-config")
     assert "Interface: 27" and \
-        "ip bootp-gateway 10.0.0.3" in out
+        "ip bootp-gateway 30.0.0.3" in out
     return True
 
 
 def bootp_gateway_interface_running_config_test(sw1):
     sw1("configure terminal")
     sw1("interface 28")
-    sw1("ip address 10.0.0.6/24")
-    sw1("ip bootp-gateway 10.0.0.6")
+    sw1("ip address 40.0.0.6/24")
+    sw1("ip bootp-gateway 40.0.0.6")
     sw1("end")
 
     out = sw1("show running-config interface 28")
     assert "Interface: 28" and \
-        "ip bootp-gateway 10.0.0.6" in out
+        "ip bootp-gateway 40.0.0.6" in out
     return True
 
 
