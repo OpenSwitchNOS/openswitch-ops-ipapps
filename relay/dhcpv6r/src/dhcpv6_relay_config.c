@@ -31,13 +31,14 @@ VLOG_DEFINE_THIS_MODULE(dhcpv6_relay_config);
 
 #ifdef FTR_DHCPV6_RELAY
 
+extern struct ovsdb_idl_index_cursor ipv6_ucast_cursor;
+
 #define GENERATE_KEY(HASH_IP, HASH_EGRESSNAME, HASH_KEY) \
     if (HASH_EGRESSNAME) \
         HASH_KEY = hash_2words(hash_string(HASH_IP, 0), \
         hash_string(HASH_EGRESSNAME, 0));\
       else \
         HASH_KEY = hash_2words(hash_string(HASH_IP, 0), 0);
-
 
 /*
  * Function      : compare_server
@@ -203,7 +204,6 @@ bool dhcpv6r_store_address(DHCPV6_RELAY_INTERFACE_NODE_T *intfNode,
               intfNode->addrCount);
 
     sem_post(&dhcpv6_relay_ctrl_cb_p->waitSem);
-
     return true;
 }
 
@@ -359,8 +359,13 @@ bool dhcpv6r_remove_address(DHCPV6_RELAY_INTERFACE_NODE_T *intfNode,
             VLOG_ERR("Interface node not found in hash table : %s",
                  intfNode->portName);
         }
+
+        /* leave multicast group for this interface */
+        (void) dhcpv6_relay_join_or_leave_mcast_group(intfNode, false);
         if (NULL != intfNode->portName)
             free(intfNode->portName);
+        if (NULL != intfNode->ip6_address)
+            free(intfNode->ip6_address);
 
         free(intfNode);
     }
@@ -373,15 +378,17 @@ bool dhcpv6r_remove_address(DHCPV6_RELAY_INTERFACE_NODE_T *intfNode,
  * Function      : dhcpv6r_create_intfnode
  * Responsiblity : Allocate memory for interface entry
  * Parameters    : pname - interface name
+ *                 ip6_address - ipv6 address on this interface
  * Return        : DHCPV6_RELAY_INTERFACE_NODE_T* - Interface node
  */
-DHCPV6_RELAY_INTERFACE_NODE_T *dhcpv6r_create_intferface_node(char *pname)
+DHCPV6_RELAY_INTERFACE_NODE_T *dhcpv6r_create_intferface_node(char *pname, char* ip6_address)
 {
     DHCPV6_RELAY_INTERFACE_NODE_T *intfNode = NULL;
 
     /* There is no server configuration available create one */
     intfNode = (DHCPV6_RELAY_INTERFACE_NODE_T *)
                     calloc(1, sizeof(DHCPV6_RELAY_INTERFACE_NODE_T));
+
     if (NULL == intfNode)
     {
         VLOG_ERR("Failed to allocate interface node for : %s", pname);
@@ -395,11 +402,30 @@ DHCPV6_RELAY_INTERFACE_NODE_T *dhcpv6r_create_intferface_node(char *pname)
        return NULL;
     }
 
+    if (ip6_address)
+        intfNode->ip6_address = xstrdup(ip6_address);
+    else
+        intfNode->ip6_address = NULL;
+
     intfNode->addrCount = 0;
     intfNode->serverArray = NULL;
     shash_add(&dhcpv6_relay_ctrl_cb_p->intfHashTable, pname, intfNode);
     VLOG_INFO("Allocated interface table record for port : %s", pname);
 
+    /* Join Multicast group for this interface */
+    if (dhcpv6_relay_ctrl_cb_p->dhcpv6r_recvSock == -1 ||
+        !dhcpv6_relay_join_or_leave_mcast_group(intfNode, true))
+    {
+        VLOG_ERR("join multicast group for this interface failed %s", pname);
+        /* free memory and return null */
+        if (NULL != intfNode->portName)
+            free(intfNode->portName);
+        if (NULL != intfNode->ip6_address)
+            free(intfNode->ip6_address);
+        free(intfNode);
+
+        return NULL;
+    }
     return intfNode;
 }
 
@@ -444,7 +470,6 @@ void dhcpv6r_handle_row_delete(struct ovsdb_idl *idl)
             }
         }
     }
-    return;
 }
 
 /*
@@ -455,30 +480,24 @@ void dhcpv6r_handle_row_delete(struct ovsdb_idl *idl)
  *                 intfNode - Interface entry
  * Return        : none
  */
-
 void dhcpv6r_flush_removed_ucast_entries(DHCPV6_RELAY_INTERFACE_NODE_T *intfNode,
                         const struct ovsrec_dhcp_relay *rec)
 {
-    char *ipv6_address = NULL;
-    int iter = 0, iter1 = 0;
-    bool found;
+    /*FIXME : need to check below indexing for large number of ip address */
+    int iter = 0;
+    struct ovsrec_dhcp_relay ip;
+    memset(&ip, 0, sizeof(ip));
 
     /* Collect the servers that are removed from the list */
     for (iter = 0; iter < intfNode->addrCount; iter++) {
-        found = false;
-        ipv6_address = intfNode->serverArray[iter]->ipv6_address;
-        for (iter1 = 0; iter1 < rec->n_ipv6_ucast_server; iter1++) {
-            if (compare_server
-            (ipv6_address, rec->ipv6_ucast_server[iter], NULL, NULL))
-            {
-                found = true;
-                break;
-            }
-        }
-        if (false == found) {
-            if(!dhcpv6r_remove_address(intfNode, ipv6_address, NULL))
+        ip.ipv6_ucast_server = (char**) calloc(1, sizeof(intfNode->serverArray[iter]->ipv6_address));
+        ip.ipv6_ucast_server[0] = intfNode->serverArray[iter]->ipv6_address;
+
+        if (ovsrec_dhcp_relay_index_find(&ipv6_ucast_cursor, &ip) == NULL) {
+            if(!dhcpv6r_remove_address(intfNode, *(ip.ipv6_ucast_server), NULL))
                 VLOG_ERR("unicast ipv6 entry deletion in local cache failed");
         }
+        free(ip.ipv6_ucast_server);
     }
 }
 
@@ -623,6 +642,7 @@ void dhcpv6r_handle_config_change(
     char *portName = NULL;
     struct shash_node *node;
     DHCPV6_RELAY_INTERFACE_NODE_T *intfNode = NULL;
+    char *ip6_address = NULL;
 
     if ((NULL == rec) ||
         (NULL == rec->port) ||
@@ -632,14 +652,22 @@ void dhcpv6r_handle_config_change(
 
     portName = rec->port->name;
 
+    /* Store ipv6 address configured on this interface */
+    /* FIXME : add code to read secondary address */
+    if (rec->port->ip6_address)
+        ip6_address = rec->port->ip6_address;
+    else
+        ip6_address = NULL;
+
     /* Do lookup for the interface entry in hash table */
     node = shash_find(&dhcpv6_relay_ctrl_cb_p->intfHashTable, portName);
     if (NULL == node) {
        /* Interface entry not found, create one */
-       if (NULL == (intfNode = dhcpv6r_create_intferface_node(portName)))
-       {
-           return;
-       }
+       if (NULL == (intfNode = dhcpv6r_create_intferface_node
+                                (portName, ip6_address)))
+        {
+            return;
+        }
     }
     else
     {
@@ -671,7 +699,6 @@ void dhcpv6r_handle_config_change(
         dhcpv6r_flush_removed_mcast_entries(intfNode, rec);
     }
 #endif
-    return;
 }
 
 #endif /* FTR_DHCPV6_RELAY */
