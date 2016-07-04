@@ -331,6 +331,8 @@ class pingCLITest(OpsVsiTest):
              ' test passed\n')
 
 
+@pytest.mark.skipif(True, reason="Disabling because modular framework tests "
+"were enable")
 class Test_vtysh_ping:
 
     def setup_class(cls):

@@ -399,6 +399,8 @@ hostname dstport failed"
     return True
 
 
+@pytest.mark.skipif(True, reason="Disabling because modular framework tests "
+"were enable")
 class Test_ospf_configuration:
 
     def setup_class(cls):
