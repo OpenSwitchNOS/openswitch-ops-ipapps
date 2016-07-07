@@ -1693,9 +1693,9 @@ def showBootpGateway_and_helperAddressConfig_onInterface(dut01):
     devIntReturn = dut01.DeviceInteract(command="ip helper-address \
     192.168.90.1")
     devIntReturn = dut01.DeviceInteract(command="ip address \
-    10.0.20.2/24")
+    10.0.60.2/24")
     devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
-    10.0.20.2")
+    10.0.60.2")
     devIntReturn = dut01.DeviceInteract(command="no ip helper-address \
     192.168.90.1")
     retCode = devIntReturn.get('returnCode')
@@ -1704,7 +1704,7 @@ def showBootpGateway_and_helperAddressConfig_onInterface(dut01):
     dut01.DeviceInteract(command="end")
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway")
-    assert '16                   10.0.20.2' in cmdOut, \
+    assert '16                   10.0.60.2' in cmdOut, \
         "Test to set bootp-gateway configuration " \
         "for configured IP address on an interface failed"
 
@@ -1719,9 +1719,9 @@ def show_bootp_gateway_statusOnSpecifiedInterface(dut01):
         return False
 
     devIntReturn = dut01.DeviceInteract(command="ip address \
-    10.0.0.2/24")
+    20.0.0.2/24")
     devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
-    10.0.0.2")
+    20.0.0.2")
     retCode = devIntReturn.get('returnCode')
     assert retCode == 0, "Test to show bootp-gateway configuration " \
         "on specified interface failed"
@@ -1729,7 +1729,7 @@ def show_bootp_gateway_statusOnSpecifiedInterface(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show dhcp-relay bootp-gateway \
     interface 26")
-    assert '26                   10.0.0.2' in cmdOut, \
+    assert '26                   20.0.0.2' in cmdOut, \
         "Test to show bootp-gateway configuration on " \
         "specified interface failed"
     return True
@@ -1743,9 +1743,9 @@ def bootp_gateway_runningConfigTest(dut01):
         return False
 
     devIntReturn = dut01.DeviceInteract(command="ip address \
-    10.0.0.3/24")
+    30.0.0.3/24")
     devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
-    10.0.0.3")
+    30.0.0.3")
     retCode = devIntReturn.get('returnCode')
     assert retCode == 0, "Test to show bootp-gateway configuration " \
         "in running config failed"
@@ -1753,7 +1753,7 @@ def bootp_gateway_runningConfigTest(dut01):
 
     cmdOut = dut01.cmdVtysh(command="show running-config")
     assert 'Interface: 27' and \
-        'ip bootp-gateway 10.0.0.3' in cmdOut, "Test to " \
+        'ip bootp-gateway 30.0.0.3' in cmdOut, "Test to " \
         "show bootp-gateway configuration " \
         "in running config failed"
     return True
@@ -1767,9 +1767,9 @@ def bootp_gateway_interface_runningConfigTest(dut01):
         return False
 
     devIntReturn = dut01.DeviceInteract(command="ip address \
-    10.0.0.6/24")
+    40.0.0.6/24")
     devIntReturn = dut01.DeviceInteract(command="ip bootp-gateway \
-    10.0.0.6")
+    40.0.0.6")
     retCode = devIntReturn.get('returnCode')
     assert retCode == 0, "Test to show bootp-gateway configuration " \
         "in interface running config failed"
@@ -1778,7 +1778,7 @@ def bootp_gateway_interface_runningConfigTest(dut01):
     cmdOut = dut01.cmdVtysh(command="show running-config \
     interface 28")
     assert 'Interface: 28' and \
-        'ip bootp-gateway 10.0.0.6' in cmdOut, "Test to " \
+        'ip bootp-gateway 40.0.0.6' in cmdOut, "Test to " \
         "show bootp-gateway configuration " \
         "in interface running config failed"
     return True
