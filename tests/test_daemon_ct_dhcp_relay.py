@@ -1029,7 +1029,7 @@ def delete_helper_addresses(dut01):
 
     return True
 
-
+@pytest.mark.skipif(True, reason="Disabling old tests")
 class Test_dhcp_relay_configuration:
 
     def setup_class(cls):

@@ -21,6 +21,7 @@ from opsvsi.docker import *
 from opsvsi.opsvsitest import *
 
 
+@pytest.mark.skipif(True, reason="Disabling old tests")
 class pingCLITest(OpsVsiTest):
 
     def setupNet(self):
