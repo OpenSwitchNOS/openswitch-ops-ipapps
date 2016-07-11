@@ -36,10 +36,25 @@
 #define TFTP_STRING                 "TFTP protocol\n"
 #define ALL_STRING                  "All the defined protocols\n"
 
-/*defining the type of arguments passing through the cli*/
+/* FIXME: Will be removed once the macros got merged into openswitch-idl.h */
+#define VRF_SOURCE_IP_MAP_ALL               "all"
+#define VRF_SOURCE_INTERFACE_MAP_ALL        "all"
+#define VRF_SOURCE_IP_MAP_TFTP              "tftp"
+#define VRF_SOURCE_INTERFACE_MAP_TFTP       "tftp"
+
+typedef struct PROTO_SOURCE {
+    char *source;
+    bool isIp;
+} PROTO_SOURCE;
+
+/* Defining the type of arguments passing through the cli */
 typedef enum {
     TFTP_PROTOCOL,
     ALL_PROTOCOL
 }source_interface_protocol;
 
+PROTO_SOURCE
+*get_protocol_source_local(source_interface_protocol );
+PROTO_SOURCE
+*get_common_protocol_source_local();
 #endif /*_SOURCE_INTERFACE_SELECTION_VTY_H_H*/

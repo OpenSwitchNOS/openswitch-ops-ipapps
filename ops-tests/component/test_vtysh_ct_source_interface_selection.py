@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from pytest import set_trace
 TOPOLOGY = """
 #
 # +-------+
@@ -32,51 +33,58 @@ def test_source_interface_configuration(topology, step):
 
     assert sw1 is not None
 
-    step('Validation of source IP address to all the defined protocols')
+    step('Set source IP address configuration with unconfigured IP adress')
     sw1('configure terminal')
-    out = sw1("ip source-interface all address 255.255.255.255")
-    assert 'Broadcast, multicast and loopback addresses are not allowed.' \
+    out = sw1("ip source-interface all 10.0.0.1")
+    assert 'Specified IP address is not configured on any interface.' \
         in out
 
-    out = sw1("ip source-interface all address 224.0.0.0")
-    assert 'Broadcast, multicast and loopback addresses are not allowed.' \
+    step('Set source port configuration with no IP adress configured port')
+    out = sw1("ip source-interface all interface 1")
+    assert 'IP address is not yet configured on the specified interface.' \
         in out
 
-    out = sw1("ip source-interface all address 127.0.0.1")
-    assert 'Broadcast, multicast and loopback addresses are not allowed.' \
+
+    step('Unset source IP address configuration with unconfigured IP adress ' \
+    'for all the defined protocols')
+    out = sw1("no ip source-interface all")
+    assert 'No source interface was configured for all the defined protocols.' \
         in out
 
-    step('Validation of source IP address to tftp protocol')
-    sw1("ip source-interface tftp address 255.255.255.255")
-    assert 'Broadcast, multicast and loopback addresses are not allowed.' \
-        in out
-
-    sw1("ip source-interface tftp address 224.0.0.0")
-    assert 'Broadcast, multicast and loopback addresses are not allowed.' \
-        in out
-
-    sw1("ip source-interface tftp address 127.0.0.1")
-    assert 'Broadcast, multicast and loopback addresses are not allowed.' \
+    step('Unset source IP address configuration with unconfigured IP adress ' \
+    'for TFTP protocol')
+    sw1('configure terminal')
+    out = sw1("no ip source-interface tftp")
+    assert 'No source interface was configured for the TFTP protocol.' \
         in out
 
     step('Set source IP address to all the defined protocols')
-    sw1("ip source-interface all address 1.1.1.1")
+    sw1("interface 1")
+    sw1("ip address 1.1.1.1/24")
+    sw1("exit")
+
+    set_trace()
+    sw1("ip source-interface all 1.1.1.1")
     out = sw1("do show ip source-interface")
     assert '1.1.1.1' in out
 
     step('Set source IP address to tftp protocol')
-    sw1("ip source-interface tftp address 1.1.1.1")
+    sw1("interface 2")
+    sw1("ip address 2.2.2.2/24")
+    sw1("exit")
+    sw1("ip source-interface tftp 2.2.2.2")
     out = sw1("do show ip source-interface tftp")
-    assert '1.1.1.1' in out
-
-    step('Set source IP interface to all the defined protocols')
-    sw1("ip source-interface all interface 2")
-    out = sw1("do show ip source-interface")
-    assert '2' in out
+    assert '2.2.2.2' in out
 
     step('Set source IP interface to tftp protocol')
-    sw1("ip source-interface tftp interface 2")
+    sw1("ip source-interface tftp interface 1")
     out = sw1("do show ip source-interface tftp")
+    assert '1' in out
+
+    step('Set source IP interface to all the defined protocols')
+    sw1("no ip source-interface tftp")
+    sw1("ip source-interface all interface 2")
+    out = sw1("do show ip source-interface")
     assert '2' in out
 
     step('Unset source IP to all the defined protocols')
@@ -85,6 +93,7 @@ def test_source_interface_configuration(topology, step):
     assert '' in out
 
     step('Unset source IP to tftp protocols')
+    sw1("ip source-interface tftp 1.1.1.1")
     sw1("no ip source-interface tftp")
     out = sw1("do show ip source-interface tftp")
     assert '' in out
