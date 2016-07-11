@@ -32,66 +32,70 @@
 #include "openswitch-idl.h"
 #include "vtysh_ovsdb_if.h"
 #include "vtysh_ovsdb_config.h"
+#include "source_interface_selection_vty.h"
 #include "vtysh_ovsdb_source_interface_context.h"
 #include "openswitch-dflt.h"
+#include "vrf-utils.h"
 
 /*-----------------------------------------------------------------------------
-| Function : vtysh_source_interface_context_clientcallback
-| Responsibility : Client callback routine
-| Parameters :
-|     void *p_private: void type object typecast to required
-| Return : Returns e_vtysh_ok
+| Function       : display_source_interface_config
+| Responsibility : To display the source-interface running-config
+| Parameters     :
+|     type       : To specify the type of the protocol
+|     p_msg      : Used for idl operations
+-----------------------------------------------------------------------------*/
+static void
+display_source_interface_config(SOURCE_INTERFACE_PROTOCOL type,
+                                vtysh_ovsdb_cbmsg_ptr p_msg)
+{
+    protoSource proto_source;
+    char *source_interface_buff = NULL;
+    bool is_proto_source = false;
+
+    is_proto_source = get_configured_protocol_source_local(type,
+                            DEFAULT_VRF_NAME, &proto_source);
+    if (is_proto_source)
+    {
+        source_interface_buff = proto_source.source;
+
+        /* Validate source-interface config type*/
+
+        if (proto_source.config_type == SOURCE_IP) {
+            vtysh_ovsdb_cli_print(p_msg, "%s %s %s",
+                                  "ip source-interface",
+                                  protocol_keys[type],
+                                  source_interface_buff);
+        }
+        else if (proto_source.config_type == SOURCE_INTERFACE) {
+            vtysh_ovsdb_cli_print(p_msg, "%s %s %s %s",
+                                  "ip source-interface",
+                                  protocol_keys[type],
+                                  "interface",
+                                  source_interface_buff);
+        }
+    }
+    return;
+}
+/*-----------------------------------------------------------------------------
+| Function          : vtysh_source_interface_context_clientcallback
+| Responsibility    : Client callback routine
+| Parameters        :
+|    void *p_private: void type object typecast to required
+| Return            : Returns e_vtysh_ok
 -----------------------------------------------------------------------------*/
 vtysh_ret_val
 vtysh_source_interface_context_clientcallback (void *p_private)
 {
     vtysh_ovsdb_cbmsg_ptr p_msg = (vtysh_ovsdb_cbmsg *)p_private;
-    const struct ovsrec_system *row = NULL;
-    char *source_interface_buff = NULL;
+    const struct ovsrec_vrf *vrf_row = NULL;
 
-    row = ovsrec_system_first(p_msg->idl);
-    if (!row) {
+    vrf_row = ovsrec_vrf_first(p_msg->idl);
+    if (!vrf_row) {
         return e_vtysh_ok;
     }
 
-    source_interface_buff = (char *)smap_get(&row->other_config,
-                                             "protocols_source");
-    if (source_interface_buff != NULL) {
-        struct in_addr addr;
-        memset (&addr, 0, sizeof (struct in_addr));
+    display_source_interface_config(TFTP_PROTOCOL, p_msg);
+    display_source_interface_config(ALL_PROTOCOL, p_msg);
 
-        /* Validate protocol server IP. */
-        if (inet_pton (AF_INET, source_interface_buff, &addr) > 0) {
-            vtysh_ovsdb_cli_print(p_msg, "%s %s",
-                                  "ip source-interface all address",
-                                  source_interface_buff);
-        }
-        else {
-            vtysh_ovsdb_cli_print(p_msg, "%s %s",
-                                  "ip source-interface all interface",
-                                  source_interface_buff);
-        }
-
-    }
-
-    source_interface_buff = (char *)smap_get(&row->other_config,
-                                             "tftp_source");
-    if (source_interface_buff != NULL) {
-        struct in_addr addr;
-        memset (&addr, 0, sizeof (struct in_addr));
-
-        /* Validate protocol server IP. */
-        if (inet_pton (AF_INET, source_interface_buff, &addr) > 0) {
-            vtysh_ovsdb_cli_print(p_msg, "%s %s",
-                                  "ip source-interface tftp address",
-                                  source_interface_buff);
-        }
-        else {
-            vtysh_ovsdb_cli_print(p_msg, "%s %s",
-                                  "ip source-interface tftp interface",
-                                  source_interface_buff);
-        }
-
-    }
     return e_vtysh_ok;
 }
