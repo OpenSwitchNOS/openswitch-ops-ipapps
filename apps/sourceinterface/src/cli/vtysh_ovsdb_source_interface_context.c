@@ -45,45 +45,26 @@
 vtysh_ret_val
 vtysh_source_interface_context_clientcallback (void *p_private)
 {
+    PROTO_SOURCE *proto_source;
+    struct in_addr addr;
+    memset (&addr, 0, sizeof (struct in_addr));
     vtysh_ovsdb_cbmsg_ptr p_msg = (vtysh_ovsdb_cbmsg *)p_private;
-    const struct ovsrec_system *row = NULL;
+    const struct ovsrec_vrf *vrf_row = NULL;
     char *source_interface_buff = NULL;
 
-    row = ovsrec_system_first(p_msg->idl);
-    if (!row) {
+    vrf_row = ovsrec_vrf_first(p_msg->idl);
+    if (!vrf_row) {
         return e_vtysh_ok;
     }
 
-    source_interface_buff = (char *)smap_get(&row->other_config,
-                                             "protocols_source");
-    if (source_interface_buff != NULL) {
-        struct in_addr addr;
-        memset (&addr, 0, sizeof (struct in_addr));
-
+    proto_source = get_protocol_source_local(TFTP_PROTOCOL, DEFAULT_VRF_NAME);
+    if (proto_source != NULL )
+    {
+        source_interface_buff = proto_source->source;
         /* Validate protocol server IP. */
-        if (inet_pton (AF_INET, source_interface_buff, &addr) > 0) {
+        if (proto_source->isIp) {
             vtysh_ovsdb_cli_print(p_msg, "%s %s",
-                                  "ip source-interface all address",
-                                  source_interface_buff);
-        }
-        else {
-            vtysh_ovsdb_cli_print(p_msg, "%s %s",
-                                  "ip source-interface all interface",
-                                  source_interface_buff);
-        }
-
-    }
-
-    source_interface_buff = (char *)smap_get(&row->other_config,
-                                             "tftp_source");
-    if (source_interface_buff != NULL) {
-        struct in_addr addr;
-        memset (&addr, 0, sizeof (struct in_addr));
-
-        /* Validate protocol server IP. */
-        if (inet_pton (AF_INET, source_interface_buff, &addr) > 0) {
-            vtysh_ovsdb_cli_print(p_msg, "%s %s",
-                                  "ip source-interface tftp address",
+                                  "ip source-interface tftp",
                                   source_interface_buff);
         }
         else {
@@ -91,7 +72,27 @@ vtysh_source_interface_context_clientcallback (void *p_private)
                                   "ip source-interface tftp interface",
                                   source_interface_buff);
         }
-
+        free(proto_source->source);
+        free(proto_source);
+    }
+    proto_source = get_common_protocol_source_local(DEFAULT_VRF_NAME);
+    if (proto_source != NULL )
+    {
+        source_interface_buff = proto_source->source;
+        /* Validate protocol server IP. */
+        if (proto_source->isIp) {
+            vtysh_ovsdb_cli_print(p_msg, "%s %s",
+                                  "ip source-interface all",
+                                  source_interface_buff);
+        }
+        else {
+            vtysh_ovsdb_cli_print(p_msg, "%s %s",
+                                  "ip source-interface all interface",
+                                  source_interface_buff);
+        }
+        free(proto_source->source);
+        free(proto_source);
     }
     return e_vtysh_ok;
+
 }

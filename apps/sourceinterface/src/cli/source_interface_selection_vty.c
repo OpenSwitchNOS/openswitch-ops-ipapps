@@ -46,6 +46,7 @@
 #include "vtysh/vtysh_ovsdb_if.h"
 #include "vtysh/vtysh_ovsdb_config.h"
 #include "source_interface_selection_vty.h"
+#include "vrf-utils.h"
 #include "vtysh_ovsdb_source_interface_context.h"
 
 VLOG_DEFINE_THIS_MODULE (source_interface_selection_vty);
@@ -53,22 +54,138 @@ VLOG_DEFINE_THIS_MODULE (source_interface_selection_vty);
 extern struct ovsdb_idl *idl;
 
 /*----------------------------------------------------------------------------
+| Name : get_protocol_source_local
+| Responsibility : To get the source interface details
+|                  for the specified protocol
+| Parameters : type : To specify the type of the protocol
+| Return : On success returns structure PROTO_SOURCE
+|          On failure returns NULL
+-----------------------------------------------------------------------------*/
+PROTO_SOURCE
+*get_protocol_source_local(source_interface_protocol type, const char *vrf_name)
+{
+    const struct ovsrec_vrf *vrf_row = NULL;
+    int i = 0;
+
+    PROTO_SOURCE *proto_source = NULL;
+
+    if (strcmp(vrf_name, DEFAULT_VRF_NAME) != 0)
+    {
+        VLOG_ERR("VRF table did not have default VRF data.");
+        return NULL;
+    }
+
+    vrf_row = get_default_vrf(idl);
+    if (vrf_row == NULL)
+    {
+        vty_out(vty, "Error: Could not fetch "
+                "default VRF data.%s", VTY_NEWLINE);
+        VLOG_ERR("VRF table did not have default VRF data.");
+        return NULL;
+    }
+
+    proto_source = (PROTO_SOURCE *) malloc(sizeof(PROTO_SOURCE));
+    switch (type) {
+
+    case TFTP_PROTOCOL:
+
+        /* To display the source interface details for TFTP protocol */
+        proto_source->source = (char *)smap_get(&vrf_row->source_ip,
+                            VRF_SOURCE_IP_MAP_TFTP);
+        if (proto_source->source == NULL) {
+
+            for (i = 0; i < vrf_row->n_source_interface; i++) {
+                if(!strcmp(VRF_SOURCE_INTERFACE_MAP_TFTP,
+                           vrf_row->key_source_interface[i]))
+                {
+                    proto_source->source =
+                            xstrdup(vrf_row->value_source_interface[i]->name);
+                    proto_source->isIp = 0;
+                    return proto_source;
+                }
+            }
+        }
+        else
+        {
+            proto_source->isIp = 1;
+            return proto_source;
+        }
+        break;
+
+    default:
+        break;
+    }
+    free(proto_source);
+    return NULL;
+}
+
+/*----------------------------------------------------------------------------
+| Name : get_common_protocol_source_local
+| Responsibility : To get the common source interface details
+| Return : On success returns structure PROTO_SOURCE
+|          On failure returns NULL
+-----------------------------------------------------------------------------*/
+PROTO_SOURCE
+*get_common_protocol_source_local(const char *vrf_name)
+{
+    const struct ovsrec_vrf *vrf_row = NULL;
+    int i = 0;
+
+    PROTO_SOURCE *proto_source = NULL;
+
+    if (strcmp(vrf_name, DEFAULT_VRF_NAME) != 0)
+    {
+        VLOG_ERR("VRF table did not have default VRF data.");
+        return NULL;
+    }
+
+    vrf_row = get_default_vrf(idl);
+    if (vrf_row == NULL)
+    {
+        vty_out(vty, "Error: Could not fetch "
+                "default VRF data.%s", VTY_NEWLINE);
+        VLOG_ERR("VRF table did not have default VRF data.");
+        return NULL;
+    }
+
+    proto_source = (PROTO_SOURCE *) malloc(sizeof(PROTO_SOURCE));
+    /* To display the source interface details for TFTP protocol */
+    proto_source->source = (char *)smap_get(&vrf_row->source_ip,
+                            VRF_SOURCE_IP_MAP_ALL);
+
+    if (proto_source->source == NULL) {
+
+        for (i = 0; i < vrf_row->n_source_interface; i++) {
+            if(strcmp(VRF_SOURCE_INTERFACE_MAP_ALL,
+                       vrf_row->key_source_interface[i]) == 0)
+            {
+                proto_source->source =
+                            xstrdup(vrf_row->value_source_interface[i]->name);
+                proto_source->isIp = 0;
+                return proto_source;
+            }
+        }
+
+    }
+    else
+    {
+        proto_source->isIp = 1;
+        return proto_source;
+    }
+    free(proto_source);
+    return NULL;
+}
+
+/*----------------------------------------------------------------------------
 | Name : show_source_interface_selection
 | Responsibility : To display the source interface details
-| Parameters : type : To specify the type of the protocol
-| Return : CMD_SUCCESS for success , CMD_OVSDB_FAILURE for failure
+| Return : CMD_SUCCESS
 -----------------------------------------------------------------------------*/
 static int
 show_source_interface_selection(source_interface_protocol type)
 {
-    const struct ovsrec_system *row = NULL;
-    char *buff = NULL;
-
-    row = ovsrec_system_first(idl);
-    if (!row) {
-        VLOG_ERR(OVSDB_TXN_CREATE_ERROR);
-        return CMD_OVSDB_FAILURE;
-    }
+    PROTO_SOURCE *proto_source;
+    PROTO_SOURCE *common_proto_source;
 
     vty_out(vty, "%sSource-interface Configuration Information %s",
                   VTY_NEWLINE, VTY_NEWLINE);
@@ -76,69 +193,336 @@ show_source_interface_selection(source_interface_protocol type)
     vty_out(vty, "Protocol        Source Interface %s", VTY_NEWLINE);
     vty_out(vty, "--------        ---------------- %s", VTY_NEWLINE);
 
+
+
+    common_proto_source = get_common_protocol_source_local(DEFAULT_VRF_NAME);
     switch (type) {
-    case ALL_PROTOCOL:
-        /*
-        * To display the source interface details for
-        * all the specified protocols
-        */
-        buff = (char *)smap_get(&row->other_config,
-                                SYSTEM_OTHER_CONFIG_MAP_TFTP_SOURCE);
-        if (buff == NULL) {
-            buff = (char *)smap_get(&row->other_config,
-                                    SYSTEM_OTHER_CONFIG_MAP_PROTOCOLS_SOURCE);
-            if (buff == NULL) {
-                vty_out(vty, " %-15s %-6s ", "tftp","");
-            } else {
-                vty_out(vty, " %-15s %-46s ", "tftp", buff);
-            }
-            vty_out(vty, "%s", VTY_NEWLINE);
-        } else {
-            vty_out(vty, " %-15s %-46s ", "tftp", buff);
-            vty_out(vty, "%s", VTY_NEWLINE);
-        }
-        break;
 
     case TFTP_PROTOCOL:
-        /* To display the source interface details for TFTP protocol */
-        buff = (char *)smap_get(&row->other_config,
-                                SYSTEM_OTHER_CONFIG_MAP_TFTP_SOURCE);
-        if (buff == NULL) {
-            vty_out(vty, " %-15s %-6s ","tftp", "");
-            vty_out(vty, "%s", VTY_NEWLINE);
-        } else {
-            vty_out(vty, " %-15s %-46s", "tftp", buff);
-            vty_out(vty, "%s", VTY_NEWLINE);
+        /*
+         * To display the source interface details for
+         * all the specified protocols
+         */
+        proto_source = get_protocol_source_local(TFTP_PROTOCOL,
+                                                 DEFAULT_VRF_NAME);
+        if (proto_source != NULL )
+        {
+            vty_out(vty, " %-15s %-46s ", "tftp", proto_source->source);
+            free(proto_source);
+            free(proto_source->source);
         }
+        else
+        {
+            if (common_proto_source != NULL )
+            {
+                vty_out(vty, " %-15s %-46s ", "tftp",
+                    common_proto_source->source);
+                free(common_proto_source->source);
+                free(common_proto_source);
+            }
+            else
+                vty_out(vty, " %-15s %-6s ", "tftp", "");
+        }
+
+        vty_out(vty, "%s", VTY_NEWLINE);
         break;
 
-    default:
+    case ALL_PROTOCOL:
+        /*
+         * To display the source interface details for
+         * all the specified protocols
+         */
+
+        proto_source = get_protocol_source_local(TFTP_PROTOCOL,
+                                                 DEFAULT_VRF_NAME);
+        if (proto_source != NULL )
+        {
+            vty_out(vty, " %-15s %-46s ", "tftp", proto_source->source);
+            free(proto_source);
+            free(proto_source->source);
+        }
+        else
+        {
+            if (common_proto_source != NULL )
+            {
+                vty_out(vty, " %-15s %-46s ", "tftp",
+                    common_proto_source->source);
+                free(common_proto_source);
+                free(common_proto_source->source);
+            }
+            else
+                vty_out(vty, " %-15s %-6s ", "tftp", "");
+        }
+
+        vty_out(vty, "%s", VTY_NEWLINE);
         break;
     }
     return CMD_SUCCESS;
 }
 
 /*-----------------------------------------------------------------------------
-| Name : source_interface_selection
-| Responsibility : To set and reset the source interface to TFTP server and all
-|                  the specified protocols in ovsdb system
-|                  table other config column
+| Function         : source_interface_lookup
+| Responsibility   : To lookup for the record with source interface
+|                    in the VRF table.
+| Parameters       :
+|        vrf_name  : Name of the VRF
+|        key       : Name of the protocol
+| Return           : On success returns true,
+|                    On failure returns false
+-----------------------------------------------------------------------------*/
+bool source_interface_lookup(const char *vrf_name, char *key)
+{
+    const struct ovsrec_vrf *vrf_row = NULL;
+    int i = 0;
+
+    bool source_interface_match = false;
+
+    vrf_row = get_default_vrf(idl);
+    if (vrf_row == NULL)
+    {
+        vty_out(vty, "Error: Could not fetch "
+                     "default VRF data.%s", VTY_NEWLINE);
+        VLOG_ERR("VRF table did not have default VRF data.");
+        return false;
+    }
+
+    for (i = 0; i < vrf_row->n_source_interface; i++) {
+        if(!strcmp(key,
+           vrf_row->key_source_interface[i]))
+        {
+            source_interface_match = true;
+            break;
+        }
+    }
+
+    if (source_interface_match)
+        return true;
+    else
+        return false;
+}
+
+/*----------------------------------------------------------------------------
+| Name : update_protocol_source_ip
+| Responsibility : To update the source interface IP details
+|                  for the specified protocol
+| Parameters     :
+|      vrf_row   : This will point to the specific vrf row
+|      source    : Stores the source-ip
+|      key       : Name of the protocol
+|      add       : If value is true, set source-ip
+|                  else unset source-ip
+-----------------------------------------------------------------------------*/
+void
+update_protocol_source_ip(const struct ovsrec_vrf *vrf_row, const char *source,
+                       const char *key, bool add)
+{
+    char *buff = NULL;
+    struct smap smap = SMAP_INITIALIZER(&smap);
+    smap_clone(&smap, &vrf_row->source_ip);
+
+    if (add)
+        smap_replace(&smap, key, source);
+    else
+    {
+        buff = (char *)smap_get(&vrf_row->source_ip, key);
+
+        if (buff != NULL)
+            smap_remove(&smap, key);
+        else
+        {
+            if (!strcmp(key, VRF_SOURCE_IP_MAP_ALL))
+            {
+                vty_out(vty, "No source interface was configured for all the "
+                        "defined protocols. %s", VTY_NEWLINE);
+                return;
+            }
+
+            else
+            {
+                vty_out(vty, "No source interface was configured for the "
+                        "TFTP protocol. %s", VTY_NEWLINE);
+                return;
+            }
+        }
+    }
+    ovsrec_vrf_set_source_ip(vrf_row, &smap);
+    smap_destroy(&smap);
+    return;
+}
+
+/*----------------------------------------------------------------------------
+| Name : update_protocol_source_interface
+| Responsibility : To update the source interface details
+|                  for the specified protocol
+| Parameters     :
+|      vrf_row   : This will point to the specific vrf row
+|      port_row  : This will point to the specific port row
+|      source    : Stores the source-interface
+|      key       : Name of the protocol
+|      add       : If value is true, set source-interface
+|                  else unset source-interface
+-----------------------------------------------------------------------------*/
+void
+update_protocol_source_interface(const struct ovsrec_vrf *vrf_row,
+            const struct ovsrec_port *port_row, const char *source,
+                       const char *key, bool add)
+{
+    int i = 0, n = 0;
+    struct ovsrec_port **port_lists;
+    char **key_lists;
+
+    if (add)
+    {
+        key_lists = xmalloc((vrf_row->n_source_interface + 1) *
+                        sizeof(char *));
+        port_lists = xmalloc((vrf_row->n_source_interface + 1) *
+                        sizeof( * vrf_row->value_source_interface ));
+
+        for (i = 0; i < vrf_row->n_source_interface; i++) {
+            key_lists[i]  = vrf_row->key_source_interface[i];
+            port_lists[i] = vrf_row->value_source_interface[i];
+        }
+
+        key_lists[vrf_row->n_source_interface] = (char *)key;
+        port_lists[vrf_row->n_source_interface] =
+            CONST_CAST(struct ovsrec_port *, port_row);
+
+        ovsrec_vrf_set_source_interface(vrf_row, key_lists, port_lists,
+                (vrf_row->n_source_interface + 1));
+        free(key_lists);
+        free(port_lists);
+    }
+
+    else
+    {
+        /* Checking if the entry is the last entry.
+        * If true clear it , else continue */
+        if (vrf_row->n_source_interface ==  1) {
+            if(!strcmp(vrf_row->key_source_interface[0],key))
+                ovsrec_vrf_set_source_interface(vrf_row, NULL, NULL, 0);
+        }
+        else {
+            key_lists = xmalloc((vrf_row->n_source_interface - 1) *
+                            sizeof(char *));
+            port_lists = xmalloc((vrf_row->n_source_interface - 1) *
+                            sizeof( * vrf_row->value_source_interface ));
+            for (i = n = 0; i < vrf_row->n_source_interface; i++) {
+
+                if (strcmp(vrf_row->key_source_interface[i], key) != 0)
+                {
+                    key_lists[n] = vrf_row->key_source_interface[i];
+                    port_lists[n] = vrf_row->value_source_interface[i];
+                    n++;
+                }
+            }
+
+            ovsrec_vrf_set_source_interface(vrf_row, key_lists, port_lists,
+                    (vrf_row->n_source_interface - 1));
+            free(key_lists);
+            free(port_lists);
+        }
+    }
+    return;
+}
+
+/*-----------------------------------------------------------------------------
+| Function         : isIpConfigured
+| Responsibility   : To check specified source IP addres configuration exist
+|                    on any interface.
+| Parameters       :
+|        *source   : Stores the source-ip
+| Return           : On success returns true,
+|                    On failure returns false
+-----------------------------------------------------------------------------*/
+bool isIpConfigured(const char *source)
+{
+    const struct ovsrec_port *port_row = NULL;
+    size_t maskPosition, iter;
+    char *mask = NULL;
+
+    OVSREC_PORT_FOR_EACH (port_row, idl)
+    {
+        /* To check IP addres configuration on the interface. */
+        if (port_row->ip4_address)
+        {
+            mask = strchr(port_row->ip4_address, '/');
+            maskPosition = mask - (port_row->ip4_address);
+            if (!strncmp(source, port_row->ip4_address,
+                maskPosition))
+            {
+                return true;
+            }
+        }
+        else
+        {
+            /* To check secondary IP address configuration
+               on the interface. */
+            for (iter = 0; iter < port_row->n_ip4_address_secondary; iter++)
+            {
+                mask = strchr(port_row->ip4_address_secondary[iter], '/');
+                maskPosition = mask - (port_row->ip4_address_secondary[iter]);
+                if (!strncmp(source,
+                    port_row->ip4_address_secondary[iter], maskPosition))
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+/*-----------------------------------------------------------------------------
+| Function         : is_PortMatch
+| Responsibility   : To check specified source interface is configured with
+|                    any IP ADDRESS
+| Parameters       :
+|        *source   : Stores the source-interface
+| Return           : On success returns the port row,
+|                    On failure returns NULL
+-----------------------------------------------------------------------------*/
+const struct
+ovsrec_port* getPort(const char *source)
+{
+    const struct ovsrec_port *port_row = NULL;
+    OVSREC_PORT_FOR_EACH (port_row, idl)
+    {
+        if (strcmp(port_row->name, source) != 0)
+            continue;
+
+        /* To check IP address configuration on the interface. */
+        if (port_row->ip4_address)
+        {
+             return port_row;
+        }
+        else if (port_row->n_ip4_address_secondary > 1)
+        {
+            return port_row;
+        }
+    }
+    return NULL;
+}
+
+/*-----------------------------------------------------------------------------
+| Name : set_source_ip
+| Responsibility : To set source IP address to TFTP server and all
+|                  the specified protocols in ovsdb VRF
+|                  table source_ip columns
 | Parameters : const char* source : Stores the source-interface
 |              type : To specify the type of the protocol
-|              add : If value is true, set source-interface
-|                    else unset source-interface
 | Return : CMD_SUCCESS for success , CMD_OVSDB_FAILURE for failure
 -----------------------------------------------------------------------------*/
 static int
-source_interface_selection(const char *source,
-                           source_interface_protocol type,
-                           bool add)
+set_source_ip(const char *source,
+              source_interface_protocol type)
 {
-    const struct ovsrec_system *ovs_row = NULL;
+    const struct ovsrec_vrf *vrf_row = NULL;
     struct smap smap = SMAP_INITIALIZER(&smap);
     struct ovsdb_idl_txn *status_txn = NULL;
     enum ovsdb_idl_txn_status status;
-    char *buff = NULL;
+    bool isAddrMatch = false;
+    bool source_interface_match = false;
+    char *key1 = NULL, *key2 = NULL;
 
     status_txn = cli_do_config_start();
 
@@ -148,64 +532,59 @@ source_interface_selection(const char *source,
         return CMD_OVSDB_FAILURE;
     }
 
-    ovs_row = ovsrec_system_first(idl);
-    if (!ovs_row) {
-        VLOG_ERR(OVSDB_ROW_FETCH_ERROR);
+    /* lookup for the Default VRF record in vrf table */
+    vrf_row = get_default_vrf(idl);
+    if (vrf_row == NULL)
+    {
+        vty_out(vty, "Error: Could not fetch "
+                     "default VRF data.%s", VTY_NEWLINE);
+        VLOG_ERR("VRF table did not have default VRF data.");
         cli_do_config_abort(status_txn);
         return CMD_OVSDB_FAILURE;
     }
 
-    smap_clone(&smap, &ovs_row->other_config);
+    isAddrMatch = isIpConfigured(source);
+
+    if (!isAddrMatch)
+    {
+        /* Unconfigured IP address on any interface. */
+
+        vty_out(vty, "Specified IP address is not configured on " \
+                "any interface.%s", VTY_NEWLINE);
+        cli_do_config_abort(status_txn);
+        return CMD_SUCCESS;
+    }
 
     switch (type) {
     case ALL_PROTOCOL:
         /*
-        * To set the source interface to all the specified
-        * protocols in ovsdb system table other config column.
-        */
-        if (add) {
-            smap_replace(&smap,
-                         SYSTEM_OTHER_CONFIG_MAP_PROTOCOLS_SOURCE, source);
-            smap_replace(&smap, SYSTEM_OTHER_CONFIG_MAP_TFTP_SOURCE, source);
-        } else {
-            buff = (char *)smap_get(&ovs_row->other_config,
-                                SYSTEM_OTHER_CONFIG_MAP_TFTP_SOURCE);
-            if (buff != NULL) {
-                smap_remove(&smap, SYSTEM_OTHER_CONFIG_MAP_PROTOCOLS_SOURCE);
-                smap_remove(&smap, SYSTEM_OTHER_CONFIG_MAP_TFTP_SOURCE);
-            } else {
-                vty_out(vty, "No source interface was configured for all the "
-                        "defined protocols. %s", VTY_NEWLINE);
-            }
-        }
+         * To set the source interface to all the specified
+         * protocols in ovsdb vrf table source_ip/source_interface column.
+         */
+        key1 = VRF_SOURCE_INTERFACE_MAP_ALL;
+        key2 = VRF_SOURCE_IP_MAP_ALL;
         break;
 
     case TFTP_PROTOCOL:
         /*
         * To set the source interface to TFTP server
-        * in ovsdb system table other config column.
+        * in ovsdb vrf table source_ip/source_interface column.
         */
-        if (add) {
-            smap_replace(&smap,
-                         SYSTEM_OTHER_CONFIG_MAP_TFTP_SOURCE, source);
-        } else {
-            buff = (char *)smap_get(&ovs_row->other_config,
-                                SYSTEM_OTHER_CONFIG_MAP_TFTP_SOURCE);
-            if (buff != NULL) {
-                smap_remove(&smap, SYSTEM_OTHER_CONFIG_MAP_TFTP_SOURCE);
-            } else {
-                vty_out(vty, "No source interface was configured for tftp "
-                        "protocol. %s", VTY_NEWLINE);
-            }
-        }
+        key1 = VRF_SOURCE_INTERFACE_MAP_TFTP;
+        key2 = VRF_SOURCE_IP_MAP_TFTP;
         break;
 
     default :
         break;
     }
 
-    ovsrec_system_set_other_config(ovs_row, &smap);
-    smap_destroy(&smap);
+    source_interface_match = source_interface_lookup(DEFAULT_VRF_NAME,
+                                    key1);
+    if (source_interface_match)
+        update_protocol_source_interface(vrf_row, NULL, NULL,
+                    key1, false);
+
+    update_protocol_source_ip(vrf_row, source, key2, true);
 
     status = cli_do_config_finish(status_txn);
 
@@ -215,7 +594,210 @@ source_interface_selection(const char *source,
     else {
         return CMD_OVSDB_FAILURE;
     }
+
 }
+
+/*-----------------------------------------------------------------------------
+| Name : set_source_interface
+| Responsibility : To set the source interface to TFTP server and all
+|                  the specified protocols in ovsdb VRF
+|                  table source_interface
+| Parameters : const char* source : Stores the source-interface
+|              type : To specify the type of the protocol
+| Return : CMD_SUCCESS for success , CMD_OVSDB_FAILURE for failure
+-----------------------------------------------------------------------------*/
+static int
+set_source_interface(const char *source,
+                     source_interface_protocol type)
+{
+    const struct ovsrec_vrf *vrf_row = NULL;
+    const struct ovsrec_port *port_row = NULL;
+    struct smap smap = SMAP_INITIALIZER(&smap);
+    struct ovsdb_idl_txn *status_txn = NULL;
+    enum ovsdb_idl_txn_status status;
+    char *buff = NULL;
+    char *key1 = NULL, *key2 = NULL;
+
+    status_txn = cli_do_config_start();
+
+    if (status_txn == NULL) {
+        VLOG_ERR(OVSDB_TXN_CREATE_ERROR);
+        cli_do_config_abort(status_txn);
+        return CMD_OVSDB_FAILURE;
+    }
+
+    /* lookup for the Default VRF record in vrf table */
+    vrf_row = get_default_vrf(idl);
+    if (vrf_row == NULL)
+    {
+        vty_out(vty, "Error: Could not fetch "
+                     "default VRF data.%s", VTY_NEWLINE);
+        VLOG_ERR("VRF table did not have default VRF data.");
+        cli_do_config_abort(status_txn);
+        return CMD_OVSDB_FAILURE;
+    }
+
+    port_row = getPort(source);
+
+    if (port_row == NULL)
+    {
+        /* Unconfigured IP address on the interface. */
+
+        vty_out(vty, "IP address is not yet configured on " \
+                "the specified interface.%s", VTY_NEWLINE);
+        cli_do_config_abort(status_txn);
+        return CMD_SUCCESS;
+    }
+
+    switch (type) {
+    case ALL_PROTOCOL:
+        /*
+         * To set the source interface to all the specified
+         * protocols in ovsdb vrf table source_ip/source_interface column.
+         */
+        key1 = VRF_SOURCE_IP_MAP_ALL;
+        key2 = VRF_SOURCE_INTERFACE_MAP_ALL;
+        break;
+
+    case TFTP_PROTOCOL:
+        /*
+        * To set the source interface to TFTP server
+        * in ovsdb vrf table source_ip/source_interface column.
+        */
+        key1 = VRF_SOURCE_IP_MAP_TFTP;
+        key2 = VRF_SOURCE_INTERFACE_MAP_TFTP;
+        break;
+
+    default :
+        break;
+    }
+
+    buff = (char *)smap_get(&vrf_row->source_ip, key1);
+    if (buff != NULL)
+    {
+        update_protocol_source_ip(vrf_row, source,
+                               key1, false);
+    }
+    update_protocol_source_interface(vrf_row, port_row, source,
+                    key2, true);
+    status = cli_do_config_finish(status_txn);
+
+    if (status == TXN_SUCCESS || status == TXN_UNCHANGED) {
+        return CMD_SUCCESS;
+    }
+    else {
+        return CMD_OVSDB_FAILURE;
+    }
+
+}
+
+/*-----------------------------------------------------------------------------
+| Name : reset_source_interface
+| Responsibility : To reset the source interface to TFTP server and all
+|                  the specified protocols in ovsdb VRF
+|                  table source_interface and source_ip columns
+| Parameters : const char* source : Stores the source-interface
+|              type : To specify the type of the protocol
+| Return : CMD_SUCCESS for success , CMD_OVSDB_FAILURE for failure
+-----------------------------------------------------------------------------*/
+static int
+reset_source_interface(const char *source,
+                       source_interface_protocol type)
+{
+    const struct ovsrec_vrf *vrf_row = NULL;
+    struct smap smap = SMAP_INITIALIZER(&smap);
+    struct ovsdb_idl_txn *status_txn = NULL;
+    enum ovsdb_idl_txn_status status;
+    char *buff = NULL;
+    bool source_interface_match = false;
+
+    status_txn = cli_do_config_start();
+
+    if (status_txn == NULL) {
+        VLOG_ERR(OVSDB_TXN_CREATE_ERROR);
+        cli_do_config_abort(status_txn);
+        return CMD_OVSDB_FAILURE;
+    }
+
+    /* lookup for the Default VRF record in vrf table */
+    vrf_row = get_default_vrf(idl);
+    if (vrf_row == NULL)
+    {
+        vty_out(vty, "Error: Could not fetch "
+                     "default VRF data.%s", VTY_NEWLINE);
+        VLOG_ERR("VRF table did not have default VRF data.");
+        cli_do_config_abort(status_txn);
+        return CMD_OVSDB_FAILURE;
+    }
+
+    switch (type) {
+    case ALL_PROTOCOL:
+        /*
+         * To set the source interface to all the specified
+         * protocols in ovsdb vrf table source_ip/source_interface column.
+         */
+        buff = (char *)smap_get(&vrf_row->source_ip, VRF_SOURCE_IP_MAP_ALL);
+        if (buff != NULL)
+        {
+            update_protocol_source_ip(vrf_row, NULL,
+                                   VRF_SOURCE_IP_MAP_ALL, false);
+        }
+        else
+        {
+            source_interface_match = source_interface_lookup(DEFAULT_VRF_NAME,
+                                    VRF_SOURCE_INTERFACE_MAP_ALL);
+            if (!source_interface_match)
+                vty_out(vty, "Common source interface is not "
+                        "configured. %s", VTY_NEWLINE);
+            else
+            {
+                update_protocol_source_interface(vrf_row, NULL, NULL,
+                    VRF_SOURCE_INTERFACE_MAP_ALL, false);
+            }
+        }
+        break;
+
+    case TFTP_PROTOCOL:
+        /*
+         * To set the source interface to TFTP server
+         * in ovsdb vrf table source_ip/source_interface column.
+         */
+        buff = (char *)smap_get(&vrf_row->source_ip, VRF_SOURCE_IP_MAP_TFTP);
+        if (buff != NULL)
+        {
+            update_protocol_source_ip(vrf_row, NULL,
+                                   VRF_SOURCE_IP_MAP_TFTP, false);
+        }
+        else
+        {
+            source_interface_match = source_interface_lookup(DEFAULT_VRF_NAME,
+                                        VRF_SOURCE_INTERFACE_MAP_TFTP);
+            if (!source_interface_match)
+                vty_out(vty, "No source interface was configured for the "
+                        "TFTP protocol. %s", VTY_NEWLINE);
+            else
+            {
+                update_protocol_source_interface(vrf_row, NULL, NULL,
+                    VRF_SOURCE_INTERFACE_MAP_TFTP, false);
+            }
+        }
+        break;
+
+    default :
+        break;
+    }
+
+    status = cli_do_config_finish(status_txn);
+
+    if (status == TXN_SUCCESS || status == TXN_UNCHANGED) {
+        return CMD_SUCCESS;
+    }
+    else {
+        return CMD_OVSDB_FAILURE;
+    }
+
+}
+
 /*-----------------------------------------------------------------------------
 | Defun for source IP interface
 | Responsibility : Configure source IP interface
@@ -231,9 +813,9 @@ DEFUN(ip_source_interface,
       IFNAME_STR)
 {
     if (strcmp(TFTP, (char*)argv[0]) == 0) {
-        return source_interface_selection(argv[1], TFTP_PROTOCOL, 1);
+        return set_source_interface(argv[1], TFTP_PROTOCOL);
     } else if (strcmp(ALL, (char*)argv[0]) == 0){
-        return source_interface_selection(argv[1], ALL_PROTOCOL, 1);
+        return set_source_interface(argv[1], ALL_PROTOCOL);
     }
     return CMD_SUCCESS;
 }
@@ -244,12 +826,11 @@ DEFUN(ip_source_interface,
 -----------------------------------------------------------------------------*/
 DEFUN(ip_source_address,
       ip_source_address_cmd,
-      "ip source-interface (tftp | all) address A.B.C.D",
+      "ip source-interface (tftp | all) A.B.C.D",
       IP_STR
       SOURCE_STRING
       TFTP_STRING
       ALL_STRING
-      ADDRESS_STRING
       ADDRESS_STRING)
 {
     struct in_addr addr;
@@ -263,9 +844,9 @@ DEFUN(ip_source_address,
     }
 
     if (strcmp(TFTP, (char*)argv[0]) == 0) {
-        return source_interface_selection(argv[1], TFTP_PROTOCOL, 1);
+        return set_source_ip(argv[1], TFTP_PROTOCOL);
     } else if (strcmp(ALL, (char*)argv[0]) == 0) {
-        return source_interface_selection(argv[1], ALL_PROTOCOL, 1);
+        return set_source_ip(argv[1], ALL_PROTOCOL);
     }
     return CMD_SUCCESS;
 }
@@ -284,9 +865,9 @@ DEFUN(no_ip_source_interface,
       ALL_STRING)
 {
     if (strcmp(TFTP, (char*)argv[0]) == 0) {
-        return source_interface_selection(NULL, TFTP_PROTOCOL, 0);
+        return reset_source_interface(NULL, TFTP_PROTOCOL);
     } else if (strcmp(ALL, (char*)argv[0]) == 0) {
-        return source_interface_selection(NULL, ALL_PROTOCOL, 0);
+        return reset_source_interface(NULL, ALL_PROTOCOL);
     }
     return CMD_SUCCESS;
 }
@@ -303,8 +884,10 @@ DEFUN(show_source_interface,
       SOURCE_STRING
       TFTP_STRING)
 {
-    if(argv[0]) {
-        if (strcmp(TFTP, (char*)argv[0]) == 0) {
+    if (argv[0])
+    {
+        if (strcmp(TFTP, (char*)argv[0]) == 0)
+        {
             return show_source_interface_selection(TFTP_PROTOCOL);
         }
     }
@@ -320,8 +903,9 @@ DEFUN(show_source_interface,
 static void
 source_interface_ovsdb_init(void)
 {
-    ovsdb_idl_add_table(idl, &ovsrec_table_system);
-    ovsdb_idl_add_column(idl, &ovsrec_system_col_other_config);
+    ovsdb_idl_add_table(idl, &ovsrec_table_vrf);
+    ovsdb_idl_add_column(idl, &ovsrec_vrf_col_source_ip);
+    ovsdb_idl_add_column(idl, &ovsrec_vrf_col_source_interface);
 
     return;
 }
@@ -334,9 +918,10 @@ cli_pre_init(void)
 
     source_interface_ovsdb_init();
 
-    source_interface_retval = install_show_run_config_context(e_vtysh_source_interface_context,
-                                     &vtysh_source_interface_context_clientcallback,
-                                     NULL, NULL);
+    source_interface_retval = install_show_run_config_context(
+                            e_vtysh_source_interface_context,
+                            &vtysh_source_interface_context_clientcallback,
+                            NULL, NULL);
     if(e_vtysh_ok != source_interface_retval)
     {
        vtysh_ovsdb_config_logmsg(VTYSH_OVSDB_CONFIG_ERR,
