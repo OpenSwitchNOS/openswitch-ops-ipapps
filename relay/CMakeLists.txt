@@ -33,7 +33,7 @@ include_directories (${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/${INCL_DIR}
                      ${OVSCOMMON_INCLUDE_DIRS}
 )
 
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -D FTR_UDP_BCAST_FWD=1 -D FTR_DHCP_RELAY=1 -D FTR_DHCPV6_RELAY=1")
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -D FTR_UDP_BCAST_FWD=1 -D FTR_DHCP_RELAY=1 -D FTR_DHCPV6_RELAY=1 -D_GNU_SOURCE")
 
 # Source files to build ops-relay
 set (SOURCES ${COMMON_SRC_DIR}/relay_main.c
@@ -44,7 +44,10 @@ set (SOURCES ${COMMON_SRC_DIR}/relay_main.c
              ${UDPFWD_SRC_DIR}/udpfwd_recv.c
              ${UDPFWD_SRC_DIR}/dhcp_options.c
              ${DHCPV6R_SRC_DIR}/dhcpv6_relay.c
-             ${DHCPV6R_SRC_DIR}/dhcpv6_relay_config.c)
+             ${DHCPV6R_SRC_DIR}/dhcpv6_relay_config.c
+             ${DHCPV6R_SRC_DIR}/dhcpv6r_recv.c
+             ${DHCPV6R_SRC_DIR}/dhcpv6r_util.c
+             ${DHCPV6R_SRC_DIR}/dhcpv6r_xmit.c)
 
 # Rules to build ops-relay
 add_executable (${RELAY} ${SOURCES})

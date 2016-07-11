@@ -35,7 +35,6 @@
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <pthread.h>
@@ -64,6 +63,11 @@
 
 #ifdef FTR_DHCPV6_RELAY
 
+struct ovsdb_idl_index_cursor ipv6_ucast_cursor;
+
+/* dhcp receiver thread handle */
+pthread_t dhcp6_recv_thread;
+
 /*
  * Global variable declarations.
  */
@@ -74,6 +78,92 @@ DHCPV6_RELAY_CTRL_CB *dhcpv6_relay_ctrl_cb_p = &dhcpv6_relay_ctrl_cb;
 
 VLOG_DEFINE_THIS_MODULE(dhcpv6_relay);
 
+/* FIXME: Socket needs to be created per VRF basis based on the
+ * configuration
+ */
+
+/*
+ * Function      : create_recv_socket
+ * Responsiblity : receive socket creation for dhcpv6 relay feature
+ * Parameters    : none
+ * Return        : socket descriptor on success
+ *                 -1 on failure
+ */
+int create_recv_socket(void)
+{
+    VLOG_INFO("Creating send/receive socket");
+    int on = 1, dhcpv6Sock = -1;
+    struct sockaddr_in6 sock6Addr;
+    memset(&sock6Addr, 0, sizeof(sock6Addr));
+    dhcpv6Sock = socket(AF_INET6, SOCK_RAW, IPPROTO_UDP);
+
+    if (-1 == dhcpv6Sock) {
+        VLOG_ERR("Failed to create UDP socket");
+        return -1;
+    }
+
+    /* Set the requisite socket options. */
+    /* IPV6_RERCVPKTINFO */
+    if (setsockopt(dhcpv6Sock, IPPROTO_IPV6, IPV6_RECVPKTINFO,
+                    (char*)&on, sizeof(on)) < 0)
+    {
+        VLOG_ERR("Failed to set IPV6_RECVPKTINFO socket option");
+        close(dhcpv6Sock);
+        return -1;
+    }
+
+    sock6Addr.sin6_family = PF_INET6;
+    sock6Addr.sin6_port = htons((uint16_t)DHCPV6_RELAY_PORT);
+    sock6Addr.sin6_addr = in6addr_any;
+
+    /* Bind to the address. */
+    if (bind(dhcpv6Sock, (struct sockaddr*)&sock6Addr, sizeof(sock6Addr)) < 0)
+    {
+        VLOG_ERR("Failed to bind to ipv6 address");
+        close(dhcpv6Sock);
+        return -1;
+    }
+
+    VLOG_INFO("Raw receive socket created successfully");
+    return dhcpv6Sock;
+}
+
+/*
+ * Function      : create_send_socket
+ * Responsiblity : send socket creation for dhcpv6 relay feature
+ * Parameters    : none
+ * Return        : socket descriptor on success
+ *                 -1 on failure
+ */
+int create_send_socket()
+{
+    VLOG_INFO("Creating send socket");
+    int dhcpv6Sock = -1;
+    struct sockaddr_in6 sock6Addr;
+    memset(&sock6Addr, 0, sizeof(sock6Addr));
+    dhcpv6Sock = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+
+    if (-1 == dhcpv6Sock) {
+        VLOG_ERR("Failed to create UDP socket");
+        return -1;
+    }
+
+    sock6Addr.sin6_family = PF_INET6;
+    sock6Addr.sin6_port = 0;
+    sock6Addr.sin6_addr = in6addr_any;
+
+    /* Bind to the address. */
+    if (bind(dhcpv6Sock, (struct sockaddr*)&sock6Addr, sizeof(sock6Addr)) < 0)
+    {
+        VLOG_ERR("Failed to bind to ipv6 address");
+        close(dhcpv6Sock);
+        return -1;
+    }
+
+    VLOG_INFO("send socket created successfully");
+    return dhcpv6Sock;
+}
+
 /*
  * Function      : dhcpv6r_module_init
  * Responsiblity : Initialization routine for dhcpv6 relay feature
@@ -83,7 +173,7 @@ VLOG_DEFINE_THIS_MODULE(dhcpv6_relay);
  */
 bool dhcpv6r_module_init(void)
 {
-    int32_t retVal;
+    int32_t retVal, sock;
     memset(dhcpv6_relay_ctrl_cb_p, 0, sizeof(DHCPV6_RELAY_CTRL_CB));
 
     /* DB access semaphore initialization */
@@ -104,6 +194,107 @@ bool dhcpv6r_module_init(void)
     dhcpv6_relay_ctrl_cb_p->dhcpv6_relay_enable = false;
     dhcpv6_relay_ctrl_cb_p->dhcpv6_relay_option79_enable = false;
 
+    /* Store the DHCPv6 Relay Agents and Servers IPv6 address. */
+    if (inet_pton(PF_INET6, DHCPV6_ALLAGENTS,
+                 (void *)&dhcpv6_relay_ctrl_cb_p->agentIpv6Address) <= 0)
+    {
+        VLOG_FATAL("Could not register DHCPv6 All Relay Agents and "
+                "Servers address");
+        return false;
+    }
+
+    /* Create Raw receive socket */
+    if (-1 == (sock = create_recv_socket()))
+    {
+        VLOG_FATAL("Failed to create receive socket");
+        return false;
+    }
+
+    dhcpv6_relay_ctrl_cb_p->dhcpv6r_recvSock = sock;
+
+    /* Create UDP send socket */
+    if (-1 == (sock = create_send_socket()))
+    {
+        VLOG_FATAL("Failed to create  send socket");
+        return false;
+    }
+
+    dhcpv6_relay_ctrl_cb_p->dhcpv6r_sendSock = sock;
+
+    /* Allocate memory for packet recieve buffer */
+    dhcpv6_relay_ctrl_cb_p->rcvbuff = (char *)
+                calloc(DHCPV6_RELAY_MSG_SIZE, sizeof(char));
+
+    if (NULL == dhcpv6_relay_ctrl_cb_p->rcvbuff)
+    {
+        close(dhcpv6_relay_ctrl_cb_p->dhcpv6r_recvSock);
+        close(dhcpv6_relay_ctrl_cb_p->dhcpv6r_sendSock);
+        VLOG_FATAL("Memory allocation for receive buffer failed");
+        return false;
+    }
+
+     /* Create DHCPv6 relay receiver thread */
+    retVal = pthread_create(&dhcp6_recv_thread, (pthread_attr_t *)NULL,
+                            dhcpv6r_recv, NULL);
+    if (0 != retVal)
+    {
+        free(dhcpv6_relay_ctrl_cb_p->rcvbuff);
+        close(dhcpv6_relay_ctrl_cb_p->dhcpv6r_recvSock);
+        close(dhcpv6_relay_ctrl_cb_p->dhcpv6r_sendSock);
+        shash_destroy(&dhcpv6_relay_ctrl_cb_p->intfHashTable);
+        cmap_destroy(&dhcpv6_relay_ctrl_cb_p->serverHashMap);
+        VLOG_FATAL("Failed to create DHCPv6 packet receiver thread : %d",
+                 retVal);
+        return false;
+    }
+
+    return true;
+}
+
+/*
+ * Function      : dhcpv6r_get_client_mac
+ *
+ * Responsibilty : Checks if the Client is found in the Neighbor cache. If present
+ *                 copy the mac address from neighbor table.
+ * Parameters    : in6Addr - ipv6 address of the client for which MAC is needed.
+ *                 clientMacOpt - pointer to structure containing MAC hwtype and MAC
+ * Returns       : true if the client is found in local cache
+ *                 false otherwise.
+ */
+bool dhcpv6r_get_client_mac(struct in6_addr *in6Addr, dhcpv6_clientmac_Opt_t *clientMacOpt)
+{
+    /*FIXME : need to explicitly issue ping so that neighbor table has value */
+    const struct ovsrec_neighbor *ovs_nbr = NULL;
+    char ipv6Str[INET6_ADDRSTRLEN] = {0}, nbr_mac[19];
+    char *mac = NULL;
+    int i = 0;
+
+    memset(&nbr_mac, 0, sizeof(nbr_mac));
+    ovs_nbr = ovsrec_neighbor_first(idl);
+
+    inet_ntop(AF_INET6, (void *)in6Addr, ipv6Str, INET6_ADDRSTRLEN);
+
+    OVSREC_NEIGHBOR_FOR_EACH (ovs_nbr, idl) {
+        if (strncmp((ovs_nbr)->ip_address, ipv6Str, strlen(ipv6Str)) == 0)
+        {
+            /* Split based on : */
+            strncpy(nbr_mac, ovs_nbr->mac, strlen(ovs_nbr->mac));
+            mac = strtok(nbr_mac, ":");
+            clientMacOpt->hwtype  = htons(ETHER_ADDR_TYPE);
+            while (mac != NULL)
+            {
+                clientMacOpt->macaddr[i] = (uint8_t) strtol (mac, (char **) NULL, 16);
+                i++;
+                mac = strtok(NULL, ":");
+            }
+        }
+    }
+
+    if (strlen(nbr_mac) == 0)
+    {
+        VLOG_ERR(" Entry is not present in neighbor table");
+        return false;
+    }
     return true;
 }
 
@@ -117,10 +308,9 @@ bool dhcpv6r_module_init(void)
 void dhcpv6r_process_globalconfig_update(void)
 {
     const struct ovsrec_system *system_row = NULL;
-#if 0 /* Enable this code once keys are pushed */
     bool dhcpv6_relay_enabled = false, dhcpv6_relay_option79 = false;
     char *value;
-#endif
+
 
     system_row = ovsrec_system_first(idl);
     if (NULL == system_row) {
@@ -133,7 +323,7 @@ void dhcpv6r_process_globalconfig_update(void)
     {
         return;
     }
-#if 0 /* Enable this code once keys are pushed */
+
     /* Check if dhcpv6-relay global configuration is changed */
     if (OVSREC_IDL_IS_COLUMN_MODIFIED(ovsrec_system_col_dhcp_config,
                                    idl_seqno)) {
@@ -165,10 +355,9 @@ void dhcpv6r_process_globalconfig_update(void)
             dhcpv6_relay_ctrl_cb_p->dhcpv6_relay_option79_enable = dhcpv6_relay_option79;
         }
     }
-#endif
+
     return;
 }
-
 
 /*
  * Function      : dhcpv6r_server_config_update
@@ -181,6 +370,9 @@ void dhcpv6r_server_config_update(void)
 {
     const struct ovsrec_dhcp_relay *rec_first = NULL;
     const struct ovsrec_dhcp_relay *rec = NULL;
+    const struct ovsrec_port *port_row = NULL;
+    DHCPV6_RELAY_INTERFACE_NODE_T *intfNode = NULL;
+    struct shash_node *node;
 
     /* Check for server configuration changes */
     rec_first = ovsrec_dhcp_relay_first(idl);
@@ -193,8 +385,6 @@ void dhcpv6r_server_config_update(void)
     if (!OVSREC_IDL_ANY_TABLE_ROWS_INSERTED(rec_first, idl_seqno)
         && !OVSREC_IDL_ANY_TABLE_ROWS_DELETED(rec_first, idl_seqno)
         && !OVSREC_IDL_ANY_TABLE_ROWS_MODIFIED(rec_first, idl_seqno)) {
-        /* FIXME: Log to be removed after initial round of testing */
-        VLOG_DBG("No table changes updates");
         return;
     }
 
@@ -210,7 +400,22 @@ void dhcpv6r_server_config_update(void)
             dhcpv6r_handle_config_change(rec, idl_seqno);
         }
     }
-    /* FIXME : handle port deletion */
+    /*FIXME: handle port deletion */
+
+    /* FIXME : For now, primary ipv6 address is being used as source interface address */
+    port_row = ovsrec_port_first(idl);
+    if (OVSREC_IDL_IS_ROW_MODIFIED(port_row, idl_seqno))
+    {
+        if(OVSREC_IDL_IS_COLUMN_MODIFIED(ovsrec_port_col_ip6_address,
+                                      idl_seqno)) {
+            node = shash_find(&dhcpv6_relay_ctrl_cb_p->intfHashTable, port_row->name);
+            if (NULL != node) {
+                intfNode = (DHCPV6_RELAY_INTERFACE_NODE_T *)node->data;
+                strncpy(intfNode->ip6_address, port_row->ip6_address,
+                        strlen(port_row->ip6_address));
+            }
+        }
+    }
     return;
 }
 
@@ -223,8 +428,6 @@ void dhcpv6r_server_config_update(void)
  */
 void dhcpv6r_reconfigure()
 {
-    VLOG_INFO(" dhcpv6_relay_reconfigure");
-
     /* Check for global configuration changes in system table */
     dhcpv6r_process_globalconfig_update();
 
@@ -242,9 +445,21 @@ void dhcpv6r_reconfigure()
  */
 void dhcpv6r_exit(void)
 {
+    /* free memory for packet receive buffer */
+    if (0 < dhcpv6_relay_ctrl_cb_p->dhcpv6r_recvSock)
+        close(dhcpv6_relay_ctrl_cb_p->dhcpv6r_recvSock);
+
+    if (0 < dhcpv6_relay_ctrl_cb_p->dhcpv6r_sendSock)
+        close(dhcpv6_relay_ctrl_cb_p->dhcpv6r_sendSock);
+
+    if (NULL != dhcpv6_relay_ctrl_cb_p->rcvbuff)
+        free(dhcpv6_relay_ctrl_cb_p->rcvbuff);
+
+    shash_destroy(&dhcpv6_relay_ctrl_cb_p->intfHashTable);
+    cmap_destroy(&dhcpv6_relay_ctrl_cb_p->serverHashMap);
+
     return;
 }
-
 
 /*
  * Function      : dhcpv6r_interface_dump
@@ -275,9 +490,18 @@ static void dhcpv6r_interface_dump(struct shash_node *node,
         ds_put_format(ds, "%s,%d,egress %s ", server->ipv6_address,
             server->ref_count, server->egressIfName);
     }
-    return;
-}
 
+    /* Print dhcpv6-relay statistics */
+    ds_put_format(ds, "client request dropped packets = %d\n",
+                  DHCPV6R_CLIENT_DROPS(intfNode));
+    ds_put_format(ds, "client request valid packets = %d\n",
+                  DHCPV6R_CLIENT_SENT(intfNode));
+    ds_put_format(ds, "server request dropped packets = %d\n",
+                  DHCPV6R_SERVER_DROPS(intfNode));
+    ds_put_format(ds, "server request valid packets = %d\n",
+                  DHCPV6R_SERVER_SENT(intfNode));
+
+}
 
 /*
  * Function      : dhcpv6r_unixctl_dump
@@ -303,7 +527,6 @@ void dhcpv6r_unixctl_dump(struct unixctl_conn *conn, int argc OVS_UNUSED,
     ds_put_format(&ds, "DHCPv6 Relay Option79 : %d\n",
         dhcpv6_relay_ctrl_cb_p->dhcpv6_relay_option79_enable);
 
-
     if (!argv[2]) {
         /* dump all interfaces */
         SHASH_FOR_EACH(temp, &dhcpv6_relay_ctrl_cb_p->intfHashTable)
@@ -324,6 +547,20 @@ void dhcpv6r_unixctl_dump(struct unixctl_conn *conn, int argc OVS_UNUSED,
 }
 
 /*
+ * Function      : ipv6_ucast_addr_cmp
+ * Responsiblity : comparator function for ipv6_ucast_address
+ * Parameters    : none
+ * Return        : ovsdb_idl_index_strcmp result
+ */
+int ipv6_ucast_addr_cmp(const void *entry1, const void *entry2)
+{
+    char *ip1 = *(((struct ovsrec_dhcp_relay *)entry1)->ipv6_ucast_server);
+    char *ip2 = *(((struct ovsrec_dhcp_relay *)entry2)->ipv6_ucast_server);
+
+    return (ovsdb_idl_index_strcmp(ip1, ip2));
+}
+
+/*
  * Function      : dhcpv6r_init
  * Responsiblity : idl create/registration, module initialization and
  *                 unixctl registrations
@@ -333,7 +570,7 @@ void dhcpv6r_unixctl_dump(struct unixctl_conn *conn, int argc OVS_UNUSED,
  */
 bool dhcpv6r_init()
 {
-    VLOG_INFO("DHCPV6 relay init");
+    struct ovsdb_idl_index *ipv6_ucast_index;
 
     ovsdb_idl_add_column(idl, &ovsrec_system_col_dhcp_config);
 
@@ -348,11 +585,37 @@ bool dhcpv6r_init()
 #if 0
     ovsdb_idl_add_column(idl,
                         &ovsrec_dhcp_relay_col_ipv6_mcast_server);
-#endif
-    /* Register for port table for dhcp_relay_statistics update */
+    #endif
+
     ovsdb_idl_add_table(idl, &ovsrec_table_port);
-    ovsdb_idl_add_column(idl, &ovsrec_port_col_name);
-    ovsdb_idl_add_column(idl, &ovsrec_port_col_dhcp_relay_statistics);
+    /* register for ipv6 address primary and secondary */
+    ovsdb_idl_add_column(idl, &ovsrec_port_col_ip6_address);
+    ovsdb_idl_add_column(idl, &ovsrec_port_col_ip6_address_secondary);
+
+    /* Register for mac address of client, neighbor table */
+    ovsdb_idl_add_table(idl, &ovsrec_table_neighbor);
+    ovsdb_idl_add_column(idl, &ovsrec_neighbor_col_mac);
+    ovsdb_idl_add_column(idl, &ovsrec_neighbor_col_ip_address);
+
+    /* Create index */
+    ipv6_ucast_index = ovsdb_idl_create_index(idl, &ovsrec_table_dhcp_relay,
+                                         "ipv6_ucast_index");
+
+    if (ipv6_ucast_index) {
+        ovsdb_idl_index_add_column
+            (ipv6_ucast_index, &ovsrec_dhcp_relay_col_ipv6_ucast_server,
+            OVSDB_INDEX_ASC, ipv6_ucast_addr_cmp);
+
+        /* Create a cursor to perform queries to the index defined */
+        if (!ovsdb_idl_initialize_cursor(idl, &ovsrec_table_dhcp_relay,
+                                  "ipv6_ucast_index",
+                                  &ipv6_ucast_cursor)) {
+            VLOG_ERR("Failed to initialize the cursor used to query the ipv6 "
+               "ucast column");
+        }
+    } else {
+        VLOG_ERR("Failed to create an index for the dhcp relay table");
+    }
 
     /* Initialize module data structures */
     if (true != dhcpv6r_module_init())
