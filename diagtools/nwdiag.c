@@ -32,6 +32,7 @@
 #define PING6             "ping6"
 #define TRACEROUTE        "traceroute"
 #define TRACEROUTE6       "traceroute6"
+#define NSPATH            "/var/run/netns/"
 #define BUFFSIZE          1024
 #define NSPATHSIZE        280
 #define NAMESPACELENGTH   256
@@ -41,6 +42,7 @@ int main(int argc, char *argv[])
     int len = 0;
     FILE *fp = NULL;
     /* Assuming max namespace name size as 256 */
+    char ns_path[NSPATHSIZE];
     char buffer[BUFFSIZE];
     char *target = buffer;
 
