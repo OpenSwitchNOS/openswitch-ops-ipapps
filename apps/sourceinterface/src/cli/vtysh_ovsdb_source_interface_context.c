@@ -95,6 +95,8 @@ vtysh_source_interface_context_clientcallback (void *p_private)
     }
 
     display_source_interface_config(TFTP_PROTOCOL, p_msg);
+    display_source_interface_config(TACACS_PROTOCOL, p_msg);
+    display_source_interface_config(RADIUS_PROTOCOL, p_msg);
     display_source_interface_config(ALL_PROTOCOL, p_msg);
 
     return e_vtysh_ok;
