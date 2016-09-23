@@ -31,7 +31,7 @@ def dhcp_relay_enable(sw1):
     sw1("dhcp-relay")
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump", shell="bash")
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump", shell="bash")
     assert 'DHCP Relay : 1' in output
 
 
@@ -41,7 +41,7 @@ def dhcp_relay_disable(sw1):
     sw1("no dhcp-relay")
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump", shell="bash")
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump", shell="bash")
     assert 'DHCP Relay : 0' in output
 
 
@@ -51,7 +51,7 @@ def dhcp_relay_hop_count_increment_enable(sw1):
     sw1("dhcp-relay hop-count-increment")
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump", shell="bash")
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump", shell="bash")
     assert 'DHCP Relay hop-count-increment : 1' in output
 
 
@@ -61,7 +61,7 @@ def dhcp_relay_hop_count_increment_disable(sw1):
     sw1("no dhcp-relay hop-count-increment")
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump", shell="bash")
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump", shell="bash")
     assert 'DHCP Relay hop-count-increment : 0' in output
 
 
@@ -71,7 +71,7 @@ def dhcp_relay_option_82_enable(sw1):
     sw1("dhcp-relay option 82 replace")
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump", shell="bash")
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump", shell="bash")
     assert 'DHCP Relay Option82 : 1' in output
 
 
@@ -81,7 +81,7 @@ def dhcp_relay_option_82_disable(sw1):
     sw1("no dhcp-relay option 82")
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump", shell="bash")
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump", shell="bash")
     assert 'DHCP Relay Option82 : 0' in output
 
 
@@ -91,7 +91,7 @@ def dhcp_relay_option_82_validation_enable(sw1):
     sw1("dhcp-relay option 82 validate")
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump", shell="bash")
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump", shell="bash")
     assert 'DHCP Relay Option82 validate : 1' in output
 
 
@@ -101,7 +101,7 @@ def dhcp_relay_option_82_validation_disable(sw1):
     sw1("no dhcp-relay option 82 validate")
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump", shell="bash")
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump", shell="bash")
     assert 'DHCP Relay Option82 validate : 0' in output
 
 
@@ -111,7 +111,7 @@ def dhcp_relay_option_82_drop_policy_enable(sw1):
     sw1("dhcp-relay option 82 drop")
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump", shell="bash")
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump", shell="bash")
     assert 'DHCP Relay Option82 policy : drop' in output
 
 
@@ -121,7 +121,7 @@ def dhcp_relay_option_82_drop_policy_disable(sw1):
     sw1("no dhcp-relay option 82")
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump", shell="bash")
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump", shell="bash")
     assert 'DHCP Relay Option82 policy : drop' not in output
 
 
@@ -131,7 +131,7 @@ def dhcp_relay_option_82_keep_policy_enable(sw1):
     sw1("dhcp-relay option 82 keep")
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump", shell="bash")
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump", shell="bash")
     assert 'DHCP Relay Option82 policy : keep' in output
 
 
@@ -141,7 +141,7 @@ def dhcp_relay_option_82_replace_policy_enable(sw1):
     sw1("dhcp-relay option 82 replace")
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump", shell="bash")
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump", shell="bash")
     assert 'DHCP Relay Option82 policy : replace' in output
 
 
@@ -151,7 +151,7 @@ def dhcp_relay_option_82_keep_policy_disable(sw1):
     sw1("no dhcp-relay option 82")
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump", shell="bash")
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump", shell="bash")
     assert 'DHCP Relay Option82 policy : keep' not in output
 
 
@@ -163,7 +163,7 @@ def dhcp_relay_option_82_status_when_relay_disabled(sw1):
     sw1("no dhcp-relay")
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump", shell="bash")
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump", shell="bash")
     assert 'DHCP Relay Option82 : 0' in output
 
 
@@ -173,7 +173,7 @@ def helper_address_configuration_per_interface(sw1):
     sw1("ip helper-address 192.168.10.1")
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 1",
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 1",
                  shell="bash")
     assert '192.168.10.1' and \
         'client request dropped packets = 0' and \
@@ -207,7 +207,7 @@ def maximum_helper_address_configuration_per_interface(sw1):
 
     sw1("end")
 
-    ret_buffer = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 2",
+    ret_buffer = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 2",
                      shell="bash")
     assert '192.168.10.1' in ret_buffer and '192.168.10.2' in ret_buffer \
         and '192.168.10.3' in ret_buffer and '192.168.10.4' in ret_buffer \
@@ -244,7 +244,7 @@ def same_helper_address_on_multiple_interface(sw1):
 
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 5",
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 5",
                  shell="bash")
     lines = output.split('\n')
     for line in lines:
@@ -274,7 +274,7 @@ def configure_bootp_gateway_address(sw1):
     sw1("ip bootp-gateway 9.0.0.1")
     sw1("end")
 
-    ret_buffer = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 1",
+    ret_buffer = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 1",
                      shell="bash")
     assert '9.0.0.1' in ret_buffer
 
@@ -286,7 +286,7 @@ def configure_bootp_gateway_address(sw1):
     sw1("end")
 
     # After unconfiguring also check value in daemon
-    ret_buffer = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 1",
+    ret_buffer = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 1",
                      shell="bash")
     assert '9.0.0.1' not in ret_buffer
 
@@ -409,7 +409,7 @@ def add_helper_addresses(sw1):
 
     # Check output
     count = 0
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump", shell="bash")
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump", shell="bash")
     lines = output.split('\n')
     for line in lines:
         if 'Interface ' in line:
@@ -520,55 +520,55 @@ def delete_helper_addresses(sw1):
 
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 11",
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 11",
                  shell="bash")
     assert 'No servers are configured on this interface :11' in output
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 12",
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 12",
                  shell="bash")
     assert 'No servers are configured on this interface :12' in output
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 13",
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 13",
                  shell="bash")
     assert 'No servers are configured on this interface :13' in output
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 14",
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 14",
                  shell="bash")
     assert 'No servers are configured on this interface :14' in output
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 15",
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 15",
                  shell="bash")
     assert 'No servers are configured on this interface :15' in output
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 16",
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 16",
                  shell="bash")
     assert 'No servers are configured on this interface :16' in output
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 17",
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 17",
                  shell="bash")
     assert 'No servers are configured on this interface :17' in output
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 18",
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 18",
                  shell="bash")
     assert 'No servers are configured on this interface :18' in output
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 19",
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 19",
                  shell="bash")
     assert 'No servers are configured on this interface :19' in output
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 20",
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 20",
                  shell="bash")
     assert 'No servers are configured on this interface :20' in output
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 21",
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 21",
                  shell="bash")
     assert 'No servers are configured on this interface :21' in output
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 22",
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 22",
                  shell="bash")
     assert 'No servers are configured on this interface :22' in output
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump interface 23",
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump interface 23",
                  shell="bash")
     assert 'No servers are configured on this interface :23' in output
 

@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-# (C) Copyright 2015 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2016 Hewlett Packard Enterprise Development LP
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -103,16 +102,6 @@ def settraceroutehostipoptionstest(dut01):
     assert 'localhost' in cmdout
 
 
-def settracerouteipvrftest(dut01):
-    cmdout = dut01("traceroute 1.1.1.1 vrf test")
-    assert '% Unknown command.' not in cmdout
-
-
-def settraceroutehostvrftest(dut01):
-    cmdout = dut01("traceroute localhost vrf test")
-    assert '% Unknown command.' not in cmdout
-
-
 def settraceroute6iptest(dut01):
     cmdout = dut01("traceroute6 0:0::0:1")
     assert '0:0::0:1' in cmdout
@@ -163,16 +152,6 @@ def settraceroute6hostdstporttest(dut01):
     assert 'localhost' in cmdout
 
 
-def settraceroute6ipvrftest(dut01):
-    cmdout = dut01("traceroute6 0:0::0:1 vrf test")
-    assert '% Unknown command.' not in cmdout
-
-
-def settraceroute6hostvrftest(dut01):
-    cmdout = dut01("traceroute6 localhost vrf test")
-    assert '% Unknown command.' not in cmdout
-
-
 def test_vtysh_ct_traceroute(topology, step):
     dut01obj = topology.get("ops1")
     assert dut01obj is not None
@@ -205,10 +184,6 @@ def test_vtysh_ct_traceroute(topology, step):
 
     settraceroutehostipoptionstest(dut01obj)
 
-    settracerouteipvrftest(dut01obj)
-
-    settraceroutehostvrftest(dut01obj)
-
     settraceroute6iptest(dut01obj)
 
     settraceroute6hosttest(dut01obj)
@@ -228,7 +203,3 @@ def test_vtysh_ct_traceroute(topology, step):
     settraceroute6ipprobestest(dut01obj)
 
     settraceroute6hostprobestest(dut01obj)
-
-    settraceroute6ipvrftest(dut01obj)
-
-    settraceroute6hostvrftest(dut01obj)

@@ -11,6 +11,8 @@
 #  License for the specific language governing permissions and limitations
 #  under the License.
 
+from pytest import mark
+
 TOPOLOGY = """
 #
 #  +-------+
@@ -315,6 +317,7 @@ def traceroute6_failure_cases(sw3):
     assert 'Unknown command' in out
 
 
+@mark.gate
 def test_traceroute(topology, step):
     sw1 = topology.get('sw1')
     sw2 = topology.get('sw2')
