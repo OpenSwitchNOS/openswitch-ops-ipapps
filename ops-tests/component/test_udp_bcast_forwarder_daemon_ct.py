@@ -33,7 +33,7 @@ def udp_bcast_forwarder_enable(sw1):
     sw1(cmd)
     sw1("end")
 
-    out = "ovs-appctl -t ops-relay udpfwd/dump"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump"
     output = sw1(out, shell="bash")
     assert 'UDP Bcast Forwarder : 1' in output
     return True
@@ -45,7 +45,7 @@ def udp_bcast_forwarder_disable(sw1):
     sw1(cmd)
     sw1("end")
 
-    output = sw1("ovs-appctl -t ops-relay udpfwd/dump", shell="bash")
+    output = sw1("ovs-appctl -t ops-udpfwd udpfwd/dump", shell="bash")
     assert 'UDP Bcast Forwarder : 0' in output
     return True
 
@@ -57,7 +57,7 @@ def udp_forward_protocol_test01(sw1):
     sw1(cmd)
     sw1("end")
 
-    out = "ovs-appctl -t ops-relay udpfwd/dump interface 1"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 1"
     output = sw1(out, shell="bash")
     assert '1.1.1.1' in output
     return True
@@ -71,7 +71,7 @@ def udp_forward_protocol_unconfigure(sw1):
     sw1(cmd)
     sw1("end")
 
-    out = "ovs-appctl -t ops-relay udpfwd/dump interface 20"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 20"
     output = sw1(out, shell="bash")
     assert '1.1.1.1' in output
 
@@ -82,7 +82,7 @@ def udp_forward_protocol_unconfigure(sw1):
     sw1(cmd)
     sw1("end")
 
-    out = "ovs-appctl -t ops-relay udpfwd/dump interface 20"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 20"
     output = sw1(out, shell="bash")
     assert '1.1.1.1' not in output
     return True
@@ -101,7 +101,7 @@ def udp_forward_protocol_test02(sw1):
     sw1(cmd3)
     sw1("end")
 
-    out = "ovs-appctl -t ops-relay udpfwd/dump interface 2"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 2"
     ret_buffer = sw1(out, shell="bash")
     assert '1.1.1.2' in ret_buffer and '53' in ret_buffer \
         and '69' in ret_buffer and '137' in ret_buffer
@@ -121,7 +121,7 @@ def udp_forward_protocol_test03(sw1):
     sw1(cmd3)
     sw1("end")
 
-    out = "ovs-appctl -t ops-relay udpfwd/dump interface 3"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 3"
     ret_buffer = sw1(out, shell="bash")
     assert '123' in ret_buffer and '1.1.1.3' in ret_buffer \
         and '1.1.1.4' in ret_buffer and '1.1.1.5' in ret_buffer
@@ -137,7 +137,7 @@ def udp_forward_protocol_test04(sw1):
     sw1(cmd1)
     sw1("end")
 
-    out = "ovs-appctl -t ops-relay udpfwd/dump interface 4"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 4"
     ret_buffer = sw1(out, shell="bash")
     assert '161' in ret_buffer and '1.1.1.255' in ret_buffer
     return True
@@ -153,7 +153,7 @@ def udp_forward_protocol_test05(sw1):
     sw1(cmd2)
     sw1("end")
 
-    out = "ovs-appctl -t ops-relay udpfwd/dump interface 5"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 5"
     ret_buffer = sw1(out, shell="bash")
     assert '161' in ret_buffer and '2.2.2.255' in ret_buffer
     return True
@@ -174,15 +174,15 @@ def udp_forward_protocol_test06(sw1):
     sw1(cmd2)
     sw1("end")
 
-    out = "ovs-appctl -t ops-relay udpfwd/dump interface 6"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 6"
     ret_buffer = sw1(out, shell="bash")
     assert '53' in ret_buffer and '6.6.6.6' in ret_buffer
 
-    out = "ovs-appctl -t ops-relay udpfwd/dump interface 7"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 7"
     ret_buffer = sw1(out, shell="bash")
     assert '53' in ret_buffer and '6.6.6.6' in ret_buffer
 
-    out = "ovs-appctl -t ops-relay udpfwd/dump interface 8"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 8"
     ret_buffer = sw1(out, shell="bash")
     assert '53' in ret_buffer and '6.6.6.6' in ret_buffer
     return True
@@ -215,7 +215,7 @@ def udp_forward_protocol_max_per_interface(sw1):
 
     sw1("end")
 
-    out = "ovs-appctl -t ops-relay udpfwd/dump interface 9"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 9"
     ret_buffer = sw1(out, shell="bash")
     assert '5.5.5.1' in ret_buffer and '5.5.5.2' in ret_buffer \
            and '5.5.5.3' in ret_buffer and '5.5.5.4' in ret_buffer \
@@ -238,7 +238,7 @@ def udp_forward_protocol_server_entry01(sw1):
     sw1(cmd)
     sw1("end")
 
-    out = "ovs-appctl -t ops-relay udpfwd/dump interface 11"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 11"
     output = sw1(out, shell="bash")
     assert 'Interface 11: 3' in output
     return True
@@ -270,7 +270,7 @@ def udp_forward_protocol_server_entry02(sw1):
 
     # Check output
     count = 0
-    out = "ovs-appctl -t ops-relay udpfwd/dump interface 12"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 12"
     output = sw1(out, shell="bash")
     lines = output.split('\n')
     for line in lines:
@@ -303,7 +303,7 @@ def udp_forward_protocol_server_entry03(sw1):
     sw1(cmd)
     sw1("end")
 
-    out = "ovs-appctl -t ops-relay udpfwd/dump interface 13"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 13"
     output = sw1(out, shell="bash")
     assert 'Interface 13: 4' in output \
            and 'Port 67 - 12.1.1.1' in output \
@@ -322,7 +322,7 @@ def udp_forward_protocol_reboot(sw1):
     sw1("end")
 
     # Before Reboot.
-    out = "ovs-appctl -t ops-relay udpfwd/dump interface 10"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 10"
     ret_buffer = sw1(out, shell="bash")
     assert '10.10.10.10' in ret_buffer
 
@@ -330,7 +330,7 @@ def udp_forward_protocol_reboot(sw1):
     sleep(30)
 
     # Post reboot
-    out = "ovs-appctl -t ops-relay udpfwd/dump interface 10"
+    out = "ovs-appctl -t ops-udpfwd udpfwd/dump interface 10"
     ret_buffer = sw1(out, shell="bash")
     assert '10.10.10.10' in ret_buffer
     return True
