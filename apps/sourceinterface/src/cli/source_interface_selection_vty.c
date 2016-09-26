@@ -210,6 +210,10 @@ show_source_interface_selection(SOURCE_INTERFACE_PROTOCOL type)
         /* To display the source interface details for all the protocols */
         print_proto_source(TFTP_PROTOCOL, DEFAULT_VRF_NAME,
                        &common_proto_source);
+        print_proto_source(TACACS_PROTOCOL, DEFAULT_VRF_NAME,
+                       &common_proto_source);
+        print_proto_source(RADIUS_PROTOCOL, DEFAULT_VRF_NAME,
+                       &common_proto_source);
     }
 
     return CMD_SUCCESS;
@@ -628,6 +632,14 @@ reset_source_interface(const char *source,
         error_message = "TFTP Source interface is not configured.";
         break;
 
+    case TACACS_PROTOCOL:
+        error_message = "TACACS Source interface is not configured.";
+        break;
+
+    case RADIUS_PROTOCOL:
+        error_message = "RADIUS Source interface is not configured.";
+        break;
+
     default :
         cli_do_config_abort(status_txn);
         vty_out(vty, "Spefied type is unknown protocol.%s", VTY_NEWLINE);
@@ -676,17 +688,23 @@ reset_source_interface(const char *source,
 -----------------------------------------------------------------------------*/
 DEFUN(ip_source_interface,
       ip_source_interface_cmd,
-      "ip source-interface (tftp | all) interface IFNAME ",
+      "ip source-interface (tftp | tacacs | radius | all) interface IFNAME ",
       IP_STR
       SOURCE_STRING
       TFTP_STRING
+      TACACS_STRING
+      RADIUS_STRING
       ALL_STRING
       INTERFACE_STR
       IFNAME_STR)
 {
-    if (strcmp(TFTP, (char*)argv[0]) == 0) {
+    if (strncmp((char*)argv[0], TFTP, strlen ((char*)argv[0])) == 0) {
         return set_source_interface(argv[1], TFTP_PROTOCOL);
-    } else if (strcmp(ALL, (char*)argv[0]) == 0){
+    } else if (strncmp((char*)argv[0], TACACS, strlen ((char*)argv[0])) == 0) {
+        return set_source_interface(argv[1], TACACS_PROTOCOL);
+    } else if (strncmp((char*)argv[0], RADIUS, strlen ((char*)argv[0])) == 0) {
+        return set_source_interface(argv[1], RADIUS_PROTOCOL);
+    } else if (strncmp((char*)argv[0], ALL, strlen ((char*)argv[0])) == 0) {
         return set_source_interface(argv[1], ALL_PROTOCOL);
     }
     return CMD_SUCCESS;
@@ -698,10 +716,12 @@ DEFUN(ip_source_interface,
 -----------------------------------------------------------------------------*/
 DEFUN(ip_source_address,
       ip_source_address_cmd,
-      "ip source-interface (tftp | all) A.B.C.D",
+      "ip source-interface (tftp | tacacs | radius | all) A.B.C.D",
       IP_STR
       SOURCE_STRING
       TFTP_STRING
+      TACACS_STRING
+      RADIUS_STRING
       ALL_STRING
       ADDRESS_STRING)
 {
@@ -720,11 +740,16 @@ DEFUN(ip_source_address,
         return CMD_SUCCESS;
     }
 
-    if (strcmp(TFTP, (char*)argv[0]) == 0) {
+    if (strncmp((char*)argv[0], TFTP, strlen ((char*)argv[0])) == 0) {
         return set_source_ip(argv[1], TFTP_PROTOCOL);
-    } else if (strcmp(ALL, (char*)argv[0]) == 0) {
+    } else if (strncmp((char*)argv[0], TACACS, strlen ((char*)argv[0])) == 0) {
+        return set_source_ip(argv[1], TACACS_PROTOCOL);
+    } else if (strncmp((char*)argv[0], RADIUS, strlen ((char*)argv[0])) == 0) {
+        return set_source_ip(argv[1], RADIUS_PROTOCOL);
+    } else if (strncmp((char*)argv[0], ALL, strlen ((char*)argv[0])) == 0) {
         return set_source_ip(argv[1], ALL_PROTOCOL);
     }
+
     return CMD_SUCCESS;
 }
 
@@ -734,16 +759,22 @@ DEFUN(ip_source_address,
 -----------------------------------------------------------------------------*/
 DEFUN(no_ip_source_interface,
       no_ip_source_interface_cmd,
-      "no ip source-interface (tftp | all) ",
+      "no ip source-interface (tftp | tacacs | radius | all) ",
       NO_STR
       IP_STR
       SOURCE_STRING
       TFTP_STRING
+      TACACS_STRING
+      RADIUS_STRING
       ALL_STRING)
 {
-    if (strcmp(TFTP, (char*)argv[0]) == 0) {
+    if (strncmp((char*)argv[0], TFTP, strlen ((char*)argv[0])) == 0) {
         return reset_source_interface(NULL, TFTP_PROTOCOL);
-    } else if (strcmp(ALL, (char*)argv[0]) == 0) {
+    } else if (strncmp((char*)argv[0], TACACS, strlen ((char*)argv[0])) == 0) {
+        return reset_source_interface(NULL, TACACS_PROTOCOL);
+    } else if (strncmp((char*)argv[0], RADIUS, strlen ((char*)argv[0])) == 0) {
+        return reset_source_interface(NULL, RADIUS_PROTOCOL);
+    } else if (strncmp((char*)argv[0], ALL, strlen ((char*)argv[0])) == 0) {
         return reset_source_interface(NULL, ALL_PROTOCOL);
     }
     return CMD_SUCCESS;
@@ -754,17 +785,22 @@ DEFUN(no_ip_source_interface,
 -----------------------------------------------------------------------------*/
 DEFUN(show_source_interface,
       show_source_interface_cmd,
-      "show ip source-interface {tftp} ",
+      "show ip source-interface {tftp | tacacs | radius} ",
       SHOW_STR
       IP_STR
       SOURCE_STRING
-      TFTP_STRING)
+      TFTP_STRING
+      TACACS_STRING
+      RADIUS_STRING)
 {
     if (argv[0])
     {
-        if (strcmp(TFTP, (char*)argv[0]) == 0)
-        {
+        if (strncmp((char*)argv[0], TFTP, strlen ((char*)argv[0])) == 0) {
             return show_source_interface_selection(TFTP_PROTOCOL);
+        } else if (strncmp((char*)argv[0], TACACS, strlen ((char*)argv[0])) == 0) {
+            return show_source_interface_selection(TACACS_PROTOCOL);
+        } else if (strncmp((char*)argv[0], RADIUS, strlen ((char*)argv[0])) == 0) {
+            return show_source_interface_selection(RADIUS_PROTOCOL);
         }
     }
     return show_source_interface_selection(ALL_PROTOCOL);
