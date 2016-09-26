@@ -28,19 +28,13 @@
 #ifndef _SOURCE_INTERFACE_SELECTION_VTY_H
 #define _SOURCE_INTERFACE_SELECTION_VTY_H
 
-#define TFTP                        "tftp"
-#define ALL                         "all"
-
-#define SOURCE_STRING               "Specify source-interface utility\n"
+#define SOURCE_INTERFACE_STRING     "Specify source-interface utility\n"
 #define ADDRESS_STRING              "Specify an IP address\n"
 #define TFTP_STRING                 "TFTP protocol\n"
+#define TACACS_STRING               "TACACS protocol\n"
+#define RADIUS_STRING               "RADIUS protocol\n"
 #define ALL_STRING                  "All the defined protocols\n"
 
-/* FIXME: Will be removed once the macros got merged into openswitch-idl.h */
-#define VRF_SOURCE_IP_MAP_ALL               "all"
-#define VRF_SOURCE_INTERFACE_MAP_ALL        "all"
-#define VRF_SOURCE_IP_MAP_TFTP              "tftp"
-#define VRF_SOURCE_INTERFACE_MAP_TFTP       "tftp"
 
 /* Defining the type of configuration */
 typedef enum {
@@ -58,6 +52,8 @@ typedef struct protoSource_t {
 /* Defining the type of Source interface protocols passing through the cli */
 typedef enum {
     TFTP_PROTOCOL,
+    TACACS_PROTOCOL,
+    RADIUS_PROTOCOL,
     ALL_PROTOCOL,
     PROTOCOL_MAX
 }SOURCE_INTERFACE_PROTOCOL;
@@ -65,6 +61,8 @@ typedef enum {
 /* source-interface protocol keys */
 static char *protocol_keys[PROTOCOL_MAX] = {
     VRF_SOURCE_INTERFACE_MAP_TFTP,
+    VRF_SOURCE_INTERFACE_MAP_TACACS,
+    VRF_SOURCE_INTERFACE_MAP_RADIUS,
     VRF_SOURCE_INTERFACE_MAP_ALL
 };
 
